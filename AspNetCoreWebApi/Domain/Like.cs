@@ -5,10 +5,13 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace AspNetCoreWebApi.Domain
 {
 
-    class Like
+    public class Like
     {
         [Key]
         public int Id { get; set; }
+
+        [Required]
+        public int LikeeId { get; set; }
 
         [Required]
         public int LikerId { get; set; }

@@ -4,7 +4,7 @@ using AspNetCoreWebApi.Domain;
 
 namespace AspNetCoreWebApi.Storage
 {
-    class CountryStorage : StringStorage
+    public class CountryStorage : StringStorage
     {
         public CountryStorage()
         {

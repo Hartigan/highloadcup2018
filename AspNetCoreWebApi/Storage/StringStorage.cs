@@ -4,7 +4,7 @@ using AspNetCoreWebApi.Domain;
 
 namespace AspNetCoreWebApi.Storage
 {
-    class StringStorage
+    public class StringStorage
     {
         private IdGenerator _idGenerator = new IdGenerator();
         private SortedDictionary<int, string> _id2str = new SortedDictionary<int, string>();

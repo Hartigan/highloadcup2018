@@ -28,10 +28,20 @@ namespace AspNetCoreWebApi
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Latest);
+
             services.AddSingleton<CityStorage>();
             services.AddSingleton<InterestStorage>();
             services.AddSingleton<CountryStorage>();
-            services.AddDbContext<AccountContext>();
+
+            services.AddSingleton<IdHashStorage>();
+            services.AddSingleton<PhoneHashStorage>();
+            services.AddSingleton<EmailHashStorage>();
+
+            services.AddSingleton<AccountParser>();
+            services.AddSingleton<NewAccountProcessor>();
+            services.AddSingleton<MessageProcessor>();
+
+            services.AddDbContextPool<AccountContext>(options => { });
             services.AddScoped<DataLoader>();
 
         }
@@ -48,6 +58,7 @@ namespace AspNetCoreWebApi
                 app.UseHsts();
             }
 
+            app.UseResponseBuffering();
             app.UseMvc();
         }
     }

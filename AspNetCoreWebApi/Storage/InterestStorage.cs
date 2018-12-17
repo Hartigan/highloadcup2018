@@ -4,7 +4,7 @@ using AspNetCoreWebApi.Domain;
 
 namespace AspNetCoreWebApi.Storage
 {
-    class InterestStorage : StringStorage
+    public class InterestStorage : StringStorage
     {
     }
 }

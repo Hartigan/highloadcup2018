@@ -6,7 +6,7 @@ using System.Linq;
 
 namespace AspNetCoreWebApi.Domain
 {
-    class Account
+    public class Account
     {
         [Key]
         public int Id { get; set; }
@@ -35,7 +35,6 @@ namespace AspNetCoreWebApi.Domain
         public Status Status { get; set; }
 
         public ICollection<Interest> Interests { get; set; } = new List<Interest>();
-        public ICollection<Like> Likes {get;set;} = new List<Like>();
 
         [Column(TypeName = "datetime")]
         public DateTimeOffset? PremiumStart { get; set; }

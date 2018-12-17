@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 namespace AspNetCoreWebApi.Domain
 {
 
-    class Interest
+    public class Interest
     {
         [Key]
         public int Id { get; set; }
