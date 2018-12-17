@@ -1,38 +1,49 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 
 namespace AspNetCoreWebApi.Domain
 {
     class Account
     {
-        // unique
+        [Key]
         public int Id { get; set; }
 
-        // unique, 100
+        [Required]
+        [MaxLength(100)]
+        [Column(TypeName = "nvarchar(100)")]
         public String Email { get; set; }
 
-        // optional, 50
+        [MaxLength(50)]
+        [Column(TypeName = "nvarchar(50)")]
         public String FirstName { get; set; }
+        [MaxLength(50)]
+        [Column(TypeName = "nvarchar(50)")]
         public String LastName { get; set; }
 
-        // optional, unique, 16
+        [MaxLength(16)]
+        [Column(TypeName = "nvarchar(16)")]
         public String Phone { get; set; }
 
         public bool Sex { get; set; }
 
-        public long Birth { get; set; }
-
-        public Country Country { get; set; }
-        public City City { get; set; }
-
-        public long Joined { get; set; }
+        public int? CountryId { get; set; }
+        public int? CityId { get; set; }
 
         public Status Status { get; set; }
 
-        public IList<Interest> Interests { get; } = new List<Interest>();
+        public ICollection<Interest> Interests { get; set; } = new List<Interest>();
+        public ICollection<Like> Likes {get;set;} = new List<Like>();
 
-        public long PremiumStart { get; set; }
-        public long PremiumEnd { get; set; }
+        [Column(TypeName = "datetime")]
+        public DateTimeOffset? PremiumStart { get; set; }
+        [Column(TypeName = "datetime")]
+        public DateTimeOffset? PremiumEnd { get; set; }
+        [Column(TypeName = "datetime")]
+        public DateTimeOffset Joined { get; set; }
+        [Column(TypeName = "datetime")]
+        public DateTimeOffset Birth { get; set; }
     }
 }
