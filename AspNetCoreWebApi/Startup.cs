@@ -33,12 +33,13 @@ namespace AspNetCoreWebApi
             services.AddSingleton<InterestStorage>();
             services.AddSingleton<CountryStorage>();
 
-            services.AddSingleton<IdHashStorage>();
+            services.AddSingleton<IdStorage>();
             services.AddSingleton<PhoneHashStorage>();
             services.AddSingleton<EmailHashStorage>();
 
             services.AddSingleton<AccountParser>();
             services.AddSingleton<NewAccountProcessor>();
+            services.AddSingleton<EditAccountProcessor>();
             services.AddSingleton<MessageProcessor>();
 
             services.AddDbContextPool<AccountContext>(options => { });

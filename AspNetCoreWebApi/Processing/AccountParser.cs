@@ -12,7 +12,7 @@ namespace AspNetCoreWebApi.Processing
         private readonly CityStorage _cityStorage;
         private readonly InterestStorage _interestStorage;
         private readonly CountryStorage _countryStorage;
-        private readonly IdHashStorage _idHashStorage;
+        private readonly IdStorage _idStorage;
         private readonly EmailHashStorage _emailHashStorage;
         private readonly PhoneHashStorage _phoneHashStorage;
 
@@ -20,14 +20,14 @@ namespace AspNetCoreWebApi.Processing
             CityStorage cityStorage,
             InterestStorage interestStorage,
             CountryStorage countryStorage,
-            IdHashStorage idHashStorage,
+            IdStorage idStorage,
             EmailHashStorage emailHashStorage,
             PhoneHashStorage phoneHashStorage)
         {
             _cityStorage = cityStorage;
             _interestStorage = interestStorage;
             _countryStorage = countryStorage;
-            _idHashStorage = idHashStorage;
+            _idStorage = idStorage;
             _emailHashStorage = emailHashStorage;
             _phoneHashStorage = phoneHashStorage;
         }
@@ -35,23 +35,23 @@ namespace AspNetCoreWebApi.Processing
         public Tuple<Account, IEnumerable<Like>> Parse(AccountDto dto)
         {
             Account result = new Account();
-            result.Id = dto.Id;
-            _idHashStorage.Add(result.Id);
+            result.Id = dto.Id.Value;
+            _idStorage.Add(result.Id);
 
             result.Email = dto.Email;
-            _emailHashStorage.Add(result.Email);
+            _emailHashStorage.Add(result.Email, result.Id);
 
             result.Phone = dto.Phone;
             if (result.Phone != null)
             {
-                _phoneHashStorage.Add(result.Phone);
+                _phoneHashStorage.Add(result.Phone, result.Id);
             }
 
             result.FirstName = dto.FirstName;
             result.LastName = dto.Surname;
 
-            result.Birth = DateTimeOffset.FromUnixTimeSeconds(dto.Birth);
-            result.Joined = DateTimeOffset.FromUnixTimeSeconds(dto.Joined);
+            result.Birth = DateTimeOffset.FromUnixTimeSeconds(dto.Birth.Value);
+            result.Joined = DateTimeOffset.FromUnixTimeSeconds(dto.Joined.Value);
 
             Status status = StatusHelper.Parse(dto.Status);
             result.Status = status;
@@ -80,16 +80,16 @@ namespace AspNetCoreWebApi.Processing
             {
                 likes = dto.Likes.Select(x => new Like() 
                     { 
-                        LikeeId = dto.Id,
-                        LikerId = x.Id, 
-                        Timestamp = DateTimeOffset.FromUnixTimeSeconds(x.Timestamp)
+                        LikeeId = dto.Id.Value,
+                        LikerId = x.Id.Value, 
+                        Timestamp = DateTimeOffset.FromUnixTimeSeconds(x.Timestamp.Value)
                     }).ToList();
             }
 
             if (dto.Premium != null)
             {
-                result.PremiumStart = DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Start);
-                result.PremiumEnd = DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Finish);
+                result.PremiumStart = DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Start.Value);
+                result.PremiumEnd = DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Finish.Value);
             }
 
             return new Tuple<Account, IEnumerable<Like>>(result, likes);

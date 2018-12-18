@@ -8,7 +8,7 @@ namespace AspNetCoreWebApi.Domain.Dto
     public class AccountDto
     {
         [JsonProperty("id")]
-        public int Id { get; set; }
+        public int? Id { get; set; }
 
         [JsonProperty("email")]
         public string Email { get; set; }
@@ -23,7 +23,7 @@ namespace AspNetCoreWebApi.Domain.Dto
         public string Phone { get; set; }
 
         [JsonProperty("birth")]
-        public int Birth { get; set; }
+        public int? Birth { get; set; }
 
         [JsonProperty("country")]
         public string Country { get; set; }
@@ -32,7 +32,7 @@ namespace AspNetCoreWebApi.Domain.Dto
         public string City { get; set; }
 
         [JsonProperty("joined")]
-        public int Joined { get; set; }
+        public int? Joined { get; set; }
 
         [JsonProperty("status")]
         public string Status { get; set; }
@@ -51,19 +51,19 @@ namespace AspNetCoreWebApi.Domain.Dto
     public class PremiumDto
     {
         [JsonProperty("start")]
-        public int Start { get; set; }
+        public int? Start { get; set; }
 
         [JsonProperty("finish")]
-        public int Finish { get; set; }
+        public int? Finish { get; set; }
     }
 
     [JsonObject(MemberSerialization.OptIn)]
     public class LikeDto
     {
         [JsonProperty("id")]
-        public int Id { get; set; }
+        public int? Id { get; set; }
 
         [JsonProperty("ts")]
-        public int Timestamp { get; set; }
+        public int? Timestamp { get; set; }
     }
 }

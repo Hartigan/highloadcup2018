@@ -27,6 +27,8 @@ namespace AspNetCoreWebApi
                 loader.Run("../data/data/data.zip").Wait();
             }
 
+            var messageProcessor = host.Services.GetRequiredService<MessageProcessor>();
+
             host.Run();
         }
 

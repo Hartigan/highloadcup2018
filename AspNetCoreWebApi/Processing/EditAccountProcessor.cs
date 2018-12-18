@@ -17,15 +17,15 @@ using System.Threading.Tasks;
 
 namespace AspNetCoreWebApi.Processing
 {
-    public class NewAccountProcessor
+    public class EditAccountProcessor
     {
         private readonly IdStorage _idStorage;
         private readonly EmailHashStorage _emailHashStorage;
         private readonly PhoneHashStorage _phoneHashStorage;
         private readonly AccountParser _accountParser;
-        private Subject<Tuple<Account, IEnumerable<Like>>> _dataReceived = new Subject<Tuple<Account, IEnumerable<Like>>>();
+        private Subject<Tuple<int, AccountDto>> _dataReceived = new Subject<Tuple<int, AccountDto>>();
 
-        public NewAccountProcessor(
+        public EditAccountProcessor(
             IdStorage idStorage,
             EmailHashStorage emailHashStorage,
             PhoneHashStorage phoneHashStorage,
@@ -37,9 +37,9 @@ namespace AspNetCoreWebApi.Processing
             _accountParser = accountParser;
         }
 
-        public IObservable<Tuple<Account, IEnumerable<Like>>> DataReceived => _dataReceived;
+        public IObservable<Tuple<int, AccountDto>> DataReceived => _dataReceived;
 
-        public bool Process(Stream body)
+        public bool Process(Stream body, int id)
         {
             AccountDto dto = null;
             try
@@ -51,7 +51,7 @@ namespace AspNetCoreWebApi.Processing
                     dto = (AccountDto)serializer.Deserialize(jsonTextReader, typeof(AccountDto));
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 return false;
             }
@@ -61,33 +61,31 @@ namespace AspNetCoreWebApi.Processing
                 return false;
             }
 
-            _dataReceived.OnNext(_accountParser.Parse(dto));
+            UpdateHashes(dto, id);
+
+            _dataReceived.OnNext(new Tuple<int, AccountDto>(id, dto));
             return true;
+        }
+
+        private void UpdateHashes(AccountDto dto, int id)
+        {
+            if (dto.Email != null)
+            {
+                _emailHashStorage.RemoveById(id);
+                _emailHashStorage.Add(dto.Email, id);
+            }
+
+            if (dto.Phone != null)
+            {
+                _phoneHashStorage.RemoveById(id);
+                _phoneHashStorage.Add(dto.Phone, id);
+            }
+
         }
 
         private bool Validate(AccountDto dto)
         {
-            if (!dto.Id.HasValue || _idStorage.Contains(dto.Id.Value))
-            {
-                return false;
-            }
-
-            if (!dto.Birth.HasValue)
-            {
-                return false;
-            }
-
-            if (!dto.Joined.HasValue)
-            {
-                return false;
-            }
-
-            if (dto.Premium != null && (!dto.Premium.Finish.HasValue || !dto.Premium.Start.HasValue))
-            {
-                return false;
-            }
-
-            if (_emailHashStorage.ContainsString(dto.Email))
+            if (dto.Email != null && _emailHashStorage.ContainsString(dto.Email))
             {
                 return false;
             }
@@ -95,19 +93,6 @@ namespace AspNetCoreWebApi.Processing
             if (dto.Phone != null && _phoneHashStorage.ContainsString(dto.Phone))
             {
                 return false;
-            }
-
-            if (dto.Likes != null)
-            {
-                foreach (var like in dto.Likes)
-                {
-                    if (!like.Id.HasValue ||
-                        !like.Timestamp.HasValue ||
-                        !_idStorage.Contains(like.Id.Value))
-                    {
-                        return false;
-                    }
-                }
             }
 
             return true;
