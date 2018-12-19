@@ -51,19 +51,39 @@ namespace AspNetCoreWebApi.Domain.Dto
     public class PremiumDto
     {
         [JsonProperty("start")]
-        public int? Start { get; set; }
+        public int Start { get; set; }
 
         [JsonProperty("finish")]
-        public int? Finish { get; set; }
+        public int Finish { get; set; }
     }
 
     [JsonObject(MemberSerialization.OptIn)]
     public class LikeDto
     {
         [JsonProperty("id")]
-        public int? Id { get; set; }
+        public int Id { get; set; }
 
         [JsonProperty("ts")]
-        public int? Timestamp { get; set; }
+        public int Timestamp { get; set; }
+    }
+
+    [JsonObject(MemberSerialization.OptIn)]
+    public class SingleLikeDto
+    {
+        [JsonProperty("likee")]
+        public int LikeeId { get; set; }
+
+        [JsonProperty("liker")]
+        public int LikerId { get; set; }
+
+        [JsonProperty("ts")]
+        public int Timestamp { get; set; }
+    }
+
+    [JsonObject(MemberSerialization.OptIn)]
+    public class LikesDto
+    {
+        [JsonProperty("likes")]
+        public List<SingleLikeDto> Likes { get; set; }
     }
 }

@@ -48,6 +48,7 @@ namespace AspNetCoreWebApi.Processing
                 }
             }
             await Task.WhenAll(tasks);
+            Console.WriteLine("Import finished");
             GC.Collect();
         }
 

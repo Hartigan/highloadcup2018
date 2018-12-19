@@ -14,6 +14,7 @@ namespace AspNetCoreWebApi.Processing
     {
         private readonly IDisposable _newAccountProcessorSubscription;
         private readonly IDisposable _editAccountProcessorSubscription;
+        private readonly IDisposable _newLikesProcessorSubscription;
         private readonly IServiceProvider _serviceProvider;
         private readonly CountryStorage _countryStorage;
         private readonly CityStorage _cityStorage;
@@ -25,7 +26,8 @@ namespace AspNetCoreWebApi.Processing
             CityStorage cityStorage,
             InterestStorage interestStorage,
             NewAccountProcessor newAccountProcessor,
-            EditAccountProcessor editAccountProcessor)
+            EditAccountProcessor editAccountProcessor,
+            NewLikesProcessor newLikesProcessor)
         {
             _serviceProvider = serviceProvider;
             _countryStorage = countryStorage;
@@ -41,6 +43,11 @@ namespace AspNetCoreWebApi.Processing
                 .DataReceived
                 .ObserveOn(ThreadPoolScheduler.Instance)
                 .Subscribe(EditAccount);
+
+            _newLikesProcessorSubscription = newLikesProcessor
+                .DataReceived
+                .ObserveOn(ThreadPoolScheduler.Instance)
+                .Subscribe(NewLikes);
         }
 
         private void EditAccount(Tuple<int, AccountDto> data)
@@ -65,8 +72,8 @@ namespace AspNetCoreWebApi.Processing
                     if (dto.Interests != null) account.Interests = dto.Interests.Select(x => new Interest() { StringId = _interestStorage.Get(x) }).ToList();
                     if (dto.Premium != null)
                     {
-                        account.PremiumStart = DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Start.Value);
-                        account.PremiumEnd = DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Finish.Value);
+                        account.PremiumStart = DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Start);
+                        account.PremiumEnd = DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Finish);
                     }
 
                     context.Accounts.Update(account);
@@ -84,6 +91,19 @@ namespace AspNetCoreWebApi.Processing
                 {
                     context.Accounts.Add(data.Item1);
                     context.Likes.AddRange(data.Item2);
+                    context.SaveChanges();
+                }
+            }
+        }
+
+        private void NewLikes(IEnumerable<Like> data)
+        {
+            using (var scope = _serviceProvider.CreateScope())
+            {
+                var services = scope.ServiceProvider;
+                using (var context = services.GetRequiredService<AccountContext>())
+                {
+                    context.Likes.AddRange(data);
                     context.SaveChanges();
                 }
             }

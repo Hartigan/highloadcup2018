@@ -82,11 +82,6 @@ namespace AspNetCoreWebApi.Processing
                 return false;
             }
 
-            if (dto.Premium != null && (!dto.Premium.Finish.HasValue || !dto.Premium.Start.HasValue))
-            {
-                return false;
-            }
-
             if (_emailHashStorage.ContainsString(dto.Email))
             {
                 return false;
@@ -101,9 +96,7 @@ namespace AspNetCoreWebApi.Processing
             {
                 foreach (var like in dto.Likes)
                 {
-                    if (!like.Id.HasValue ||
-                        !like.Timestamp.HasValue ||
-                        !_idStorage.Contains(like.Id.Value))
+                    if (!_idStorage.Contains(like.Id))
                     {
                         return false;
                     }

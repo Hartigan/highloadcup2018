@@ -81,15 +81,15 @@ namespace AspNetCoreWebApi.Processing
                 likes = dto.Likes.Select(x => new Like() 
                     { 
                         LikeeId = dto.Id.Value,
-                        LikerId = x.Id.Value, 
-                        Timestamp = DateTimeOffset.FromUnixTimeSeconds(x.Timestamp.Value)
+                        LikerId = x.Id, 
+                        Timestamp = DateTimeOffset.FromUnixTimeSeconds(x.Timestamp)
                     }).ToList();
             }
 
             if (dto.Premium != null)
             {
-                result.PremiumStart = DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Start.Value);
-                result.PremiumEnd = DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Finish.Value);
+                result.PremiumStart = DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Start);
+                result.PremiumEnd = DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Finish);
             }
 
             return new Tuple<Account, IEnumerable<Like>>(result, likes);
