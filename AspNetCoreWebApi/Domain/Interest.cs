@@ -8,6 +8,10 @@ namespace AspNetCoreWebApi.Domain
     {
         [Key]
         public int Id { get; set; }
+
+        [Required]
+        public int AccountId { get; set; }
+
         [Required]
         public int StringId { get; set; }
     }

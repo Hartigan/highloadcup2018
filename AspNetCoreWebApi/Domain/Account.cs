@@ -27,14 +27,14 @@ namespace AspNetCoreWebApi.Domain
         [Column(TypeName = "nvarchar(16)")]
         public String Phone { get; set; }
 
+        public int? Code { get; set; }
+
         public bool Sex { get; set; }
 
         public int? CountryId { get; set; }
         public int? CityId { get; set; }
 
         public Status Status { get; set; }
-
-        public ICollection<Interest> Interests { get; set; } = new List<Interest>();
 
         [Column(TypeName = "datetime")]
         public DateTimeOffset? PremiumStart { get; set; }

@@ -32,9 +32,33 @@ namespace AspNetCoreWebApi.Processing
             _phoneHashStorage = phoneHashStorage;
         }
 
-        public Tuple<Account, IEnumerable<Like>> Parse(AccountDto dto)
+        public static int ExtractCode(string phone)
+        {
+            int start = -1;
+            int len = 0;
+
+            for(int i=0; i<phone.Length;i++)
+            {
+                if (phone[i] == '(')
+                {
+                    start = i + 1;
+
+                    for (int j = i + 1; j < phone.Length && phone[j] != ')'; j++)
+                    {
+                        len++;
+                    }
+                }
+            }
+
+            return int.Parse(phone.Substring(start, len));
+        }
+
+        public ParserResult Parse(AccountDto dto)
         {
             Account result = new Account();
+            IEnumerable<Like> likes = Enumerable.Empty<Like>();
+            IEnumerable<Interest> interests = Enumerable.Empty<Interest>();
+
             result.Id = dto.Id.Value;
             _idStorage.Add(result.Id);
 
@@ -45,6 +69,7 @@ namespace AspNetCoreWebApi.Processing
             if (result.Phone != null)
             {
                 _phoneHashStorage.Add(result.Phone, result.Id);
+                result.Code = ExtractCode(result.Phone);
             }
 
             result.FirstName = dto.FirstName;
@@ -68,13 +93,8 @@ namespace AspNetCoreWebApi.Processing
 
             if (dto.Interests != null)
             {
-                foreach (var interest in dto.Interests)
-                {
-                    result.Interests.Add(new Interest() { StringId = _interestStorage.Get(interest) });
-                }
+                interests = dto.Interests.Select(x => new Interest() { AccountId = result.Id, StringId = _interestStorage.Get(x) });
             }
-
-            IEnumerable<Like> likes = Enumerable.Empty<Like>();
 
             if (dto.Likes != null)
             {
@@ -83,7 +103,7 @@ namespace AspNetCoreWebApi.Processing
                         LikeeId = dto.Id.Value,
                         LikerId = x.Id, 
                         Timestamp = DateTimeOffset.FromUnixTimeSeconds(x.Timestamp)
-                    }).ToList();
+                    });
             }
 
             if (dto.Premium != null)
@@ -92,7 +112,7 @@ namespace AspNetCoreWebApi.Processing
                 result.PremiumEnd = DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Finish);
             }
 
-            return new Tuple<Account, IEnumerable<Like>>(result, likes);
+            return new ParserResult(result, likes, interests);
         }
     }
 }

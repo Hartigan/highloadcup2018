@@ -31,5 +31,10 @@ namespace AspNetCoreWebApi.Storage
 
         public string GetString(int id) => _id2str[id];
         public int GetId(string str) => _str2id[str];
+
+        public bool TryGet(string str, out int id)
+        {
+            return _str2id.TryGetValue(str, out id);
+        }
     }
 }

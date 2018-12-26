@@ -45,6 +45,11 @@ namespace AspNetCoreWebApi.Processing
                         var accountDtos = ParseEntry(entry);
                         tasks.Add(SaveEntry(accountDtos));
                     }
+
+                    if (entry.FullName == "options.txt")
+                    {
+                        ParseConfig(entry);
+                    }
                 }
             }
             await Task.WhenAll(tasks);
@@ -52,13 +57,22 @@ namespace AspNetCoreWebApi.Processing
             GC.Collect();
         }
 
-        private IReadOnlyList<Tuple<Account, IEnumerable<Like>>> ParseEntry(ZipArchiveEntry entry)
+        private static void ParseConfig(ZipArchiveEntry entry)
+        {
+            using (TextReader optionsReader = new StreamReader(entry.Open()))
+            {
+                DataConfig.NowSeconds = int.Parse(optionsReader.ReadLine());
+                DataConfig.Now = DateTimeOffset.FromUnixTimeSeconds(DataConfig.NowSeconds);
+            }
+        }
+
+        private IReadOnlyList<ParserResult> ParseEntry(ZipArchiveEntry entry)
         {
             using (TextReader textReader = new StreamReader(entry.Open()))
             {
                 var obj = JObject.Parse(textReader.ReadToEnd());
                 var accountsArray = obj["accounts"];
-                List<Tuple<Account, IEnumerable<Like>>> data = new List<Tuple<Account, IEnumerable<Like>>>(10000);
+                List<ParserResult> data = new List<ParserResult>(10000);
                 foreach (var accountObj in accountsArray.Children())
                 {
                     data.Add(ParseAccountObj(accountObj));
@@ -68,21 +82,22 @@ namespace AspNetCoreWebApi.Processing
             }
         }
 
-        private async Task SaveEntry(IReadOnlyList<Tuple<Account, IEnumerable<Like>>> data)
+        private async Task SaveEntry(IReadOnlyList<ParserResult> data)
         {
             using (var scope = _services.CreateScope())
             {
                 var services = scope.ServiceProvider;
                 using (var context = _services.GetRequiredService<AccountContext>())
                 {
-                    await context.Accounts.AddRangeAsync(data.Select(x=>x.Item1));
-                    await context.Likes.AddRangeAsync(data.SelectMany(x => x.Item2));
+                    await context.Accounts.AddRangeAsync(data.Select(x=>x.Account));
+                    await context.Likes.AddRangeAsync(data.SelectMany(x => x.Likes));
+                    await context.Interests.AddRangeAsync(data.SelectMany(x => x.Interests));
                     await context.SaveChangesAsync();
                 }
             }
         }
 
-        private Tuple<Account, IEnumerable<Like>> ParseAccountObj(JToken accountObj)
+        private ParserResult ParseAccountObj(JToken accountObj)
         {
             AccountDto dto = JsonConvert.DeserializeObject<AccountDto>(accountObj.ToString());
             return _accountParser.Parse(dto);

@@ -23,7 +23,7 @@ namespace AspNetCoreWebApi.Processing
         private readonly EmailHashStorage _emailHashStorage;
         private readonly PhoneHashStorage _phoneHashStorage;
         private readonly AccountParser _accountParser;
-        private Subject<Tuple<Account, IEnumerable<Like>>> _dataReceived = new Subject<Tuple<Account, IEnumerable<Like>>>();
+        private Subject<ParserResult> _dataReceived = new Subject<ParserResult>();
 
         public NewAccountProcessor(
             IdStorage idStorage,
@@ -37,7 +37,7 @@ namespace AspNetCoreWebApi.Processing
             _accountParser = accountParser;
         }
 
-        public IObservable<Tuple<Account, IEnumerable<Like>>> DataReceived => _dataReceived;
+        public IObservable<ParserResult> DataReceived => _dataReceived;
 
         public bool Process(Stream body)
         {

@@ -41,6 +41,7 @@ namespace AspNetCoreWebApi
             services.AddSingleton<NewAccountProcessor>();
             services.AddSingleton<EditAccountProcessor>();
             services.AddSingleton<NewLikesProcessor>();
+            services.AddSingleton<FilterProcessor>();
             services.AddSingleton<MessageProcessor>();
 
             services.AddDbContextPool<AccountContext>(options => { });

@@ -9,6 +9,7 @@ namespace AspNetCoreWebApi.Storage
     {
         public DbSet<Account> Accounts { get; set; }
         public DbSet<Like> Likes { get; set; }
+        public DbSet<Interest> Interests { get; set; }
 
         public AccountContext(DbContextOptions<AccountContext> options)
         {

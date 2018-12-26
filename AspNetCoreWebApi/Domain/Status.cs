@@ -37,6 +37,21 @@ namespace AspNetCoreWebApi.Domain
                     return false;
             }
         }
+
+        public static string ToStr(this Status status)
+        {
+            switch(status)
+            {
+                case Status.Free:
+                    return "свободны";
+                case Status.Reserved:
+                    return "заняты";
+                case Status.Complicated:
+                    return "всё сложно";
+            }
+
+            return String.Empty;
+        }
     }
 
     public enum Status
