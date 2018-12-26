@@ -14,26 +14,25 @@ using System.Reactive.Linq;
 using System.Reactive.Concurrency;
 using System.Reactive;
 using System.Threading.Tasks;
+using AspNetCoreWebApi.Storage.Contexts;
 
 namespace AspNetCoreWebApi.Processing
 {
-    class DataLoader
+    public class DataLoader
     {
-        private readonly IServiceProvider _services;
-        private readonly AccountParser _accountParser;
+        private readonly MainContext _context;
+
+        private Subject<AccountDto> _accountLoaded = new Subject<AccountDto>();
 
         public DataLoader(
-            IServiceProvider services,
-            AccountContext context,
-            AccountParser accountParser)
+            MainContext context)
         {
-            _services = services;
-            _accountParser = accountParser;
-            context.Database.EnsureDeleted();
-            context.Database.EnsureCreated();
+            _context = context;
         }
 
-        public async Task Run(string path)
+        public IObservable<AccountDto> AccountLoaded => _accountLoaded;
+
+        public void Run(string path)
         {
             List<Task> tasks = new List<Task>();
             using (ZipArchive archive = ZipFile.OpenRead(path))
@@ -42,8 +41,7 @@ namespace AspNetCoreWebApi.Processing
                 {
                     if (entry.FullName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                     {
-                        var accountDtos = ParseEntry(entry);
-                        tasks.Add(SaveEntry(accountDtos));
+                        ParseEntry(entry);
                     }
 
                     if (entry.FullName == "options.txt")
@@ -52,7 +50,6 @@ namespace AspNetCoreWebApi.Processing
                     }
                 }
             }
-            await Task.WhenAll(tasks);
             Console.WriteLine("Import finished");
             GC.Collect();
         }
@@ -66,41 +63,22 @@ namespace AspNetCoreWebApi.Processing
             }
         }
 
-        private IReadOnlyList<ParserResult> ParseEntry(ZipArchiveEntry entry)
+        private void ParseEntry(ZipArchiveEntry entry)
         {
             using (TextReader textReader = new StreamReader(entry.Open()))
             {
                 var obj = JObject.Parse(textReader.ReadToEnd());
                 var accountsArray = obj["accounts"];
-                List<ParserResult> data = new List<ParserResult>(10000);
                 foreach (var accountObj in accountsArray.Children())
                 {
-                    data.Add(ParseAccountObj(accountObj));
-                }
-
-                return data;
-            }
-        }
-
-        private async Task SaveEntry(IReadOnlyList<ParserResult> data)
-        {
-            using (var scope = _services.CreateScope())
-            {
-                var services = scope.ServiceProvider;
-                using (var context = _services.GetRequiredService<AccountContext>())
-                {
-                    await context.Accounts.AddRangeAsync(data.Select(x=>x.Account));
-                    await context.Likes.AddRangeAsync(data.SelectMany(x => x.Likes));
-                    await context.Interests.AddRangeAsync(data.SelectMany(x => x.Interests));
-                    await context.SaveChangesAsync();
+                    _accountLoaded.OnNext(ParseAccountObj(accountObj));
                 }
             }
         }
 
-        private ParserResult ParseAccountObj(JToken accountObj)
+        private AccountDto ParseAccountObj(JToken accountObj)
         {
-            AccountDto dto = JsonConvert.DeserializeObject<AccountDto>(accountObj.ToString());
-            return _accountParser.Parse(dto);
+            return JsonConvert.DeserializeObject<AccountDto>(accountObj.ToString());
         }
     }
 }

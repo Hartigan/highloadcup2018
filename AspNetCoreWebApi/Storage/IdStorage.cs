@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 
 namespace AspNetCoreWebApi.Storage
@@ -26,6 +27,11 @@ namespace AspNetCoreWebApi.Storage
             var result = _set.Contains(item);
             _rw.ReleaseReaderLock();
             return result;
+        }
+
+        public IEnumerable<int> Except(IEnumerable<int> except)
+        {
+            return _set.AsEnumerable().Except(except);
         }
     }
 }

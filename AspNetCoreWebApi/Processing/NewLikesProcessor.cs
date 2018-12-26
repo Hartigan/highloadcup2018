@@ -19,16 +19,16 @@ namespace AspNetCoreWebApi.Processing
 {
     public class NewLikesProcessor
     {
-        private readonly IdStorage _idStorage;
-        private Subject<IEnumerable<Like>> _dataReceived = new Subject<IEnumerable<Like>>();
+        private readonly MainStorage _storage;
+        private Subject<IReadOnlyList<SingleLikeDto>> _dataReceived = new Subject<IReadOnlyList<SingleLikeDto>>();
 
         public NewLikesProcessor(
-            IdStorage idStorage)
+            MainStorage mainStorage)
         {
-            _idStorage = idStorage;
+            _storage = mainStorage;
         }
 
-        public IObservable<IEnumerable<Like>> DataReceived => _dataReceived;
+        public IObservable<IReadOnlyList<SingleLikeDto>> DataReceived => _dataReceived;
 
         public bool Process(Stream body)
         {
@@ -52,24 +52,18 @@ namespace AspNetCoreWebApi.Processing
                 return false;
             }
 
-            _dataReceived.OnNext(dto.Likes.Select(
-                x => new Like() 
-                {
-                    LikeeId = x.LikeeId,
-                    LikerId = x.LikerId,
-                    Timestamp = DateTimeOffset.FromUnixTimeSeconds(x.Timestamp)
-                }));
+            _dataReceived.OnNext(dto.Likes);
             return true;
         }
 
         private bool Validate(SingleLikeDto dto)
         {
-            if (!_idStorage.Contains(dto.LikeeId))
+            if (!_storage.Ids.Contains(dto.LikeeId))
             {
                 return false;
             }
 
-            if (!_idStorage.Contains(dto.LikerId))
+            if (!_storage.Ids.Contains(dto.LikerId))
             {
                 return false;
             }

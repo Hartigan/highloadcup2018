@@ -15,20 +15,29 @@ namespace AspNetCoreWebApi.Controllers
         private readonly EditAccountProcessor _editAccountProcessor;
         private readonly NewLikesProcessor _newLikesProcessor;
         private readonly FilterProcessor _filterProcessor;
-        private readonly IdStorage _idStorage;
+        private readonly GroupProcessor _groupProcessor;
+        private readonly RecommendProcessor _recommendProcessor;
+        private readonly SuggestProcessor _suggestProcessor;
+        private readonly MainStorage _storage;
 
         public AccountsController(
             NewAccountProcessor newAccountProcessor,
             EditAccountProcessor editAccountProcessor,
             NewLikesProcessor newLikesProcessor,
             FilterProcessor filterProcessor,
-            IdStorage idStorage)
+            GroupProcessor groupProcessor,
+            RecommendProcessor recommendProcessor,
+            SuggestProcessor suggestProcessor,
+            MainStorage mainStorage)
         {
             _newAccountProcessor = newAccountProcessor;
             _editAccountProcessor = editAccountProcessor;
             _newLikesProcessor = newLikesProcessor;
             _filterProcessor = filterProcessor;
-            _idStorage = idStorage;
+            _groupProcessor = groupProcessor;
+            _recommendProcessor = recommendProcessor;
+            _suggestProcessor = suggestProcessor;
+            _storage = mainStorage;
         }
 
         [Route("accounts/new")]
@@ -52,7 +61,7 @@ namespace AspNetCoreWebApi.Controllers
         [HttpPost]
         public ActionResult Edit(int id)
         {
-            if (!_idStorage.Contains(id))
+            if (!_storage.Ids.Contains(id))
             {
                 Response.StatusCode = 404;
                 return Content(String.Empty);
@@ -93,6 +102,48 @@ namespace AspNetCoreWebApi.Controllers
         public async Task Filter()
         {
             if (!await _filterProcessor.Process(Response, Request.Query))
+            {
+                Response.StatusCode = 400;
+            }
+        }
+
+        [Route("accounts/group")]
+        [HttpGet]
+        public async Task Group()
+        {
+            if (!await _groupProcessor.Process(Response, Request.Query))
+            {
+                Response.StatusCode = 400;
+            }
+        }
+
+        [Route("accounts/{id}/recommend")]
+        [HttpGet]
+        public async Task Recommend(int id)
+        {
+            if (!_storage.Ids.Contains(id))
+            {
+                Response.StatusCode = 404;
+                return;
+            }
+
+            if (!await _recommendProcessor.Process(id, Response, Request.Query))
+            {
+                Response.StatusCode = 400;
+            }
+        }
+
+        [Route("accounts/{id}/suggest")]
+        [HttpGet]
+        public async Task Suggest(int id)
+        {
+            if (!_storage.Ids.Contains(id))
+            {
+                Response.StatusCode = 404;
+                return;
+            }
+
+            if (!await _suggestProcessor.Process(id, Response, Request.Query))
             {
                 Response.StatusCode = 400;
             }

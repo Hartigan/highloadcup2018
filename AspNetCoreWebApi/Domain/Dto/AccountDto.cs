@@ -40,6 +40,9 @@ namespace AspNetCoreWebApi.Domain.Dto
         [JsonProperty("interests")]
         public List<string> Interests { get; set; }
 
+        [JsonProperty("sex")]
+        public string Sex { get; set; }
+
         [JsonProperty("likes")]
         public List<LikeDto> Likes { get; set; }
 

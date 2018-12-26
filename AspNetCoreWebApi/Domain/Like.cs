@@ -5,19 +5,17 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace AspNetCoreWebApi.Domain
 {
 
-    public class Like
+    public struct Like
     {
-        [Key]
-        public int Id { get; set; }
+        public Like(int likeeId, int likerId, DateTimeOffset ts)
+        {
+            LikeeId = likeeId;
+            LikerId = likerId;
+            Timestamp = ts;
+        }
 
-        [Required]
-        public int LikeeId { get; set; }
-
-        [Required]
-        public int LikerId { get; set; }
-
-        [Required]
-        [Column(TypeName = "datetime")]
-        public DateTimeOffset Timestamp { get; set; }
+        public int LikeeId;
+        public int LikerId;
+        public DateTimeOffset Timestamp;
     }
 }

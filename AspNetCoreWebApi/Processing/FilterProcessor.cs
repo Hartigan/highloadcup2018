@@ -5,7 +5,10 @@ using System.Linq;
 using System.Reactive.Subjects;
 using System.Threading.Tasks;
 using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing.Printers;
+using AspNetCoreWebApi.Processing.Requests;
 using AspNetCoreWebApi.Storage;
+using AspNetCoreWebApi.Storage.Contexts;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 
@@ -14,36 +17,32 @@ namespace AspNetCoreWebApi.Processing
     public class FilterProcessor
     {
 
-        private readonly CountryStorage _countryStorage;
-        private readonly CityStorage _cityStorage;
-        private readonly InterestStorage _interestStorage;
-        private readonly IdStorage _idStorage;
+        private readonly MainStorage _storage;
 
-        private Subject<Tuple<TaskCompletionSource<IReadOnlyList<Account>>, Func<Query, Query>>> _dataRequest = new Subject<Tuple<TaskCompletionSource<IReadOnlyList<Account>>, Func<Query, Query>>>();
+        private readonly MainContext _context;
 
-        public IObservable<Tuple<TaskCompletionSource<IReadOnlyList<Account>>, Func<Query, Query>>> DataRequest => _dataRequest;
+        private Subject<FilterRequest> _dataRequest = new Subject<FilterRequest>();
+
+        public IObservable<FilterRequest> DataRequest => _dataRequest;
 
         public FilterProcessor(
-            CountryStorage countryStorage,
-            CityStorage cityStorage,
-            InterestStorage interestStorage,
-            IdStorage idStorage
+            MainStorage mainStorage,
+            MainContext mainContext
         )
         {
-            _countryStorage = countryStorage;
-            _cityStorage = cityStorage;
-            _interestStorage = interestStorage;
-            _idStorage = idStorage;
+            _storage = mainStorage;
+            _context = mainContext;
         }
 
         public async Task<bool> Process(HttpResponse httpResponse, IQueryCollection query)
         {
-            Func<Query, Query> request = x => x; 
+            FilterRequest request = new FilterRequest();
             HashSet<Field> fields = new HashSet<Field>();
 
             int limit = 0;
             foreach (var filter in query)
             {
+                bool result = true;
                 switch(filter.Key)
                 {
                     case "query_id":
@@ -54,537 +53,547 @@ namespace AspNetCoreWebApi.Processing
                         {
                             return false;
                         }
+                        else
+                        {
+                            request.Limit = limit;
+                        }
                         break;
 
                     case "sex_eq":
-                        request = SexEq(request, filter.Value);
+                        result = SexEq(request, filter.Value);
                         fields.Add(Field.Sex);
                         break;
 
                     case "email_domain":
-                        request = EmailDomain(request, filter.Value);
+                        result = EmailDomain(request, filter.Value);
                         break;
 
                     case "email_lt":
-                        request = EmailLt(request, filter.Value);
+                        result = EmailLt(request, filter.Value);
                         break;
 
                     case "email_gt":
-                        request = EmailGt(request, filter.Value);
+                        result = EmailGt(request, filter.Value);
                         break;
 
                     case "status_eq":
-                        request = StatusEq(request, filter.Value);
+                        result = StatusEq(request, filter.Value);
                         fields.Add(Field.Status);
                         break;
 
                     case "status_neq":
-                        request = StatusNeq(request, filter.Value);
+                        result = StatusNeq(request, filter.Value);
                         fields.Add(Field.Status);
                         break;
 
                     case "fname_eq":
-                        request = FnameEq(request, filter.Value);
+                        result = FnameEq(request, filter.Value);
                         fields.Add(Field.FName);
                         break;
 
                     case "fname_any":
-                        request = FnameAny(request, filter.Value);
+                        result = FnameAny(request, filter.Value);
                         fields.Add(Field.FName);
                         break;
 
                     case "fname_null":
-                        request = FnameNull(request, filter.Value);
+                        result = FnameNull(request, filter.Value);
                         fields.Add(Field.FName);
                         break;
 
                     case "sname_eq":
-                        request = SnameEq(request, filter.Value);
+                        result = SnameEq(request, filter.Value);
                         fields.Add(Field.SName);
                         break;
 
                     case "sname_starts":
-                        request = SnameStarts(request, filter.Value);
+                        result = SnameStarts(request, filter.Value);
                         fields.Add(Field.SName);
                         break;
 
                     case "sname_null":
-                        request = SnameNull(request, filter.Value);
+                        result = SnameNull(request, filter.Value);
                         fields.Add(Field.SName);
                         break;
 
                     case "phone_code":
-                        request = PhoneCode(request, filter.Value);
+                        result = PhoneCode(request, filter.Value);
                         fields.Add(Field.Phone);
                         break;
 
                     case "phone_null":
-                        request = PhoneNull(request, filter.Value);
+                        result = PhoneNull(request, filter.Value);
                         fields.Add(Field.Phone);
                         break;
 
                     case "country_eq":
-                        request = CountryEq(request, filter.Value);
+                        result = CountryEq(request, filter.Value);
                         fields.Add(Field.Country);
                         break;
 
                     case "country_null":
-                        request = CountryNull(request, filter.Value);
+                        result = CountryNull(request, filter.Value);
                         fields.Add(Field.Country);
                         break;
 
                     case "city_eq":
-                        request = CityEq(request, filter.Value);
+                        result = CityEq(request, filter.Value);
                         fields.Add(Field.City);
                         break;
 
                     case "city_any":
-                        request = CityAny(request, filter.Value);
+                        result = CityAny(request, filter.Value);
                         fields.Add(Field.City);
                         break;
 
                     case "city_null":
-                        request = CityNull(request, filter.Value);
+                        result = CityNull(request, filter.Value);
                         fields.Add(Field.City);
                         break;
 
                     case "birth_lt":
-                        request = BirthLt(request, filter.Value);
+                        result = BirthLt(request, filter.Value);
                         fields.Add(Field.Birth);
                         break;
 
                     case "birth_gt":
-                        request = BirthGt(request, filter.Value);
+                        result = BirthGt(request, filter.Value);
                         fields.Add(Field.Birth);
                         break;
 
                     case "birth_year":
-                        request = BirthYear(request, filter.Value);
+                        result = BirthYear(request, filter.Value);
                         fields.Add(Field.Birth);
                         break;
 
                     case "interests_contains":
-                        request = InterestsContains(request, filter.Value);
+                        result = InterestsContains(request, filter.Value);
                         break;
 
                     case "interests_any":
-                        request = InterestsAny(request, filter.Value);
+                        result = InterestsAny(request, filter.Value);
                         break;
 
                     case "likes_contains":
-                        request = LikesContains(request, filter.Value);
+                        result = LikesContains(request, filter.Value);
                         break;
 
                     case "premium_now":
-                        request = PremiumNow(request, filter.Value);
+                        result = PremiumNow(request, filter.Value);
                         fields.Add(Field.Premium);
                         break;
 
                     case "premium_null":
-                        request = PremiumNull(request, filter.Value);
+                        result = PremiumNull(request, filter.Value);
                         fields.Add(Field.Premium);
                         break;
 
                     default:
                         return false;
                 }
+                if (!result)
+                {
+                    return false;
+                }
             }
 
-            request = LimitAndSort(request, limit);
+            _dataRequest.OnNext(request);
+            var response = await request.TaskComletionSource.Task;
 
-            TaskCompletionSource<IReadOnlyList<Account>> tcs = new TaskCompletionSource<IReadOnlyList<Account>>();
-
-            _dataRequest.OnNext(new Tuple<TaskCompletionSource<IReadOnlyList<Account>>, Func<Query, Query>>(tcs, request));
-
-            var result = await tcs.Task;
-
-            var printer = new AccountPrinter(fields.ToArray(), _countryStorage, _cityStorage);
+            var printer = new AccountPrinter(fields.ToArray(), _storage, _context);
 
             httpResponse.StatusCode = 200;
             httpResponse.ContentType = "application/json";
             using(var sw = new StreamWriter(httpResponse.Body))
             {
-                printer.WriteFilterResponse(result, sw);
+                printer.Write(response, sw);
             }
 
             return true;
         }
 
-        private Func<Query, Query> LimitAndSort(Func<Query, Query> request, int limit)
+        private bool PremiumNull(FilterRequest request, StringValues value)
         {
-            return x => x.Create(request(x).Accounts.OrderBy(account => account.Id).Take(limit));
-        }
-
-        private Func<Query, Query> PremiumNull(Func<Query, Query> request, StringValues value)
-        {
-            if (value == "1")
+            string v = value.ToString();
+            request.Premium.IsActive = true;
+            if (v == "1")
             {
-                return x => x.Create(request(x).Accounts.Where(account => !account.PremiumStart.HasValue));
+                request.Premium.IsNull = true;
             }
-            else if (value == "0")
+            else if (v == "0")
             {
-                return x => x.Create(request(x).Accounts.Where(account => account.PremiumStart.HasValue));
+                request.Premium.IsNull = false;
             }
             else
             {
-                return Empty();
+                return false;
             }
+            return true;
         }
 
-        private Func<Query, Query> PremiumNow(Func<Query, Query> request, StringValues value)
+        private bool PremiumNow(FilterRequest request, StringValues value)
         {
-            return x => x.Create(
-                request(x)
-                    .Accounts
-                    .Where(account => account.PremiumStart < DataConfig.Now && account.PremiumEnd > DataConfig.Now));
+            string v = value.ToString();
+            request.Premium.IsActive = true;
+            if (v == "1")
+            {
+                request.Premium.Now = true;
+            }
+            else if (v == "0")
+            {
+                request.Premium.Now = false;
+            }
+            else
+            {
+                return false;
+            }
+            return true;
         }
 
-        private Func<Query, Query> LikesContains(Func<Query, Query> request, StringValues value)
+        private bool LikesContains(FilterRequest request, StringValues value)
         {
-            HashSet<int> ids = new HashSet<int>(value.Count);
-            foreach(var strId in value)
+            request.Likes.IsActive = true;
+            List<int> ids = new List<int>(value.Count);
+            foreach(var v in value)
             {
                 int id;
-                if (int.TryParse(strId, out id))
-                {
-                    if (!_idStorage.Contains(id))
-                    {
-                        return Empty();
-                    }
-                    else
-                    {
-                        ids.Add(id);
-                    }
-                }
-            }
-
-            return x => x.Create(request(x).Accounts
-                                .Join(
-                                    x.Likes
-                                        .GroupBy(like => like.LikerId, like => like.LikeeId)
-                                        .Where(ids.IsSubsetOf)
-                                        .Select(likes => likes.Key),
-                                    account => account.Id,
-                                    id => id,
-                                    (account, id) => account));
-        }
-
-        private Func<Query, Query> InterestsAny(Func<Query, Query> request, StringValues value)
-        {
-            HashSet<int> ids = new HashSet<int>(value.Count);
-            foreach(var interest in value)
-            {
-                int id;
-                if (!_interestStorage.TryGet(interest, out id))
-                {
-                    return Empty();
-                }
-                else
+                if (int.TryParse(v, out id))
                 {
                     ids.Add(id);
                 }
-            }
-
-            return x => x.Create(request(x).Accounts
-                                .Join(
-                                    x.Interests
-                                        .GroupBy(interest => interest.AccountId, interest => interest.StringId)
-                                        .Where(interests => ids.Intersect(interests).Any())
-                                        .Select(likes => likes.Key),
-                                    account => account.Id,
-                                    id => id,
-                                    (account, id) => account));
-        }
-
-        private Func<Query, Query> InterestsContains(Func<Query, Query> request, StringValues value)
-        {
-            HashSet<int> ids = new HashSet<int>(value.Count);
-            foreach(var interest in value)
-            {
-                int id;
-                if (!_interestStorage.TryGet(interest, out id))
-                {
-                    return Empty();
-                }
                 else
                 {
-                    ids.Add(id);
+                    return false;
                 }
             }
+            request.Likes.Contains = ids;
 
-            return x => x.Create(request(x).Accounts
-                                .Join(
-                                    x.Interests
-                                        .GroupBy(interest => interest.AccountId, interest => interest.StringId)
-                                        .Where(ids.IsSubsetOf)
-                                        .Select(likes => likes.Key),
-                                    account => account.Id,
-                                    id => id,
-                                    (account, id) => account));
+            return true;
         }
 
-        private Func<Query, Query> BirthYear(Func<Query, Query> request, StringValues value)
+        private bool InterestsAny(FilterRequest request, StringValues value)
         {
+            request.Interests.IsActive = true;
+            request.Interests.Any = value;
+            return true;
+        }
+
+        private bool InterestsContains(FilterRequest request, StringValues value)
+        {
+            request.Interests.IsActive = true;
+            request.Interests.Contains = value;
+            return true;
+        }
+
+        private bool BirthYear(FilterRequest request, StringValues value)
+        {
+            request.Birth.IsActive = true;
             int year;
             if (int.TryParse(value, out year))
             {
-                return x => x.Create(request(x).Accounts.Where(account => account.Birth.Year == year));
+                request.Birth.Year = year;
+                return true;
             }
             else
             {
-                return Empty();
+                return false;
             }
         }
 
-        private Func<Query, Query> BirthGt(Func<Query, Query> request, StringValues value)
+        private bool BirthGt(FilterRequest request, StringValues value)
         {
-            int ts;
-            if (int.TryParse(value, out ts))
+            request.Birth.IsActive = true;
+            int gt;
+            if (int.TryParse(value, out gt))
             {
-                DateTimeOffset dto = DateTimeOffset.FromUnixTimeSeconds(ts);
-                return x => x.Create(request(x).Accounts.Where(account => account.Birth > dto));
-            }
-            else
-            {
-                return Empty();
-            }
-        }
-
-        private Func<Query, Query> BirthLt(Func<Query, Query> request, StringValues value)
-        {
-            int ts;
-            if (int.TryParse(value, out ts))
-            {
-                DateTimeOffset dto = DateTimeOffset.FromUnixTimeSeconds(ts);
-                return x => x.Create(request(x).Accounts.Where(account => account.Birth < dto));
-            }
-            else
-            {
-                return Empty();
-            }
-        }
-
-        private Func<Query, Query> CityNull(Func<Query, Query> request, StringValues value)
-        {
-            if (value == "1")
-            {
-                return x => x.Create(request(x).Accounts.Where(account => !account.CityId.HasValue));
-            }
-            else if (value == "0")
-            {
-                return x => x.Create(request(x).Accounts.Where(account => account.CityId.HasValue));
-            }
-            else
-            {
-                return Empty();
-            }
-        }
-
-        private Func<Query, Query> CityAny(Func<Query, Query> request, StringValues value)
-        {
-            HashSet<int> cityIds = new HashSet<int>(value.Count());
-            foreach (var city in value)
-            {
-                int cityId;
-                if (_cityStorage.TryGet(city, out cityId))
+                var gtOffset = DateTimeOffset.FromUnixTimeSeconds(gt);
+                if (request.Birth.Gt.HasValue)
                 {
-                    cityIds.Add(cityId);
+                    request.Birth.Gt = gtOffset > request.Birth.Gt.Value ? gtOffset : request.Birth.Gt;
                 }
-            }
-
-            if (cityIds.Count > 0)
-            {
-                return x => x.Create(request(x).Accounts.Where(account => account.CityId.HasValue && cityIds.Contains(account.CountryId.Value)));
-            }
-            else
-            {
-                return Empty();
-            }
-        }
-
-        private Func<Query, Query> CityEq(Func<Query, Query> request, StringValues value)
-        {
-            int cityId;
-            if (_cityStorage.TryGet(value, out cityId))
-            {
-                return x => x.Create(request(x).Accounts.Where(account => account.CityId == cityId));
+                else
+                {
+                    request.Birth.Gt = gtOffset;
+                }
+                return true;
             }
             else
             {
-                return Empty();
+                return false;
             }
         }
 
-        private Func<Query, Query> CountryNull(Func<Query, Query> request, StringValues value)
+        private bool BirthLt(FilterRequest request, StringValues value)
         {
-            if (value == "1")
+            request.Birth.IsActive = true;
+            int lt;
+            if (int.TryParse(value, out lt))
             {
-                return x => x.Create(request(x).Accounts.Where(account => !account.CountryId.HasValue));
-            }
-            else if (value == "0")
-            {
-                return x => x.Create(request(x).Accounts.Where(account => account.CountryId.HasValue));
+                var ltOffset = DateTimeOffset.FromUnixTimeSeconds(lt);
+                if (request.Birth.Lt.HasValue)
+                {
+                    request.Birth.Lt = ltOffset < request.Birth.Lt.Value ? ltOffset : request.Birth.Lt;
+                }
+                else
+                {
+                    request.Birth.Lt = ltOffset;
+                }
+                return true;
             }
             else
             {
-                return Empty();
+                return false;
             }
         }
 
-        private Func<Query, Query> CountryEq(Func<Query, Query> request, StringValues value)
+        private bool CityNull(FilterRequest request, StringValues value)
         {
-            int countryId;
-            if (_countryStorage.TryGet(value, out countryId))
+            string v = value.ToString();
+            request.City.IsActive = true;
+            if (v == "1")
             {
-                return x => x.Create(request(x).Accounts.Where(account => account.CountryId == countryId));
+                request.City.IsNull = true;
+            }
+            else if (v == "0")
+            {
+                request.City.IsNull = false;
             }
             else
             {
-                return Empty();
+                return false;
             }
+            return true;
         }
 
-        private Func<Query, Query> PhoneNull(Func<Query, Query> request, StringValues value)
+        private bool CityAny(FilterRequest request, StringValues value)
         {
-            if (value == "1")
+            request.City.IsActive = true;
+            request.City.Any = value;
+            return true;
+        }
+
+        private bool CityEq(FilterRequest request, StringValues value)
+        {
+            request.City.IsActive = true;
+            request.City.Eq = value;
+            return true;
+        }
+
+        private bool CountryNull(FilterRequest request, StringValues value)
+        {
+            string v = value.ToString();
+            request.Country.IsActive = true;
+            if (v == "1")
             {
-                return x => x.Create(request(x).Accounts.Where(account => account.Phone == null));
+                request.Country.IsNull = true;
             }
-            else if (value == "0")
+            else if (v == "0")
             {
-                return x => x.Create(request(x).Accounts.Where(account => account.Phone != null));
+                request.Country.IsNull = false;
             }
             else
             {
-                return Empty();
+                return false;
             }
+            return true;
         }
 
-        private Func<Query, Query> PhoneCode(Func<Query, Query> request, StringValues value)
+        private bool CountryEq(FilterRequest request, StringValues value)
         {
-            int code;
-            if (int.TryParse(value, out code))
+            request.Country.IsActive = true;
+            request.Country.Eq = value;
+            return true;
+        }
+
+        private bool PhoneNull(FilterRequest request, StringValues value)
+        {
+            string v = value.ToString();
+            request.Phone.IsActive = true;
+            if (v == "1")
             {
-                return x => x.Create(x.Accounts.Where(account => account.Code == code));
+                request.Phone.IsNull = true;
+            }
+            else if (v == "0")
+            {
+                request.Phone.IsNull = false;
             }
             else
             {
-                return Empty();
+                return false;
             }
+            return true;
         }
 
-        private Func<Query, Query> SnameNull(Func<Query, Query> request, StringValues value)
+        private bool PhoneCode(FilterRequest request, StringValues value)
         {
-            if (value == "1")
+            request.Phone.IsActive = true;
+            short code;
+            if (short.TryParse(value, out code))
             {
-                return x => x.Create(request(x).Accounts.Where(account => account.LastName == null));
-            }
-            else if (value == "0")
-            {
-                return x => x.Create(request(x).Accounts.Where(account => account.LastName != null));
+                request.Phone.Code = code;
+                return true;
             }
             else
             {
-                return Empty();
+                return false;
             }
         }
 
-        private Func<Query, Query> SnameStarts(Func<Query, Query> request, StringValues value)
+        private bool SnameNull(FilterRequest request, StringValues value)
         {
-            return x => x.Create(request(x).Accounts.Where(account => account.LastName != null && account.LastName.StartsWith(value)));
-        }
-
-        private Func<Query, Query> SnameEq(Func<Query, Query> request, StringValues value)
-        {
-            return x => x.Create(request(x).Accounts.Where(account => string.Equals(account.LastName, value)));
-        }
-
-        private Func<Query, Query> FnameNull(Func<Query, Query> request, StringValues value)
-        {
-            if (value == "1")
+            string v = value.ToString();
+            request.Sname.IsActive = true;
+            if (v == "1")
             {
-                return x => x.Create(request(x).Accounts.Where(account => account.FirstName == null));
+                request.Sname.IsNull = true;
             }
-            else if (value == "0")
+            else if (v == "0")
             {
-                return x => x.Create(request(x).Accounts.Where(account => account.FirstName != null));
+                request.Sname.IsNull = false;
             }
             else
             {
-                return Empty();
+                return false;
             }
+            return true;
         }
 
-        private Func<Query, Query> FnameAny(Func<Query, Query> request, StringValues value)
+        private bool SnameStarts(FilterRequest request, StringValues value)
         {
-            return x => x.Create(request(x).Accounts.Where(account => value.Contains(account.FirstName)));
+            request.Sname.IsActive = true;
+            request.Sname.Starts = value;
+            return true;
         }
 
-        private Func<Query, Query> FnameEq(Func<Query, Query> request, StringValues value)
+        private bool SnameEq(FilterRequest request, StringValues value)
         {
-            return x => x.Create(request(x).Accounts.Where(account => string.Equals(account.FirstName, value)));
+            request.Sname.IsActive = true;
+            request.Sname.Eq = value;
+            return true;
         }
 
-        private Func<Query, Query> StatusNeq(Func<Query, Query> request, StringValues value)
+        private bool FnameNull(FilterRequest request, StringValues value)
         {
+            string v = value.ToString();
+            request.Fname.IsActive = true;
+            if (v == "1")
+            {
+                request.Fname.IsNull = true;
+            }
+            else if (v == "0")
+            {
+                request.Fname.IsNull = false;
+            }
+            else
+            {
+                return false;
+            }
+            return true;
+        }
+
+        private bool FnameAny(FilterRequest request, StringValues value)
+        {
+            request.Fname.IsActive = true;
+            request.Fname.Any = value;
+            return true;
+        }
+
+        private bool FnameEq(FilterRequest request, StringValues value)
+        {
+            request.Fname.IsActive = true;
+            request.Fname.Eq = value;
+            return true;
+        }
+
+        private bool StatusNeq(FilterRequest request, StringValues value)
+        {
+            request.Status.IsActive = true;
             Status status;
             if (StatusHelper.TryParse(value, out status))
             {
-                return x => x.Create(request(x).Accounts.Where(account => account.Status != status));
+                request.Status.Neq = status;
+                return true;
             }
             else
             {
-                return Empty();
+                return false;
             }
         }
 
-        private Func<Query, Query> StatusEq(Func<Query, Query> request, StringValues value)
+        private bool StatusEq(FilterRequest request, StringValues value)
         {
+            request.Status.IsActive = true;
             Status status;
             if (StatusHelper.TryParse(value, out status))
             {
-                return x => x.Create(request(x).Accounts.Where(account => account.Status == status));
+                request.Status.Eq = status;
+                return true;
             }
             else
             {
-                return Empty();
+                return false;
             }
         }
 
-        private Func<Query, Query> EmailGt(Func<Query, Query> request, StringValues value)
+        private bool EmailGt(FilterRequest request, StringValues value)
         {
-            return x => x.Create(request(x).Accounts.Where(account => string.Compare(account.Email, value) > 0));
+            string v = value.ToString();
+            request.Email.IsActive = true;
+            if (request.Email.Gt != null)
+            {
+                request.Email.Gt = (String.Compare(request.Email.Gt, v) > 0)
+                    ? request.Email.Gt
+                    : v;
+            }
+            else
+            {
+                request.Email.Gt = v;
+            }
+
+            return true;
         }
 
-        private Func<Query, Query> EmailLt(Func<Query, Query> request, StringValues value)
+        private bool EmailLt(FilterRequest request, StringValues value)
         {
-            return x => x.Create(request(x).Accounts.Where(account => string.Compare(account.Email, value) < 0));
+            string v = value.ToString();
+            request.Email.IsActive = true;
+            if (request.Email.Lt != null)
+            {
+                request.Email.Lt = (String.Compare(request.Email.Lt, v) < 0)
+                    ? request.Email.Lt
+                    : v;
+            }
+            else
+            {
+                request.Email.Lt = v;
+            }
+
+            return true;
         }
 
-        private Func<Query, Query> EmailDomain(Func<Query, Query> request, StringValues value)
+        private bool EmailDomain(FilterRequest request, StringValues value)
         {
-            return x => x.Create(request(x).Accounts.Where(account => account.Email.EndsWith("@" + value)));
+            request.Email.IsActive = true;
+            request.Email.Domain = value;
+            return true;
         }
 
-        private Func<Query, Query> SexEq(Func<Query, Query> request, StringValues value)
+        private bool SexEq(FilterRequest request, StringValues value)
         {
+            request.Sex.IsActive = true;
             if (value == "m")
             {
-                return x => x.Create(request(x).Accounts.Where(account => account.Sex));
+                request.Sex.IsMale = true;
             }
             else if (value == "f")
             {
-                return x => x.Create(request(x).Accounts.Where(account => !account.Sex));
+                request.Sex.IsFemale = true;
             }
             else
             {
-                return Empty();
+                return false;
             }
-        }
-
-        private Func<Query, Query> Empty()
-        {
-            return x => x.Create(Enumerable.Empty<Account>().AsQueryable());
+            return true;
         }
     }
 }

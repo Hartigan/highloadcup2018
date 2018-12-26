@@ -20,14 +20,10 @@ namespace AspNetCoreWebApi
         {
             var host = CreateWebHostBuilder(args).Build();
 
-            using (var scope = host.Services.CreateScope())
-            {
-                var services = scope.ServiceProvider;
-                var loader = services.GetRequiredService<DataLoader>();
-                loader.Run("../data/data/data.zip").Wait();
-            }
-
             var messageProcessor = host.Services.GetRequiredService<MessageProcessor>();
+
+            var loader = host.Services.GetRequiredService<DataLoader>();
+            loader.Run("../../highloadcup2018_data/data/data.zip");
 
             host.Run();
         }

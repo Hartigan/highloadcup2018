@@ -14,30 +14,22 @@ using System.Reactive.Linq;
 using System.Reactive.Concurrency;
 using System.Reactive;
 using System.Threading.Tasks;
+using AspNetCoreWebApi.Storage.StringPools;
 
 namespace AspNetCoreWebApi.Processing
 {
     public class NewAccountProcessor
     {
-        private readonly IdStorage _idStorage;
-        private readonly EmailHashStorage _emailHashStorage;
-        private readonly PhoneHashStorage _phoneHashStorage;
-        private readonly AccountParser _accountParser;
-        private Subject<ParserResult> _dataReceived = new Subject<ParserResult>();
+        private readonly MainStorage _storage;
+        private Subject<AccountDto> _dataReceived = new Subject<AccountDto>();
 
         public NewAccountProcessor(
-            IdStorage idStorage,
-            EmailHashStorage emailHashStorage,
-            PhoneHashStorage phoneHashStorage,
-            AccountParser accountParser)
+            MainStorage mainStorage)
         {
-            _idStorage = idStorage;
-            _emailHashStorage = emailHashStorage;
-            _phoneHashStorage = phoneHashStorage;
-            _accountParser = accountParser;
+            _storage = mainStorage;
         }
 
-        public IObservable<ParserResult> DataReceived => _dataReceived;
+        public IObservable<AccountDto> DataReceived => _dataReceived;
 
         public bool Process(Stream body)
         {
@@ -61,13 +53,13 @@ namespace AspNetCoreWebApi.Processing
                 return false;
             }
 
-            _dataReceived.OnNext(_accountParser.Parse(dto));
+            _dataReceived.OnNext(dto);
             return true;
         }
 
         private bool Validate(AccountDto dto)
         {
-            if (!dto.Id.HasValue || _idStorage.Contains(dto.Id.Value))
+            if (!dto.Id.HasValue || _storage.Ids.Contains(dto.Id.Value))
             {
                 return false;
             }
@@ -82,12 +74,12 @@ namespace AspNetCoreWebApi.Processing
                 return false;
             }
 
-            if (_emailHashStorage.ContainsString(dto.Email))
+            if (_storage.EmailHashes.ContainsString(dto.Email))
             {
                 return false;
             }
 
-            if (dto.Phone != null && _phoneHashStorage.ContainsString(dto.Phone))
+            if (dto.Phone != null && _storage.PhoneHashes.ContainsString(dto.Phone))
             {
                 return false;
             }
@@ -96,7 +88,7 @@ namespace AspNetCoreWebApi.Processing
             {
                 foreach (var like in dto.Likes)
                 {
-                    if (!_idStorage.Contains(like.Id))
+                    if (!_storage.Ids.Contains(like.Id))
                     {
                         return false;
                     }

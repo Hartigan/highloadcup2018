@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AspNetCoreWebApi.Processing;
+using AspNetCoreWebApi.Processing.Parsers;
 using AspNetCoreWebApi.Storage;
+using AspNetCoreWebApi.Storage.Contexts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
@@ -29,23 +31,21 @@ namespace AspNetCoreWebApi
         {
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Latest);
 
-            services.AddSingleton<CityStorage>();
-            services.AddSingleton<InterestStorage>();
-            services.AddSingleton<CountryStorage>();
-
-            services.AddSingleton<IdStorage>();
-            services.AddSingleton<PhoneHashStorage>();
-            services.AddSingleton<EmailHashStorage>();
-
-            services.AddSingleton<AccountParser>();
+            services.AddSingleton<RecommendProcessor>();
+            services.AddSingleton<SuggestProcessor>();
             services.AddSingleton<NewAccountProcessor>();
             services.AddSingleton<EditAccountProcessor>();
             services.AddSingleton<NewLikesProcessor>();
             services.AddSingleton<FilterProcessor>();
+            services.AddSingleton<GroupProcessor>();
             services.AddSingleton<MessageProcessor>();
 
-            services.AddDbContextPool<AccountContext>(options => { });
-            services.AddScoped<DataLoader>();
+            services.AddSingleton<DomainParser>();
+
+            services.AddSingleton<MainContext>();
+            services.AddSingleton<MainStorage>();
+
+            services.AddSingleton<DataLoader>();
 
         }
 

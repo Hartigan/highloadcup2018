@@ -6,6 +6,7 @@ using System.IO.Compression;
 using AspNetCoreWebApi.Domain;
 using AspNetCoreWebApi.Domain.Dto;
 using AspNetCoreWebApi.Storage;
+using AspNetCoreWebApi.Storage.StringPools;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,25 +20,16 @@ namespace AspNetCoreWebApi.Processing
 {
     public class EditAccountProcessor
     {
-        private readonly IdStorage _idStorage;
-        private readonly EmailHashStorage _emailHashStorage;
-        private readonly PhoneHashStorage _phoneHashStorage;
-        private readonly AccountParser _accountParser;
-        private Subject<Tuple<int, AccountDto>> _dataReceived = new Subject<Tuple<int, AccountDto>>();
+        private readonly MainStorage _storage;
+        private Subject<AccountDto> _dataReceived = new Subject<AccountDto>();
 
         public EditAccountProcessor(
-            IdStorage idStorage,
-            EmailHashStorage emailHashStorage,
-            PhoneHashStorage phoneHashStorage,
-            AccountParser accountParser)
+            MainStorage mainStorage)
         {
-            _idStorage = idStorage;
-            _emailHashStorage = emailHashStorage;
-            _phoneHashStorage = phoneHashStorage;
-            _accountParser = accountParser;
+            _storage = mainStorage;
         }
 
-        public IObservable<Tuple<int, AccountDto>> DataReceived => _dataReceived;
+        public IObservable<AccountDto> DataReceived => _dataReceived;
 
         public bool Process(Stream body, int id)
         {
@@ -63,7 +55,9 @@ namespace AspNetCoreWebApi.Processing
 
             UpdateHashes(dto, id);
 
-            _dataReceived.OnNext(new Tuple<int, AccountDto>(id, dto));
+            dto.Id = id;
+
+            _dataReceived.OnNext(dto);
             return true;
         }
 
@@ -71,26 +65,26 @@ namespace AspNetCoreWebApi.Processing
         {
             if (dto.Email != null)
             {
-                _emailHashStorage.RemoveById(id);
-                _emailHashStorage.Add(dto.Email, id);
+                _storage.EmailHashes.RemoveById(id);
+                _storage.EmailHashes.Add(dto.Email, id);
             }
 
             if (dto.Phone != null)
             {
-                _phoneHashStorage.RemoveById(id);
-                _phoneHashStorage.Add(dto.Phone, id);
+                _storage.PhoneHashes.RemoveById(id);
+                _storage.PhoneHashes.Add(dto.Phone, id);
             }
 
         }
 
         private bool Validate(AccountDto dto)
         {
-            if (dto.Email != null && _emailHashStorage.ContainsString(dto.Email))
+            if (dto.Email != null && _storage.EmailHashes.ContainsString(dto.Email))
             {
                 return false;
             }
 
-            if (dto.Phone != null && _phoneHashStorage.ContainsString(dto.Phone))
+            if (dto.Phone != null && _storage.PhoneHashes.ContainsString(dto.Phone))
             {
                 return false;
             }
