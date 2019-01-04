@@ -39,7 +39,7 @@ namespace AspNetCoreWebApi.Processing
 
             foreach (var filter in query)
             {
-                bool res = false;
+                bool res = true;
                 switch(filter.Key)
                 {
                     case "query_id":
@@ -94,7 +94,7 @@ namespace AspNetCoreWebApi.Processing
                         break;
 
                     case "keys":
-                        foreach(var str in filter.Value)
+                        foreach(var str in filter.Value.ToString().Split(','))
                         {
                             GroupKey key;
                             if (GroupKeyExtensions.TryParse(str, out key))
@@ -118,6 +118,13 @@ namespace AspNetCoreWebApi.Processing
                     return false;
                 }
             }
+
+            if (keys.Count == 0)
+            {
+                return false;
+            }
+
+            request.Keys = keys;
 
             _dataRequest.OnNext(request);
 

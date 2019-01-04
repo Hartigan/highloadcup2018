@@ -113,7 +113,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
             if (groups.Count == 0)
             {
                 groups.AddRange(_id2AccId.Keys.Select(x => new Group(interestId: x)));
-                groups.Add(new Group());
             }
             else
             {
@@ -134,7 +133,15 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             if (interestId.HasValue)
             {
-                return _id2AccId[interestId.Value].Contains(id);
+                HashSet<int> ids;
+                if (_id2AccId.TryGetValue(interestId.Value, out ids))
+                {
+                    return ids.Contains(id);
+                }
+                else
+                {
+                    return false;
+                }
             }
 
             return !_id2AccId.Values.SelectMany(x => x).Contains(id);
@@ -161,6 +168,21 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
 
             recomended.Remove(id);
+        }
+
+        public void GetByInterestId(
+            int? interestId,
+            HashSet<int> currentIds,
+            IdStorage ids)
+        {
+            if (interestId.HasValue)
+            {
+                currentIds.UnionWith(_id2AccId[interestId.Value]);
+            }
+            else
+            {
+                currentIds.UnionWith(ids.Except(_id2AccId.SelectMany(x => x.Value)));
+            }
         }
     }
 }

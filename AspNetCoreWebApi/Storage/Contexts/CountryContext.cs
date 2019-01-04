@@ -133,10 +133,33 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             if (countryId.HasValue)
             {
-                return _id2AccId[countryId.Value].Contains(id);
+                HashSet<int> ids;
+                if (_id2AccId.TryGetValue(countryId.Value, out ids))
+                {
+                    return ids.Contains(id);
+                }
+                else
+                {
+                    return false;
+                }
             }
 
             return !_id2AccId.Values.SelectMany(x => x).Contains(id);
+        }
+
+        public void GetByCountryId(
+            int? countryId,
+            HashSet<int> currentIds,
+            IdStorage ids)
+        {
+            if (countryId.HasValue)
+            {
+                currentIds.UnionWith(_id2AccId[countryId.Value]);
+            }
+            else
+            {
+                currentIds.UnionWith(ids.Except(_id2AccId.SelectMany(x => x.Value)));
+            }
         }
     }
 }

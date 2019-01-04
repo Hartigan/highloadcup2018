@@ -74,8 +74,10 @@ namespace AspNetCoreWebApi.Processing.Printers
                                 sw.PropertyNameWithColon("phone");
                                 sw.Write('\"');
                                 sw.Write(phone.Prefix);
+                                sw.Write('(');
                                 sw.Write(phone.Code);
-                                sw.Write(phone.Suffix);
+                                sw.Write(')');
+                                sw.Write(phone.Suffix.ToString("D7"));
                                 sw.Write('\"');
                             }
                             break;

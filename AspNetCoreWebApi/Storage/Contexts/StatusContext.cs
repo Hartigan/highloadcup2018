@@ -104,5 +104,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             return _id2AccId[status].Contains(id);
         }
+
+        public void GetByStatus(Status value, HashSet<int> currentIds)
+        {
+            currentIds.UnionWith(_id2AccId[value]);
+        }
     }
 }

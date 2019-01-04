@@ -101,10 +101,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 return result.Where(x => string.Compare(_id2email[x].Prefix, email.Gt) > 0);
             }
-            else
+            else if (email.Lt != null)
             {
                 return result.Where(x => string.Compare(_id2email[x].Prefix, email.Lt) < 0);
             }
+
+            return result;
         }
     }
 }

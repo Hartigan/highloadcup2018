@@ -9,11 +9,21 @@ namespace AspNetCoreWebApi.Storage.Contexts
 {
     public class LikesContext
     {
+        private class BucketIdComparer : IComparer<int>
+        {
+            public int Compare(int x, int y)
+            {
+                return y - x;
+            }
+        }
+
         private struct LikeBucket
         {
             public int TsSum;
             public int Count;
         }
+
+        private static BucketIdComparer _bucketKeyComparer = new BucketIdComparer();
 
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private SortedDictionary<int, HashSet<int>> _likee2likers = new SortedDictionary<int, HashSet<int>>();
@@ -39,7 +49,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             SortedDictionary<int, LikeBucket> likes;
             if (!_liker2likes.TryGetValue(like.LikerId, out likes))
             {
-                likes = new SortedDictionary<int, LikeBucket>();
+                likes = new SortedDictionary<int, LikeBucket>(_bucketKeyComparer);
                 _liker2likes.Add(like.LikerId, likes);
             }
 
@@ -117,11 +127,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
                         current = 0;
                     }
 
-                    int x = likeePair.Value.TsSum / likeePair.Value.Count;
+                    float x = 1.0f * likeePair.Value.TsSum / likeePair.Value.Count;
                     LikeBucket bucketY = _liker2likes[liker][likeePair.Key];
-                    int y = bucketY.TsSum / bucketY.Count;
+                    float y = 1.0f * bucketY.TsSum / bucketY.Count;
 
-                    if (x == y)
+                    if (likeePair.Value.TsSum * bucketY.Count == bucketY.TsSum * likeePair.Value.Count)
                     {
                         current += 1.0f;
                     }
@@ -129,12 +139,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     {
                         current += 1.0f / Math.Abs(x - y);
                     }
+                    similarity[liker] = current;
                 }
+            }
 
-                foreach(var liker in similarity.Keys)
-                {
-                    suggested.Add(liker, _liker2likes[liker].Keys);
-                }
+            foreach(var liker in similarity.Keys)
+            {
+                suggested.Add(liker, _liker2likes[liker].Keys.Where(x => !buckets.ContainsKey(x)));
             }
         }
     }

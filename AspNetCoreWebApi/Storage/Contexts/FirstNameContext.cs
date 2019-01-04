@@ -61,10 +61,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 HashSet<string> names = new HashSet<string>(fname.Any);
                 return _id2name.Where(x => names.Contains(x.Value)).Select(x => x.Key);
             }
-            else
+            else if (fname.Eq != null)
             {
                 return _id2name.Where(x => x.Value == fname.Eq).Select(x => x.Key);
             }
+
+            return _id2name.Keys;
         }
     }
 }

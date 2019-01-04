@@ -92,7 +92,7 @@ namespace AspNetCoreWebApi.Processing
                         break;
 
                     case "fname_any":
-                        result = FnameAny(request, filter.Value);
+                        result = FnameAny(request, filter.Value.ToString().Split(','));
                         fields.Add(Field.FName);
                         break;
 
@@ -142,7 +142,7 @@ namespace AspNetCoreWebApi.Processing
                         break;
 
                     case "city_any":
-                        result = CityAny(request, filter.Value);
+                        result = CityAny(request, filter.Value.ToString().Split(','));
                         fields.Add(Field.City);
                         break;
 
@@ -167,15 +167,15 @@ namespace AspNetCoreWebApi.Processing
                         break;
 
                     case "interests_contains":
-                        result = InterestsContains(request, filter.Value);
+                        result = InterestsContains(request, filter.Value.ToString().Split(','));
                         break;
 
                     case "interests_any":
-                        result = InterestsAny(request, filter.Value);
+                        result = InterestsAny(request, filter.Value.ToString().Split(','));
                         break;
 
                     case "likes_contains":
-                        result = LikesContains(request, filter.Value);
+                        result = LikesContains(request, filter.Value.ToString().Split(','));
                         break;
 
                     case "premium_now":

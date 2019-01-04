@@ -39,21 +39,21 @@ namespace AspNetCoreWebApi.Processing
 
             foreach (var filter in query)
             {
-                bool res = false;
+                bool res = true;
                 switch(filter.Key)
                 {
                     case "query_id":
                         break;
 
                     case "limit":
-                        int limit;
-                        if (!int.TryParse(filter.Value,  out limit))
+                        uint limit;
+                        if (!uint.TryParse(filter.Value,  out limit))
                         {
                             return false;
                         }
                         else
                         {
-                            request.Limit = limit;
+                            request.Limit = (int)limit;
                         }
                         break;
 
@@ -93,6 +93,11 @@ namespace AspNetCoreWebApi.Processing
 
         private bool CityEq(RecommendRequest request, StringValues value)
         {
+            if (String.IsNullOrEmpty(value))
+            {
+                return false;
+            }
+
             request.City.IsActive = true;
             request.City.City = value;
             return true;
@@ -100,6 +105,11 @@ namespace AspNetCoreWebApi.Processing
 
         private bool CountryEq(RecommendRequest request, StringValues value)
         {
+            if (String.IsNullOrEmpty(value))
+            {
+                return false;
+            }
+
             request.Country.IsActive = true;
             request.Country.Country = value;
             return true;

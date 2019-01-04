@@ -58,10 +58,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 return _id2name.Where(x => x.Value.StartsWith(sname.Starts)).Select(x => x.Key);
             }
-            else
+            else if (sname.Eq != null)
             {
                 return _id2name.Where(x => x.Value == sname.Eq).Select(x => x.Key);
             }
+
+            return _id2name.Keys;
         }
     }
 }

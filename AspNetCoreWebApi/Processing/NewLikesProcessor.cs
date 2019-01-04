@@ -42,7 +42,7 @@ namespace AspNetCoreWebApi.Processing
                     dto = (LikesDto)serializer.Deserialize(jsonTextReader, typeof(LikesDto));
                 }
             }
-            catch(Exception ex)
+            catch(Exception)
             {
                 return false;
             }

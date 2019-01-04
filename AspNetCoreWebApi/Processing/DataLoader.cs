@@ -30,6 +30,15 @@ namespace AspNetCoreWebApi.Processing
             _context = context;
         }
 
+        public void Config(string path)
+        {
+            using(StreamReader reader = new StreamReader(path))
+            {
+                DataConfig.NowSeconds = int.Parse(reader.ReadLine());
+                DataConfig.Now = DateTimeOffset.FromUnixTimeSeconds(DataConfig.NowSeconds);
+            }
+        }
+
         public IObservable<AccountDto> AccountLoaded => _accountLoaded;
 
         public void Run(string path)
@@ -43,24 +52,10 @@ namespace AspNetCoreWebApi.Processing
                     {
                         ParseEntry(entry);
                     }
-
-                    if (entry.FullName == "options.txt")
-                    {
-                        ParseConfig(entry);
-                    }
                 }
             }
             Console.WriteLine("Import finished");
             GC.Collect();
-        }
-
-        private static void ParseConfig(ZipArchiveEntry entry)
-        {
-            using (TextReader optionsReader = new StreamReader(entry.Open()))
-            {
-                DataConfig.NowSeconds = int.Parse(optionsReader.ReadLine());
-                DataConfig.Now = DateTimeOffset.FromUnixTimeSeconds(DataConfig.NowSeconds);
-            }
         }
 
         private void ParseEntry(ZipArchiveEntry entry)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace AspNetCoreWebApi.Domain
 {
@@ -51,6 +52,23 @@ namespace AspNetCoreWebApi.Domain
             }
 
             return String.Empty;
+        }
+
+        private static Dictionary<Status, int> _groupSort = new Dictionary<Status, int>() 
+        {
+            { Status.Complicated, 0 },
+            { Status.Reserved, 1 },
+            { Status.Free, 2 }
+        };
+
+        public static int CompareString(Status x, Status y)
+        {
+            if (x == y)
+            {
+                return 0;
+            }
+
+            return _groupSort[x] - _groupSort[y];
         }
     }
 

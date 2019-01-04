@@ -52,14 +52,20 @@ namespace AspNetCoreWebApi
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
-            if (env.IsDevelopment())
+            app.Use(next => context =>
             {
-                app.UseDeveloperExceptionPage();
-            }
-            else
-            {
-                app.UseHsts();
-            }
+                context.Response.OnStarting(() =>
+                {
+                    if (context.Response.StatusCode == 405)
+                    {
+                        context.Response.StatusCode = 404;
+                    }
+
+                    return Task.CompletedTask;
+                });
+
+                return next(context);
+            });
 
             app.UseResponseBuffering();
             app.UseMvc();

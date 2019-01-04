@@ -50,6 +50,16 @@ namespace AspNetCoreWebApi.Processing.Printers
                     needComma = true;
                 }
 
+                if (entry.Group.Status.HasValue)
+                {
+                    if (needComma)
+                    {
+                        sw.Comma();
+                    }
+                    sw.Property("status", StatusHelper.ToStr(entry.Group.Status.Value));
+                    needComma = true;
+                }
+
                 if (entry.Group.Sex.HasValue)
                 {
                     if (needComma)

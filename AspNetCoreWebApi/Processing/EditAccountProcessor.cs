@@ -43,7 +43,7 @@ namespace AspNetCoreWebApi.Processing
                     dto = (AccountDto)serializer.Deserialize(jsonTextReader, typeof(AccountDto));
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return false;
             }

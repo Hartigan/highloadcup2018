@@ -100,5 +100,19 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             return sex ? _id2AccId[1].Contains(id) : _id2AccId[0].Contains(id);
         }
+
+        public void GetBySex(
+            bool value,
+            HashSet<int> currentIds)
+        {
+            if (value)
+            {
+                currentIds.UnionWith(_id2AccId[1]);
+            }
+            else
+            {
+                currentIds.UnionWith(_id2AccId[0]);
+            }
+        }
     }
 }

@@ -23,6 +23,7 @@ namespace AspNetCoreWebApi
             var messageProcessor = host.Services.GetRequiredService<MessageProcessor>();
 
             var loader = host.Services.GetRequiredService<DataLoader>();
+            loader.Config("../../highloadcup2018_data/data/options.txt");
             loader.Run("../../highloadcup2018_data/data/data.zip");
 
             host.Run();
