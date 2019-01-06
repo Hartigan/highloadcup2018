@@ -55,6 +55,10 @@ namespace AspNetCoreWebApi.Processing
                         }
                         else
                         {
+                            if (limit <= 0)
+                            {
+                                return false;
+                            }
                             request.Limit = limit;
                         }
                         break;

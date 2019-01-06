@@ -37,9 +37,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void Update(int id, Phone phone)
         {
             _rw.AcquireWriterLock(2000);
-            var old = _id2phone[id];
+            Phone old;
+            if (_id2phone.TryGetValue(id, out old))
+            {
+                _code2ids[old.Code].Remove(id);
+            }
+
             _id2phone[id] = phone;
-            _code2ids[old.Code].Remove(id);
             _code2ids[phone.Code].Add(id);
             _rw.ReleaseWriterLock();
         }

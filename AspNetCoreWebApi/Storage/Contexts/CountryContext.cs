@@ -38,7 +38,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 value.Remove(id);
             }
-            _id2AccId[countryId].Add(id);
+            if (_id2AccId.ContainsKey(countryId))
+            {
+                _id2AccId[countryId].Add(id);
+            }
+            else
+            {
+                _id2AccId[countryId] = new HashSet<int>() { id };
+            }
             _rw.ReleaseWriterLock();
         }
 

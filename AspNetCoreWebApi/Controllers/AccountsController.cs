@@ -57,10 +57,17 @@ namespace AspNetCoreWebApi.Controllers
             }
         }
 
-        [Route("accounts/{id}")]
+        [Route("accounts/{strId}")]
         [HttpPost]
-        public ActionResult Edit(int id)
+        public ActionResult Edit(string strId)
         {
+            int id = 0;
+            if (!int.TryParse(strId, out id))
+            {
+                Response.StatusCode = 404;
+                return Content(String.Empty);
+            }
+
             if (!_storage.Ids.Contains(id))
             {
                 Response.StatusCode = 404;

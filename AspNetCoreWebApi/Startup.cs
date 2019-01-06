@@ -41,6 +41,7 @@ namespace AspNetCoreWebApi
             services.AddSingleton<MessageProcessor>();
 
             services.AddSingleton<DomainParser>();
+            services.AddSingleton<Validator>();
 
             services.AddSingleton<MainContext>();
             services.AddSingleton<MainStorage>();
