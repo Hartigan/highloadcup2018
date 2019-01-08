@@ -3,32 +3,63 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class PhoneContext
+    public class PhoneContext : IBatchLoader<Phone>
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private SortedDictionary<int, Phone> _id2phone = new SortedDictionary<int, Phone>();
-        private SortedDictionary<short, HashSet<int>> _code2ids = new SortedDictionary<short, HashSet<int>>();
+        private Phone?[] _phones = new Phone?[DataConfig.MaxId];
+        private SortedDictionary<short, List<int>> _code2ids = new SortedDictionary<short, List<int>>();
 
         public PhoneContext()
         {
         }
 
+        public void LoadBatch(IEnumerable<BatchEntry<Phone>> batch)
+        {
+            _rw.AcquireWriterLock(2000);
+
+            foreach(var entry in batch)
+            {
+                Phone phone = entry.Value;
+
+                _phones[entry.Id] = phone;
+
+                if (_code2ids.ContainsKey(phone.Code))
+                {
+                    _code2ids[phone.Code].Add(entry.Id);
+                }
+                else
+                {
+                    _code2ids[phone.Code] = new List<int>() { entry.Id };
+                }
+            }
+
+            foreach(var code in batch.Select(x => x.Value.Code).Distinct())
+            {
+                _code2ids[code].Sort();
+            }
+
+            _rw.ReleaseWriterLock();
+        }
+
         public void Add(int id, Phone phone)
         {
             _rw.AcquireWriterLock(2000);
-            _id2phone.Add(id, phone);
+
+            _phones[id] = phone;
 
             if (_code2ids.ContainsKey(phone.Code))
             {
-                _code2ids[phone.Code].Add(id);
+                var list = _code2ids[phone.Code];
+                list.Insert(~list.BinarySearch(id), id);
             }
             else
             {
-                _code2ids[phone.Code] = new HashSet<int>() { id };
+                _code2ids[phone.Code] = new List<int>() { id };
             }
 
             _rw.ReleaseWriterLock();
@@ -37,18 +68,33 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void Update(int id, Phone phone)
         {
             _rw.AcquireWriterLock(2000);
-            Phone old;
-            if (_id2phone.TryGetValue(id, out old))
+
+            var old = _phones[id];
+
+            if (old.HasValue)
             {
-                _code2ids[old.Code].Remove(id);
+                var list = _code2ids[old.Value.Code];
+                list.RemoveAt(list.BinarySearch(id));
             }
 
-            _id2phone[id] = phone;
-            _code2ids[phone.Code].Add(id);
+            Add(id, phone);
+
             _rw.ReleaseWriterLock();
         }
 
-        public bool TryGet(int id, out Phone phone) => _id2phone.TryGetValue(id, out phone);
+        public bool TryGet(int id, out Phone phone)
+        {
+            if (_phones[id].HasValue)
+            {
+                phone = _phones[id].Value;
+                return true;
+            }
+            else
+            {
+                phone = default(Phone);
+                return false;
+            }
+        }
 
         public IEnumerable<int> Filter(FilterRequest.PhoneRequest phone, IdStorage idStorage)
         {
@@ -56,7 +102,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (phone.IsNull.Value)
                 {
-                    return phone.Code.HasValue ? Enumerable.Empty<int>() : idStorage.Except(_id2phone.Keys);
+                    return phone.Code.HasValue ? Enumerable.Empty<int>() : idStorage.Except(_code2ids.SelectMany(x => x.Value));
                 }
             }
 
@@ -73,7 +119,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
             else
             {
-                return _id2phone.Keys;
+                return _code2ids.SelectMany(x => x.Value);
             }
         }
     }
