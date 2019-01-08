@@ -3,42 +3,61 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class SexContext
+    public class SexContext : IBatchLoader<bool>
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private HashSet<int>[] _id2AccId = new HashSet<int>[2];
+        private List<int>[] _id2AccId = new List<int>[2];
 
         public SexContext()
         {
-            _id2AccId[0] = new HashSet<int>();
-            _id2AccId[1] = new HashSet<int>();
+            _id2AccId[0] = new List<int>();
+            _id2AccId[1] = new List<int>();
+        }
+
+        public void LoadBatch(IEnumerable<BatchEntry<bool>> batch)
+        {
+            _rw.AcquireWriterLock(2000);
+            _id2AccId[0].AddRange(batch.Where(x => !x.Value).Select(x => x.Id));
+            _id2AccId[1].AddRange(batch.Where(x => x.Value).Select(x => x.Id));
+            _id2AccId[0].Sort();
+            _id2AccId[1].Sort();
+            _rw.ReleaseWriterLock();
         }
 
         public void Add(int id, bool sex)
         {
             _rw.AcquireWriterLock(2000);
-            _id2AccId[sex ? 1 : 0].Add(id);
+            var list = _id2AccId[sex ? 1 : 0];
+            int index = list.BinarySearch(id);
+            list.Insert(~index, id);
             _rw.ReleaseWriterLock();
         }
 
         public void Update(int id, bool sex)
         {
             _rw.AcquireWriterLock(2000);
-            _id2AccId[0].Remove(id);
-            _id2AccId[1].Remove(id);
-            _id2AccId[sex ? 1 : 0].Add(id);
+
+            var list = _id2AccId[sex ? 1 : 0];
+            int index = list.BinarySearch(id);
+
+            if (index < 0)
+            {
+                list.Insert(~index, id);
+                list = _id2AccId[!sex ? 1 : 0];
+                index = list.BinarySearch(id);
+                list.RemoveAt(index);
+            }
             _rw.ReleaseWriterLock();
         }
 
         public bool Get(int id)
         {
-            _rw.AcquireReaderLock(2000);
-            bool sex = _id2AccId[1].Contains(id);
-            _rw.ReleaseReaderLock();
+            bool sex = _id2AccId[1].BinarySearch(id) >= 0;
             return sex;
         }
 
@@ -98,7 +117,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public bool Contains(bool sex, int id)
         {
-            return sex ? _id2AccId[1].Contains(id) : _id2AccId[0].Contains(id);
+            return _id2AccId[sex ? 1 : 0].BinarySearch(id) >= 0;
         }
 
         public void GetBySex(
