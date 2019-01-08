@@ -3,14 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class BirthContext
+    public class BirthContext : IBatchLoader<DateTimeOffset>
     {
-        private ReaderWriterLock _rw = new ReaderWriterLock();
-        private SortedDictionary<int, DateTimeOffset> _id2time = new SortedDictionary<int, DateTimeOffset>();
+        private DateTimeOffset?[] _id2time = new DateTimeOffset?[DataConfig.MaxId];
 
         public BirthContext()
         {
@@ -18,39 +18,46 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void AddOrUpdate(int id, DateTimeOffset time)
         {
-            _rw.AcquireWriterLock(2000);
             _id2time[id] = time;
-            _rw.ReleaseWriterLock();
         }
 
-        public DateTimeOffset Get(int id) => _id2time[id];
+        public DateTimeOffset Get(int id) => _id2time[id].Value;
 
-        public IEnumerable<int> Filter(FilterRequest.BirthRequest birth)
+        public IEnumerable<int> Filter(FilterRequest.BirthRequest birth, IdStorage idStorage)
         {
-            return _id2time.Where(x =>
+            return idStorage.AsEnumerable().Where(x =>
             {
-                if (birth.Gt.HasValue && x.Value <= birth.Gt.Value)
+                DateTimeOffset b = _id2time[x].Value;
+                if (birth.Gt.HasValue && b <= birth.Gt.Value)
                 {
                     return false;
                 }
 
-                if (birth.Lt.HasValue && x.Value >= birth.Lt.Value)
+                if (birth.Lt.HasValue && b >= birth.Lt.Value)
                 {
                     return false;
                 }
 
-                if (birth.Year.HasValue && x.Value.Year != birth.Year.Value)
+                if (birth.Year.HasValue && b.Year != birth.Year.Value)
                 {
                     return false;
                 }
 
                 return true;
-            }).Select(x => x.Key);
+            });
         }
 
-        public IEnumerable<int> Filter(GroupRequest.BirthRequest birth)
+        public IEnumerable<int> Filter(GroupRequest.BirthRequest birth, IdStorage idStorage)
         {
-            return _id2time.Where(x => x.Value.Year == birth.Year).Select(x => x.Key);
+            return idStorage.AsEnumerable().Where(x => _id2time[x].Value.Year == birth.Year);
+        }
+
+        public void LoadBatch(IEnumerable<BatchEntry<DateTimeOffset>> batch)
+        {
+            foreach(var entry in batch)
+            {
+                _id2time[entry.Id] = entry.Value;
+            }
         }
     }
 }

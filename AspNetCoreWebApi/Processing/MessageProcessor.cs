@@ -330,7 +330,7 @@ namespace AspNetCoreWebApi.Processing
 
             if (request.Birth.IsActive)
             {
-                result = Intersect(result, _context.Birth.Filter(request.Birth));
+                result = Intersect(result, _context.Birth.Filter(request.Birth, _storage.Ids));
             }
 
             if (request.Interest.IsActive)
@@ -499,7 +499,7 @@ namespace AspNetCoreWebApi.Processing
 
             if (request.Birth.IsActive)
             {
-                result = Intersect(result, _context.Birth.Filter(request.Birth));
+                result = Intersect(result, _context.Birth.Filter(request.Birth, _storage.Ids));
             }
 
             if (request.Interests.IsActive)
