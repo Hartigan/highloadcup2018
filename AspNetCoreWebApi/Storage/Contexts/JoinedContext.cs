@@ -2,15 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class JoinedContext
+    public class JoinedContext : IBatchLoader<DateTimeOffset>
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private SortedDictionary<int, DateTimeOffset> _id2time = new SortedDictionary<int, DateTimeOffset>();
+        private DateTimeOffset?[] _id2time = new DateTimeOffset?[DataConfig.MaxId];
 
         public JoinedContext()
         {
@@ -18,14 +18,20 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void AddOrUpdate(int id, DateTimeOffset time)
         {
-            _rw.AcquireWriterLock(2000);
             _id2time[id] = time;
-            _rw.ReleaseWriterLock();
         }
 
-        public IEnumerable<int> Filter(GroupRequest.JoinedRequest joined)
+        public IEnumerable<int> Filter(GroupRequest.JoinedRequest joined, IdStorage idStorage)
         {
-            return _id2time.Where(x => x.Value.Year == joined.Year).Select(x => x.Key);
+            return idStorage.AsEnumerable().Where(x => _id2time[x].Value.Year == joined.Year);
+        }
+
+        public void LoadBatch(IEnumerable<BatchEntry<DateTimeOffset>> batch)
+        {
+            foreach(var entry in batch)
+            {
+                _id2time[entry.Id] = entry.Value;
+            }
         }
     }
 }

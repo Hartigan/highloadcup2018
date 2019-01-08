@@ -345,7 +345,7 @@ namespace AspNetCoreWebApi.Processing
 
             if (request.Joined.IsActive)
             {
-                result = Intersect(result, _context.Joined.Filter(request.Joined));
+                result = Intersect(result, _context.Joined.Filter(request.Joined, _storage.Ids));
             }
 
             if (result == null)
