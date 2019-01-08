@@ -3,31 +3,50 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class LikesContext
+    public class LikesContext : IBatchLoader<IEnumerable<Like>>
     {
-        private class BucketIdComparer : IComparer<int>
+        private class BucketIdComparer : IComparer<LikeBucket>
         {
-            public int Compare(int x, int y)
+            public int Compare(LikeBucket x, LikeBucket y)
             {
-                return y - x;
+                return y.LikeeId - x.LikeeId;
             }
         }
 
         private struct LikeBucket
         {
+            public LikeBucket(int likeeId, int tsSum, int count)
+            {
+                LikeeId = likeeId;
+                TsSum = tsSum;
+                Count = count;
+            }
+
+            public int LikeeId;
             public int TsSum;
             public int Count;
+
+            public static LikeBucket operator+(LikeBucket l, LikeBucket r)
+            {
+                return new LikeBucket(l.LikeeId, l.TsSum + r.TsSum, l.Count + r.Count);
+            }
+
+            public double Calc()
+            {
+                return 1.0 * TsSum / Count;
+            }
         }
 
         private static BucketIdComparer _bucketKeyComparer = new BucketIdComparer();
 
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private SortedDictionary<int, HashSet<int>> _likee2likers = new SortedDictionary<int, HashSet<int>>();
-        private SortedDictionary<int, SortedDictionary<int, LikeBucket>> _liker2likes = new SortedDictionary<int, SortedDictionary<int, LikeBucket>>();
+        private List<int>[] _likee2likers = new List<int>[DataConfig.MaxId];
+        private List<LikeBucket>[] _liker2likes = new List<LikeBucket>[DataConfig.MaxId];
 
         public LikesContext()
         {
@@ -37,35 +56,38 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             _rw.AcquireWriterLock(2000);
 
-            if (_likee2likers.ContainsKey(like.LikeeId))
+            if (_likee2likers[like.LikeeId] != null)
             {
-                _likee2likers[like.LikeeId].Add(like.LikerId);
+                var list = _likee2likers[like.LikeeId];
+                int likerIndex = list.BinarySearch(like.LikerId);
+                if (likerIndex < 0)
+                {
+                    list.Insert(~likerIndex, like.LikerId);
+                }
             }
             else
             {
-                _likee2likers[like.LikeeId] = new HashSet<int>() { like.LikerId };
+                _likee2likers[like.LikeeId] = new List<int>() { like.LikerId };
             }
 
-            SortedDictionary<int, LikeBucket> likes;
-            if (!_liker2likes.TryGetValue(like.LikerId, out likes))
+            List<LikeBucket> likes;
+            if (_liker2likes[like.LikerId] == null)
             {
-                likes = new SortedDictionary<int, LikeBucket>(_bucketKeyComparer);
-                _liker2likes.Add(like.LikerId, likes);
+                _liker2likes[like.LikerId] = new List<LikeBucket>();
             }
 
-            LikeBucket bucket;
-            if (likes.TryGetValue(like.LikeeId, out bucket))
+            likes = _liker2likes[like.LikerId];
+
+            LikeBucket bucket = new LikeBucket(like.LikeeId, (int)like.Timestamp.ToUnixTimeSeconds(), 1);
+            int index = likes.BinarySearch(bucket, _bucketKeyComparer);
+            if (index >= 0)
             {
-                bucket.Count++;
-                bucket.TsSum += (int)like.Timestamp.ToUnixTimeSeconds();
+                likes[index] += bucket;
             }
             else
             {
-                bucket.Count = 1;
-                bucket.TsSum = (int)like.Timestamp.ToUnixTimeSeconds();
+                likes.Insert(~index, bucket);
             }
-
-            likes[like.LikeeId] = bucket;
 
             _rw.ReleaseWriterLock();
         }
@@ -76,7 +98,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             foreach(var likee in likes.Contains)
             {
-                var tmp = _likee2likers.GetValueOrDefault(likee);
+                var tmp = _likee2likers[likee];
                 if (tmp == null)
                 {
                     return Enumerable.Empty<int>();
@@ -97,55 +119,68 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public IEnumerable<int> Filter(GroupRequest.LikeRequest like)
         {
-            return _likee2likers.GetValueOrDefault(like.Id) ?? Enumerable.Empty<int>();
+            return _likee2likers[like.Id] ?? Enumerable.Empty<int>();
         }
 
         public void Suggest(
             int id,
-            IDictionary<int, float> similarity,
+            IDictionary<int, double> similarity,
             IDictionary<int, IEnumerable<int>> suggested)
         {
-            SortedDictionary<int, LikeBucket> buckets;
-            if (!_liker2likes.TryGetValue(id, out buckets))
+            List<LikeBucket> buckets = _liker2likes[id];
+            if (buckets == null)
             {
                 return;
             }
 
             foreach(var likeePair in buckets)
             {
-                HashSet<int> likers;
-                if (!_likee2likers.TryGetValue(likeePair.Key, out likers))
+                List<int> likers = _likee2likers[likeePair.LikeeId];
+                if (likers == null)
                 {
                     continue;
                 }
 
                 foreach (var liker in likers)
                 {
-                    float current = 0;
+                    double current = 0;
                     if (!similarity.TryGetValue(liker, out current))
                     {
                         current = 0;
                     }
 
-                    float x = 1.0f * likeePair.Value.TsSum / likeePair.Value.Count;
-                    LikeBucket bucketY = _liker2likes[liker][likeePair.Key];
-                    float y = 1.0f * bucketY.TsSum / bucketY.Count;
+                    double x = likeePair.Calc();
+                    LikeBucket bucketY = _liker2likes[liker][likeePair.LikeeId];
+                    double y = bucketY.Calc();
 
-                    if (likeePair.Value.TsSum * bucketY.Count == bucketY.TsSum * likeePair.Value.Count)
+                    if (likeePair.TsSum * bucketY.Count == bucketY.TsSum * likeePair.Count)
                     {
-                        current += 1.0f;
+                        current += 1.0;
                     }
                     else
                     {
-                        current += 1.0f / Math.Abs(x - y);
+                        current += 1.0 / Math.Abs(x - y);
                     }
                     similarity[liker] = current;
                 }
             }
 
+            HashSet<int> selfIds = new HashSet<int>(buckets.Select(x => x.LikeeId));
+
             foreach(var liker in similarity.Keys)
             {
-                suggested.Add(liker, _liker2likes[liker].Keys.Where(x => !buckets.ContainsKey(x)));
+                suggested.Add(liker, _liker2likes[liker].Where(x => !selfIds.Contains(x.LikeeId)).Select(x => x.LikeeId));
+            }
+        }
+
+        public void LoadBatch(IEnumerable<BatchEntry<IEnumerable<Like>>> batch)
+        {
+            foreach(var entry in batch)
+            {
+                foreach(var like in entry.Value)
+                {
+                    this.Add(like);
+                }
             }
         }
     }

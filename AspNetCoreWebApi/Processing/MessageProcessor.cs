@@ -91,7 +91,7 @@ namespace AspNetCoreWebApi.Processing
 
         private void Suggest(SuggestRequest request)
         {
-            IDictionary<int, float> similarity = new Dictionary<int, float>();
+            IDictionary<int, double> similarity = new Dictionary<int, double>();
             IDictionary<int, IEnumerable<int>> suggested = new Dictionary<int, IEnumerable<int>>();
             _context.Likes.Suggest(request.Id, similarity, suggested);
 
