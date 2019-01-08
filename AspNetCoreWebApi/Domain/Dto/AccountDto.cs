@@ -48,6 +48,30 @@ namespace AspNetCoreWebApi.Domain.Dto
 
         [JsonProperty("premium")]
         public PremiumDto Premium { get; set; }
+
+        public void Clear()
+        {
+            Id = null;
+            Email = null;
+            FirstName = null;
+            Surname = null;
+            Phone = null;
+            Birth = null;
+            Country = null;
+            City = null;
+            Joined = null;
+            Status = null;
+            if (Interests != null)
+            {
+                Interests.Clear();
+            }
+            Sex = null;
+            if (Likes != null)
+            {
+                Likes.Clear();
+            }
+            Premium = null;
+        }
     }
 
     [JsonObject(MemberSerialization.OptIn)]

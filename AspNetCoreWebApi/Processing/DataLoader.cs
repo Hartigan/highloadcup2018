@@ -11,6 +11,8 @@ using Newtonsoft.Json.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reactive.Subjects;
 using AspNetCoreWebApi.Storage.Contexts;
+using Microsoft.Extensions.ObjectPool;
+using AspNetCoreWebApi.Processing.Pooling;
 
 namespace AspNetCoreWebApi.Processing
 {
@@ -40,6 +42,7 @@ namespace AspNetCoreWebApi.Processing
         public void Run(string path)
         {
             List<AccountDto> dtos = new List<AccountDto>(DataConfig.MaxId);
+            DefaultObjectPool<AccountDto> pool = new DefaultObjectPool<AccountDto>(new AccountDtoPolicy());
 
             using (ZipArchive archive = ZipFile.OpenRead(path))
             {
@@ -47,8 +50,12 @@ namespace AspNetCoreWebApi.Processing
                 {
                     if (entry.FullName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                     {
-                        ParseEntry(entry, dtos);
+                        ParseEntry(entry, dtos, pool);
                         _accountLoaded.OnNext(dtos);
+                        foreach (var dto in dtos)
+                        {
+                            pool.Return(dto);
+                        }
                         dtos.Clear();
                     }
                 }
@@ -57,7 +64,7 @@ namespace AspNetCoreWebApi.Processing
             Console.WriteLine("Import finished");
         }
 
-        private void ParseEntry(ZipArchiveEntry entry, List<AccountDto> dtos)
+        private void ParseEntry(ZipArchiveEntry entry, List<AccountDto> dtos, ObjectPool<AccountDto> pool)
         {
             JsonSerializer ser = JsonSerializer.CreateDefault();
             using (TextReader textReader = new StreamReader(entry.Open()))
@@ -68,7 +75,7 @@ namespace AspNetCoreWebApi.Processing
                 jsonReader.Read();
                 while (jsonReader.Read() && jsonReader.TokenType != JsonToken.EndArray)
                 {
-                    AccountDto dto = new AccountDto();
+                    AccountDto dto = pool.Get();
                     ser.Populate(jsonReader, dto);
                     dtos.Add(dto);
                 }
