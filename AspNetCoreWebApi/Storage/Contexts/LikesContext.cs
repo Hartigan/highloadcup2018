@@ -152,7 +152,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     double x = likeePair.Calc();
                     LikeBucket bucketY = new LikeBucket(likeePair.LikeeId, 0, 0);
                     var likerList = _liker2likes[liker];
-                    bucketY = likerList[likerList.BinarySearch(bucketY)];
+                    bucketY = likerList[likerList.BinarySearch(bucketY, _bucketKeyComparer)];
                     double y = bucketY.Calc();
 
                     if (likeePair.TsSum * bucketY.Count == bucketY.TsSum * likeePair.Count)
