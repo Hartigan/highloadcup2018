@@ -23,7 +23,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _rw.AcquireWriterLock(2000);
             foreach(var entry in batch)
             {
-                _names[entry.Id] = entry.Value;
+                _names[entry.Id] = string.Intern(entry.Value);
                 _ids.Add(entry.Id);
             }
             _rw.ReleaseWriterLock();
