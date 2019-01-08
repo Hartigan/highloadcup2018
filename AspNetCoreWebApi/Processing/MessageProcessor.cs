@@ -464,7 +464,7 @@ namespace AspNetCoreWebApi.Processing
 
             if (request.Email.IsActive)
             {
-                result = Intersect(result, _context.Emails.Filter(request.Email, _storage.Domains));
+                result = Intersect(result, _context.Emails.Filter(request.Email, _storage.Domains, _storage.Ids));
             }
 
             if (request.Status.IsActive)

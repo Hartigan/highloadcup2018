@@ -3,17 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Processing.Requests;
 using AspNetCoreWebApi.Storage.StringPools;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class EmailContext
+    public class EmailContext : IBatchLoader<Email>
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private SortedDictionary<int, Email> _id2email = new SortedDictionary<int, Email>();
-        private Dictionary<Email, int> _email2id = new Dictionary<Email, int>();
-        private SortedDictionary<int, HashSet<int>> _domain2ids = new SortedDictionary<int, HashSet<int>>();
+        private Email?[] _emails = new Email?[DataConfig.MaxId];
+        private SortedDictionary<int, List<int>> _domain2ids = new SortedDictionary<int, List<int>>();
 
         public EmailContext()
         {
@@ -23,16 +23,16 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             _rw.AcquireWriterLock(2000);
             email.Prefix = string.Intern(email.Prefix);
-            _id2email.Add(id, email);
-            _email2id.Add(email, id);
+            _emails[id] = email;
 
             if (_domain2ids.ContainsKey(email.DomainId))
             {
-                _domain2ids[email.DomainId].Add(id);
+                var list = _domain2ids[email.DomainId];
+                list.Insert(~list.BinarySearch(id), id);
             }
             else
             {
-                _domain2ids[email.DomainId] = new HashSet<int>() { id };
+                _domain2ids[email.DomainId] = new List<int>() { id };
             }
 
             _rw.ReleaseWriterLock();
@@ -41,46 +41,34 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void Update(int id, Email updated)
         {
             _rw.AcquireWriterLock(2000);
-            updated.Prefix = string.Intern(updated.Prefix);
-            var old = _id2email[id];
-            _id2email[id] = updated;
-            _email2id.Remove(old);
-            _email2id.Add(updated, id);
+            
+            var old = _emails[id].Value;
+            var list = _domain2ids[old.DomainId];
+            list.RemoveAt(list.BinarySearch(id));
 
-            _domain2ids[old.DomainId].Remove(id);
-
-            if (_domain2ids.ContainsKey(updated.DomainId))
-            {
-                _domain2ids[updated.DomainId].Add(id);
-            }
-            else
-            {
-                _domain2ids[updated.DomainId] = new HashSet<int>() { id };
-            }
+            Add(id, updated);
 
             _rw.ReleaseWriterLock();
         }
 
         public Email Get(int id)
         {
-            _rw.AcquireReaderLock(2000);
-            Email email = _id2email[id];
-            _rw.ReleaseReaderLock();
-            return email;
+            return _emails[id].Value;
         }
 
         public IEnumerable<int> Filter(
             FilterRequest.EmailRequest email,
-            DomainStorage domainStorage)
+            DomainStorage domainStorage,
+            IdStorage idStorage)
         {
-            HashSet<int> withDomain = null;
+            List<int> withDomain = null;
             if (email.Domain != null)
             {
                 var domainId = domainStorage.Get(email.Domain);
                 withDomain = _domain2ids.GetValueOrDefault(domainId);
             }
 
-            IEnumerable<int> result = withDomain != null ? (IEnumerable<int>)withDomain : _id2email.Keys;
+            IEnumerable<int> result = withDomain != null ? (IEnumerable<int>)withDomain : idStorage.AsEnumerable();
 
             if (email.Gt != null && email.Lt != null)
             {
@@ -91,7 +79,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
                 return result.Where(x =>
                 {
-                    string prefix = _id2email[x].Prefix;
+                    string prefix = _emails[x].Value.Prefix;
                     return string.Compare(prefix, email.Gt) > 0 &&
                         string.Compare(prefix, email.Lt) < 0;
                 });
@@ -99,14 +87,44 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (email.Gt != null)
             {
-                return result.Where(x => string.Compare(_id2email[x].Prefix, email.Gt) > 0);
+                return result.Where(x => string.Compare(_emails[x].Value.Prefix, email.Gt) > 0);
             }
             else if (email.Lt != null)
             {
-                return result.Where(x => string.Compare(_id2email[x].Prefix, email.Lt) < 0);
+                return result.Where(x => string.Compare(_emails[x].Value.Prefix, email.Lt) < 0);
             }
 
             return result;
+        }
+
+        public void LoadBatch(IEnumerable<BatchEntry<Email>> batch)
+        {
+            _rw.AcquireWriterLock(2000);
+
+            foreach(var entry in batch)
+            {
+                Email email = entry.Value;
+                int id = entry.Id;
+                email.Prefix = string.Intern(email.Prefix);
+
+                _emails[id] = email;
+
+                if (_domain2ids.ContainsKey(email.DomainId))
+                {
+                    _domain2ids[email.DomainId].Add(id);
+                }
+                else
+                {
+                    _domain2ids[email.DomainId] = new List<int>() { id };
+                }
+            }
+
+            foreach(var domainId in batch.Select(x => x.Value.DomainId).Distinct())
+            {
+                _domain2ids[domainId].Sort();
+            }
+
+            _rw.ReleaseWriterLock();
         }
     }
 }
