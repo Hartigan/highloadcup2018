@@ -8,10 +8,10 @@ using AspNetCoreWebApi.Storage.StringPools;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class CityContext
+    public class CityContext : IBatchLoader<int>
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private SortedDictionary<int, HashSet<int>> _id2AccId = new SortedDictionary<int, HashSet<int>>();
+        private SortedDictionary<int, List<int>> _id2AccId = new SortedDictionary<int, List<int>>();
 
         public CityContext()
         {
@@ -22,11 +22,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _rw.AcquireWriterLock(2000);
             if (_id2AccId.ContainsKey(cityId))
             {
-                _id2AccId[cityId].Add(id);
+                var list = _id2AccId[cityId];
+                list.Insert(~list.BinarySearch(id), id);
             }
             else
             {
-                _id2AccId[cityId] = new HashSet<int>() { id };
+                _id2AccId[cityId] = new List<int>() { id };
             }
             _rw.ReleaseWriterLock();
         }
@@ -34,18 +35,18 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void AddOrUpdate(int id, int cityId)
         {
             _rw.AcquireWriterLock(2000);
-            foreach (var value in _id2AccId.Values)
+            foreach (var list in _id2AccId.Values)
             {
-                value.Remove(id);
+                int index = list.BinarySearch(id);
+                if (index >= 0)
+                {
+                    list.RemoveAt(index);
+                    break;
+                }
             }
-            if (_id2AccId.ContainsKey(cityId))
-            {
-                _id2AccId[cityId].Add(id);
-            }
-            else
-            {
-                _id2AccId[cityId] = new HashSet<int>() { id };
-            }
+
+            Add(id, cityId);
+
             _rw.ReleaseWriterLock();
         }
 
@@ -53,17 +54,16 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             cityId = 0;
             bool res = false;
-            _rw.AcquireReaderLock(2000);
             foreach (var pair in _id2AccId)
             {
-                if (pair.Value.Contains(id))
+                int index = pair.Value.BinarySearch(id);
+                if (index >= 0)
                 {
                     res = true;
                     cityId = pair.Key;
                     break;
                 }
             }
-            _rw.ReleaseReaderLock();
             return res;
         }
 
@@ -102,8 +102,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
             else if (city.Any != null)
             {
-                HashSet<int> cityIds = new HashSet<int>(city.Any.Select(x => cities.Get(x)));
-                return _id2AccId.Where(x => cityIds.Contains(x.Key)).SelectMany(x => x.Value);
+                return city.Any
+                    .Select(x => cities.Get(x))
+                    .Where(x => _id2AccId.ContainsKey(x))
+                    .SelectMany(x => _id2AccId[x]);
             }
             else
             {
@@ -153,10 +155,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             if (cityId.HasValue)
             {
-                HashSet<int> ids;
+                List<int> ids;
                 if (_id2AccId.TryGetValue(cityId.Value, out ids))
                 {
-                    return ids.Contains(id);
+                    return ids.BinarySearch(id) >= 0;
                 }
                 else
                 {
@@ -164,7 +166,15 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 }
             }
 
-            return !_id2AccId.Values.SelectMany(x => x).Contains(id);
+            foreach (var ids in _id2AccId.Values)
+            {
+                if (ids.BinarySearch(id) >= 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         public void GetByCityId(
@@ -180,6 +190,30 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 currentIds.UnionWith(ids.Except(_id2AccId.SelectMany(x => x.Value)));
             }
+        }
+
+        public void LoadBatch(IEnumerable<BatchEntry<int>> batch)
+        {
+            _rw.AcquireWriterLock(2000);
+
+            foreach(var entry in batch)
+            {
+                if (_id2AccId.ContainsKey(entry.Value))
+                {
+                    _id2AccId[entry.Value].Add(entry.Id);
+                }
+                else
+                {
+                    _id2AccId[entry.Value] = new List<int>() { entry.Id };
+                }
+            }
+
+            foreach(var cityId in batch.Select(x => x.Value).Distinct())
+            {
+                _id2AccId[cityId].Sort();
+            }
+
+            _rw.ReleaseWriterLock();
         }
     }
 }
