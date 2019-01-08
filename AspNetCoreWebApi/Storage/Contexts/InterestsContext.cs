@@ -8,10 +8,10 @@ using AspNetCoreWebApi.Storage.StringPools;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class InterestsContext
+    public class InterestsContext : IBatchLoader<IEnumerable<int>>
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private SortedDictionary<int, HashSet<int>> _id2AccId = new SortedDictionary<int, HashSet<int>>();
+        private SortedDictionary<int, List<int>> _id2AccId = new SortedDictionary<int, List<int>>();
 
         public InterestsContext()
         {
@@ -22,11 +22,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _rw.AcquireWriterLock(2000);
             if (_id2AccId.ContainsKey(interestId))
             {
-                _id2AccId[interestId].Add(id);
+                var list = _id2AccId[interestId];
+                list.Insert(~list.BinarySearch(id), id);
             }
             else
             {
-                _id2AccId[interestId] = new HashSet<int>() { id };
+                _id2AccId[interestId] = new List<int>() { id };
             }
             _rw.ReleaseWriterLock();
         }
@@ -34,9 +35,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void RemoveAccount(int id)
         {
             _rw.AcquireWriterLock(2000);
-            foreach(var value in _id2AccId.Values)
+            foreach(var list in _id2AccId.Values)
             {
-                value.Remove(id);
+                int index = list.BinarySearch(id);
+                if (index >= 0)
+                {
+                    list.RemoveAt(index);
+                }
             }
             _rw.ReleaseWriterLock();
         }
@@ -133,10 +138,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             if (interestId.HasValue)
             {
-                HashSet<int> ids;
+                List<int> ids;
                 if (_id2AccId.TryGetValue(interestId.Value, out ids))
                 {
-                    return ids.Contains(id);
+                    return ids.BinarySearch(id) >= 0;
                 }
                 else
                 {
@@ -144,14 +149,22 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 }
             }
 
-            return !_id2AccId.Values.SelectMany(x => x).Contains(id);
+            foreach(var ids in _id2AccId.Values)
+            {
+                if (ids.BinarySearch(id) >= 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         public void Recommend(int id, IDictionary<int, int> recomended)
         {
             foreach(var pair in _id2AccId)
             {
-                if (pair.Value.Contains(id))
+                if (pair.Value.BinarySearch(id) >= 0)
                 {
                     foreach(var acc in pair.Value)
                     {
@@ -183,6 +196,35 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 currentIds.UnionWith(ids.Except(_id2AccId.SelectMany(x => x.Value)));
             }
+        }
+
+        public void LoadBatch(IEnumerable<BatchEntry<IEnumerable<int>>> batch)
+        {
+            _rw.AcquireWriterLock(2000);
+
+            foreach(var entry in batch)
+            {
+                int id = entry.Id;
+
+                foreach(var interestId in entry.Value)
+                {
+                    if (_id2AccId.ContainsKey(interestId))
+                    {
+                        _id2AccId[interestId].Add(id);
+                    }
+                    else
+                    {
+                        _id2AccId[interestId] = new List<int>() { id };
+                    }
+                }
+            }
+
+            foreach(var interestId in batch.SelectMany(x=> x.Value).Distinct())
+            {
+                _id2AccId[interestId].Sort();
+            }
+
+            _rw.ReleaseWriterLock();
         }
     }
 }
