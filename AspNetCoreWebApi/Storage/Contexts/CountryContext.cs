@@ -8,10 +8,10 @@ using AspNetCoreWebApi.Storage.StringPools;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class CountryContext
+    public class CountryContext : IBatchLoader<int>
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private SortedDictionary<int, HashSet<int>> _id2AccId = new SortedDictionary<int, HashSet<int>>();
+        private SortedDictionary<int, List<int>> _id2AccId = new SortedDictionary<int, List<int>>();
 
         public CountryContext()
         {
@@ -22,11 +22,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _rw.AcquireWriterLock(2000);
             if (_id2AccId.ContainsKey(countryId))
             {
-                _id2AccId[countryId].Add(id);
+                var list = _id2AccId[countryId];
+                list.Insert(~list.BinarySearch(id), id);
             }
             else
             {
-                _id2AccId[countryId] = new HashSet<int>() { id };
+                _id2AccId[countryId] = new List<int>() { id };
             }
             _rw.ReleaseWriterLock();
         }
@@ -36,16 +37,16 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _rw.AcquireWriterLock(2000);
             foreach(var value in _id2AccId.Values)
             {
-                value.Remove(id);
+                int index = value.BinarySearch(id);
+                if (index >= 0)
+                {
+                    value.RemoveAt(index);
+                    break;
+                }
             }
-            if (_id2AccId.ContainsKey(countryId))
-            {
-                _id2AccId[countryId].Add(id);
-            }
-            else
-            {
-                _id2AccId[countryId] = new HashSet<int>() { id };
-            }
+
+            Add(id, countryId);
+
             _rw.ReleaseWriterLock();
         }
 
@@ -53,17 +54,16 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             countryId = 0;
             bool res = false;
-            _rw.AcquireReaderLock(2000);
             foreach(var pair in _id2AccId)
             {
-                if (pair.Value.Contains(id))
+                int index = pair.Value.BinarySearch(id);
+                if (index >= 0)
                 {
                     res = true;
                     countryId = pair.Key;
                     break;
                 }
             }
-            _rw.ReleaseReaderLock();
             return res;
         }
 
@@ -140,10 +140,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             if (countryId.HasValue)
             {
-                HashSet<int> ids;
+                List<int> ids;
                 if (_id2AccId.TryGetValue(countryId.Value, out ids))
                 {
-                    return ids.Contains(id);
+                    return ids.BinarySearch(id) >= 0;
                 }
                 else
                 {
@@ -151,7 +151,15 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 }
             }
 
-            return !_id2AccId.Values.SelectMany(x => x).Contains(id);
+            foreach (var ids in _id2AccId.Values)
+            {
+                if (ids.BinarySearch(id) >= 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         public void GetByCountryId(
@@ -167,6 +175,30 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 currentIds.UnionWith(ids.Except(_id2AccId.SelectMany(x => x.Value)));
             }
+        }
+
+        public void LoadBatch(IEnumerable<BatchEntry<int>> batch)
+        {
+            _rw.AcquireWriterLock(2000);
+
+            foreach (var entry in batch)
+            {
+                if (_id2AccId.ContainsKey(entry.Value))
+                {
+                    _id2AccId[entry.Value].Add(entry.Id);
+                }
+                else
+                {
+                    _id2AccId[entry.Value] = new List<int>() { entry.Id };
+                }
+            }
+
+            foreach (var countryId in batch.Select(x => x.Value).Distinct())
+            {
+                _id2AccId[countryId].Sort();
+            }
+
+            _rw.ReleaseWriterLock();
         }
     }
 }
