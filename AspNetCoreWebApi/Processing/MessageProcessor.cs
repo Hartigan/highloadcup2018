@@ -74,7 +74,6 @@ namespace AspNetCoreWebApi.Processing
 
             _dataLoaderSubscription = dataLoader
                 .AccountLoaded
-                .ObserveOn(ThreadPoolScheduler.Instance)
                 .Subscribe(LoadAccount);
 
             _recommendProcessorSubscription = recommendProcessor
@@ -711,88 +710,110 @@ namespace AspNetCoreWebApi.Processing
             }
         }
 
-        private void LoadAccount(AccountDto dto)
+        private void LoadAccount(IEnumerable<AccountDto> dtos)
         {
-            int id = dto.Id.Value;
-            _storage.Ids.Add(id);
+            var birthList = new List<BatchEntry<DateTimeOffset>>();
+            var cityList = new List<BatchEntry<int>>();
+            var countryList = new List<BatchEntry<int>>();
+            var emailList = new List<BatchEntry<Email>>();
+            var fnameList = new List<BatchEntry<string>>();
+            var interestList = new List<BatchEntry<IEnumerable<int>>>();
+            var joinedList = new List<BatchEntry<DateTimeOffset>>();
+            var snameList = new List<BatchEntry<string>>();
+            var likeList = new List<BatchEntry<IEnumerable<Like>>>();
+            var phoneList = new List<BatchEntry<Phone>>();
+            var premiumList = new List<BatchEntry<Premium>>();
+            var sexList = new List<BatchEntry<bool>>();
+            var statusList = new List<BatchEntry<Status>>();
 
-            Email email = _parser.ParseEmail(dto.Email);
-            _context.Emails.Add(id, email);
-            _storage.EmailHashes.Add(dto.Email, id);
-
-            if (dto.FirstName != null)
+            foreach (var dto in dtos)
             {
-                _context.FirstNames.AddOrUpdate(id, dto.FirstName);
-            }
+                int id = dto.Id.Value;
+                _storage.Ids.Add(id);
 
-            if (dto.Surname != null)
-            {
-                _context.LastNames.AddOrUpdate(id, dto.Surname);
-            }
+                Email email = _parser.ParseEmail(dto.Email);
+                _context.Emails.Add(id, email);
+                _storage.EmailHashes.Add(dto.Email, id);
 
-            if (dto.Phone != null)
-            {
-                Phone phone = _parser.ParsePhone(dto.Phone);
-                _storage.PhoneHashes.Add(dto.Phone, id);
-                _context.Phones.Add(id, phone);
-            }
-
-            if (dto.Birth.HasValue)
-            {
-                _context.Birth.AddOrUpdate(id, DateTimeOffset.FromUnixTimeSeconds(dto.Birth.Value));
-            }
-
-            if (dto.Country != null)
-            {
-                _context.Countries.Add(id, _storage.Countries.Get(dto.Country));
-            }
-
-            if (dto.City != null)
-            {
-                _context.Cities.Add(id, _storage.Cities.Get(dto.City));
-            }
-
-            if (dto.Joined != null)
-            {
-                _context.Joined.AddOrUpdate(id, DateTimeOffset.FromUnixTimeSeconds(dto.Joined.Value));
-            }
-
-            if (dto.Status != null)
-            {
-                _context.Statuses.Add(id, StatusHelper.Parse(dto.Status));
-            }
-
-            if (dto.Interests != null)
-            {
-                foreach (var interestStr in dto.Interests)
+                if (dto.FirstName != null)
                 {
-                    _context.Interests.Add(id, _storage.Interests.Get(interestStr));
+                    fnameList.Add(new BatchEntry<string>(id, dto.FirstName));
+                }
+
+                if (dto.Surname != null)
+                {
+                    snameList.Add(new BatchEntry<string>(id, dto.Surname));
+                }
+
+                if (dto.Phone != null)
+                {
+                    Phone phone = _parser.ParsePhone(dto.Phone);
+                    _storage.PhoneHashes.Add(dto.Phone, id);
+                    phoneList.Add(new BatchEntry<Phone>(id, phone));
+                }
+
+                if (dto.Birth.HasValue)
+                {
+                    birthList.Add(new BatchEntry<DateTimeOffset>(id, DateTimeOffset.FromUnixTimeSeconds(dto.Birth.Value)));
+                }
+
+                if (dto.Country != null)
+                {
+                    countryList.Add(new BatchEntry<int>(id, _storage.Countries.Get(dto.Country)));
+                }
+
+                if (dto.City != null)
+                {
+                    cityList.Add(new BatchEntry<int>(id, _storage.Cities.Get(dto.City)));
+                }
+
+                if (dto.Joined != null)
+                {
+                    joinedList.Add(new BatchEntry<DateTimeOffset>(id, DateTimeOffset.FromUnixTimeSeconds(dto.Joined.Value)));
+                }
+
+                if (dto.Status != null)
+                {
+                    statusList.Add(new BatchEntry<Status>(id, StatusHelper.Parse(dto.Status)));
+                }
+
+                if (dto.Interests != null)
+                {
+                    interestList.Add(new BatchEntry<IEnumerable<int>>(id, dto.Interests.Select(x => _storage.Interests.Get(x))));
+                }
+
+                if (dto.Sex != null)
+                {
+                    sexList.Add(new BatchEntry<bool>(id, dto.Sex == "m"));
+                }
+
+                if (dto.Likes != null)
+                {
+                    likeList.Add(new BatchEntry<IEnumerable<Like>>(id, dto.Likes.Select(x => new Like(x.Id, id, DateTimeOffset.FromUnixTimeSeconds(x.Timestamp)))));
+                }
+
+                if (dto.Premium != null)
+                {
+                    premiumList.Add(new BatchEntry<Premium>(id, new Premium(
+                            DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Start),
+                            DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Finish)
+                        )));
                 }
             }
 
-            if (dto.Sex != null)
-            {
-                _context.Sex.Add(id, dto.Sex == "m");
-            }
-
-            if (dto.Likes != null)
-            {
-                foreach (var like in dto.Likes)
-                {
-                    _context.Likes.Add(new Like(like.Id, id, DateTimeOffset.FromUnixTimeSeconds(like.Timestamp)));
-                }
-            }
-
-            if (dto.Premium != null)
-            {
-                _context.Premiums.AddOrUpdate(
-                    id,
-                    new Premium(
-                        DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Start),
-                        DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Finish)
-                    )
-                );
-            }
+            _context.Birth.LoadBatch(birthList);
+            _context.Cities.LoadBatch(cityList);
+            _context.Countries.LoadBatch(countryList);
+            _context.Emails.LoadBatch(emailList);
+            _context.FirstNames.LoadBatch(fnameList);
+            _context.Interests.LoadBatch(interestList);
+            _context.Joined.LoadBatch(joinedList);
+            _context.LastNames.LoadBatch(snameList);
+            _context.Likes.LoadBatch(likeList);
+            _context.Phones.LoadBatch(phoneList);
+            _context.Premiums.LoadBatch(premiumList);
+            _context.Sex.LoadBatch(sexList);
+            _context.Statuses.LoadBatch(statusList);
         }
     }
 }

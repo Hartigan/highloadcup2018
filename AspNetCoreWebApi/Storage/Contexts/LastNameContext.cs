@@ -1,14 +1,12 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using AspNetCoreWebApi.Domain;
 using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class LastNameContext
+    public class LastNameContext : IBatchLoader<string>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private string[] _names = new string[DataConfig.MaxId];
@@ -86,6 +84,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
 
             return _ids;
+        }
+
+        public void Compress()
+        {
         }
     }
 }

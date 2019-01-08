@@ -8,7 +8,7 @@ using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class FirstNameContext
+    public class FirstNameContext : IBatchLoader<string>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private string[] _names = new string[DataConfig.MaxId];
@@ -87,6 +87,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
 
             return _ids;
+        }
+
+        public void Compress()
+        {
         }
     }
 }

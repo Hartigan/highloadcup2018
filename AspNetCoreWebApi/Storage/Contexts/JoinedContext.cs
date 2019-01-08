@@ -7,7 +7,7 @@ using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class JoinedContext : IBatchLoader<DateTimeOffset>
+    public class JoinedContext : IBatchLoader<DateTimeOffset>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private DateTimeOffset?[] _id2time = new DateTimeOffset?[DataConfig.MaxId];
@@ -19,6 +19,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void AddOrUpdate(int id, DateTimeOffset time)
         {
             _id2time[id] = time;
+        }
+
+        public void Compress()
+        {
         }
 
         public IEnumerable<int> Filter(GroupRequest.JoinedRequest joined, IdStorage idStorage)

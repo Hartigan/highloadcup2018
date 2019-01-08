@@ -1,14 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
-using AspNetCoreWebApi.Domain;
 using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class BirthContext : IBatchLoader<DateTimeOffset>
+    public class BirthContext : IBatchLoader<DateTimeOffset>, ICompresable
     {
         private DateTimeOffset?[] _id2time = new DateTimeOffset?[DataConfig.MaxId];
 
@@ -58,6 +56,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 _id2time[entry.Id] = entry.Value;
             }
+        }
+
+        public void Compress()
+        {
         }
     }
 }

@@ -8,7 +8,7 @@ using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class SexContext : IBatchLoader<bool>
+    public class SexContext : IBatchLoader<bool>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private List<int>[] _id2AccId = new List<int>[2];
@@ -131,6 +131,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
             else
             {
                 currentIds.UnionWith(_id2AccId[0]);
+            }
+        }
+
+        public void Compress()
+        {
+            foreach(var list in _id2AccId)
+            {
+                list.Compress();
             }
         }
     }

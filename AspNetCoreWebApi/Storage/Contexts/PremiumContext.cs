@@ -8,7 +8,7 @@ using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class PremiumContext : IBatchLoader<Premium>
+    public class PremiumContext : IBatchLoader<Premium>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private Premium?[] _premiums = new Premium?[DataConfig.MaxId];
@@ -108,5 +108,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
         }
 
         public bool IsNow(int id) => _now.Contains(id);
+
+        public void Compress()
+        {
+        }
     }
 }

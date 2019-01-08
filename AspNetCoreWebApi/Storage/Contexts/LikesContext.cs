@@ -8,7 +8,7 @@ using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class LikesContext : IBatchLoader<IEnumerable<Like>>
+    public class LikesContext : IBatchLoader<IEnumerable<Like>>, ICompresable
     {
         private class BucketIdComparer : IComparer<LikeBucket>
         {
@@ -182,6 +182,25 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 foreach(var like in entry.Value)
                 {
                     this.Add(like);
+                }
+            }
+        }
+
+        public void Compress()
+        {
+            foreach(var list in _likee2likers)
+            {
+                if (list != null)
+                {
+                    list.Compress();
+                }
+            }
+
+            foreach (var list in _liker2likes)
+            {
+                if (list != null)
+                {
+                    list.Compress();
                 }
             }
         }

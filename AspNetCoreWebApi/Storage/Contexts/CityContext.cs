@@ -8,7 +8,7 @@ using AspNetCoreWebApi.Storage.StringPools;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class CityContext : IBatchLoader<int>
+    public class CityContext : IBatchLoader<int>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private SortedDictionary<int, List<int>> _id2AccId = new SortedDictionary<int, List<int>>();
@@ -214,6 +214,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
 
             _rw.ReleaseWriterLock();
+        }
+
+        public void Compress()
+        {
+            foreach (var list in _id2AccId.Values)
+            {
+                list.Compress();
+            }
         }
     }
 }

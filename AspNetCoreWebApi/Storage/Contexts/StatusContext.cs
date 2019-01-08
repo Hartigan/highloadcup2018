@@ -1,14 +1,12 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using AspNetCoreWebApi.Domain;
-using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class StatusContext : IBatchLoader<Status>
+    public class StatusContext : IBatchLoader<Status>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private Dictionary<Status, List<int>> _id2AccId = new Dictionary<Status, List<int>>();
@@ -136,6 +134,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void GetByStatus(Status value, HashSet<int> currentIds)
         {
             currentIds.UnionWith(_id2AccId[value]);
+        }
+
+        public void Compress()
+        {
+            foreach(var list in _id2AccId.Values)
+            {
+                list.Compress();
+            }
         }
     }
 }

@@ -26,6 +26,10 @@ namespace AspNetCoreWebApi
             loader.Config("../../highloadcup2018_data/data/options.txt");
             loader.Run("../../highloadcup2018_data/data/data.zip");
 
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.WaitForFullGCComplete();
+            GC.Collect();
             host.Run();
         }
 

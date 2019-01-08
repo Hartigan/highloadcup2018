@@ -8,7 +8,7 @@ using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class PhoneContext : IBatchLoader<Phone>
+    public class PhoneContext : IBatchLoader<Phone>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private Phone?[] _phones = new Phone?[DataConfig.MaxId];
@@ -120,6 +120,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
             else
             {
                 return _code2ids.SelectMany(x => x.Value);
+            }
+        }
+
+        public void Compress()
+        {
+            foreach(var list in _code2ids.Values)
+            {
+                list.Compress();
             }
         }
     }

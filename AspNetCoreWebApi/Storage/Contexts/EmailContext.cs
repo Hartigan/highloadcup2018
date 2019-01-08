@@ -9,7 +9,7 @@ using AspNetCoreWebApi.Storage.StringPools;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class EmailContext : IBatchLoader<Email>
+    public class EmailContext : IBatchLoader<Email>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private Email?[] _emails = new Email?[DataConfig.MaxId];
@@ -125,6 +125,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
 
             _rw.ReleaseWriterLock();
+        }
+
+        public void Compress()
+        {
+            foreach(var list in _domain2ids.Values)
+            {
+                list.Compress();
+            }
         }
     }
 }

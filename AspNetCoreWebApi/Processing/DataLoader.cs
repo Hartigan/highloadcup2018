@@ -10,10 +10,6 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reactive.Subjects;
-using System.Reactive.Linq;
-using System.Reactive.Concurrency;
-using System.Reactive;
-using System.Threading.Tasks;
 using AspNetCoreWebApi.Storage.Contexts;
 
 namespace AspNetCoreWebApi.Processing
@@ -22,7 +18,7 @@ namespace AspNetCoreWebApi.Processing
     {
         private readonly MainContext _context;
 
-        private Subject<AccountDto> _accountLoaded = new Subject<AccountDto>();
+        private Subject<IEnumerable<AccountDto>> _accountLoaded = new Subject<IEnumerable<AccountDto>>();
 
         public DataLoader(
             MainContext context)
@@ -39,41 +35,44 @@ namespace AspNetCoreWebApi.Processing
             }
         }
 
-        public IObservable<AccountDto> AccountLoaded => _accountLoaded;
+        public IObservable<IEnumerable<AccountDto>> AccountLoaded => _accountLoaded;
 
         public void Run(string path)
         {
-            List<Task> tasks = new List<Task>();
+            List<AccountDto> dtos = new List<AccountDto>(DataConfig.MaxId);
+
             using (ZipArchive archive = ZipFile.OpenRead(path))
             {
                 foreach (ZipArchiveEntry entry in archive.Entries)
                 {
                     if (entry.FullName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                     {
-                        ParseEntry(entry);
+                        ParseEntry(entry, dtos);
+                        _accountLoaded.OnNext(dtos);
+                        dtos.Clear();
                     }
                 }
             }
+            _context.Compress();
             Console.WriteLine("Import finished");
-            GC.Collect();
         }
 
-        private void ParseEntry(ZipArchiveEntry entry)
+        private void ParseEntry(ZipArchiveEntry entry, List<AccountDto> dtos)
         {
+            JsonSerializer ser = JsonSerializer.CreateDefault();
             using (TextReader textReader = new StreamReader(entry.Open()))
+            using (JsonTextReader jsonReader = new JsonTextReader(textReader))
             {
-                var obj = JObject.Parse(textReader.ReadToEnd());
-                var accountsArray = obj["accounts"];
-                foreach (var accountObj in accountsArray.Children())
+                jsonReader.Read();
+                jsonReader.Read();
+                jsonReader.Read();
+                while (jsonReader.Read() && jsonReader.TokenType != JsonToken.EndArray)
                 {
-                    _accountLoaded.OnNext(ParseAccountObj(accountObj));
+                    AccountDto dto = new AccountDto();
+                    ser.Populate(jsonReader, dto);
+                    dtos.Add(dto);
                 }
             }
-        }
-
-        private AccountDto ParseAccountObj(JToken accountObj)
-        {
-            return JsonConvert.DeserializeObject<AccountDto>(accountObj.ToString());
         }
     }
 }

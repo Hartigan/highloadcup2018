@@ -29,5 +29,22 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public LikesContext Likes { get; } = new LikesContext();
 
         public PremiumContext Premiums { get; } = new PremiumContext();
+
+        public void Compress()
+        {
+            Emails.Compress();
+            FirstNames.Compress();
+            LastNames.Compress();
+            Phones.Compress();
+            Sex.Compress();
+            Countries.Compress();
+            Cities.Compress();
+            Statuses.Compress();
+            Joined.Compress();
+            Birth.Compress();
+            Interests.Compress();
+            Likes.Compress();
+            Premiums.Compress();
+        }
     }
 }
