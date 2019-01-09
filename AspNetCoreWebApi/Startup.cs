@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Processing.Parsers;
+using AspNetCoreWebApi.Processing.Pooling;
 using AspNetCoreWebApi.Storage;
 using AspNetCoreWebApi.Storage.Contexts;
 using Microsoft.AspNetCore.Builder;
@@ -47,6 +48,7 @@ namespace AspNetCoreWebApi
             services.AddSingleton<MainStorage>();
 
             services.AddSingleton<DataLoader>();
+            services.AddSingleton<MainPool>();
 
         }
 
