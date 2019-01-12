@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reactive.Subjects;
 using System.Threading.Tasks;
 using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing.Pooling;
 using AspNetCoreWebApi.Processing.Printers;
 using AspNetCoreWebApi.Processing.Requests;
 using AspNetCoreWebApi.Storage;
@@ -16,7 +17,6 @@ namespace AspNetCoreWebApi.Processing
 {
     public class FilterProcessor
     {
-
         private readonly MainStorage _storage;
 
         private readonly MainContext _context;
@@ -25,19 +25,31 @@ namespace AspNetCoreWebApi.Processing
 
         public IObservable<FilterRequest> DataRequest => _dataRequest;
 
+        private readonly MainPool _pool;
+
+        private readonly AccountPrinter _printer;
+
         public FilterProcessor(
             MainStorage mainStorage,
-            MainContext mainContext
+            MainContext mainContext,
+            MainPool mainPool,
+            AccountPrinter accountPrinter
         )
         {
+            _pool = mainPool;
             _storage = mainStorage;
             _context = mainContext;
+            _printer = accountPrinter;
+        }
+
+        private void Free(FilterRequest request)
+        {
+            _pool.FilterRequest.Return(request);
         }
 
         public async Task<bool> Process(HttpResponse httpResponse, IQueryCollection query)
         {
-            FilterRequest request = new FilterRequest();
-            HashSet<Field> fields = new HashSet<Field>();
+            FilterRequest request = _pool.FilterRequest.Get();
 
             int limit = 0;
             foreach (var filter in query)
@@ -51,13 +63,13 @@ namespace AspNetCoreWebApi.Processing
                     case "limit":
                         if (!int.TryParse(filter.Value,  out limit))
                         {
-                            return false;
+                            result = false;
                         }
                         else
                         {
                             if (limit <= 0)
                             {
-                                return false;
+                                result = false;
                             }
                             request.Limit = limit;
                         }
@@ -65,7 +77,7 @@ namespace AspNetCoreWebApi.Processing
 
                     case "sex_eq":
                         result = SexEq(request, filter.Value);
-                        fields.Add(Field.Sex);
+                        request.Fields.Add(Field.Sex);
                         break;
 
                     case "email_domain":
@@ -82,92 +94,92 @@ namespace AspNetCoreWebApi.Processing
 
                     case "status_eq":
                         result = StatusEq(request, filter.Value);
-                        fields.Add(Field.Status);
+                        request.Fields.Add(Field.Status);
                         break;
 
                     case "status_neq":
                         result = StatusNeq(request, filter.Value);
-                        fields.Add(Field.Status);
+                        request.Fields.Add(Field.Status);
                         break;
 
                     case "fname_eq":
                         result = FnameEq(request, filter.Value);
-                        fields.Add(Field.FName);
+                        request.Fields.Add(Field.FName);
                         break;
 
                     case "fname_any":
                         result = FnameAny(request, filter.Value.ToString().Split(','));
-                        fields.Add(Field.FName);
+                        request.Fields.Add(Field.FName);
                         break;
 
                     case "fname_null":
                         result = FnameNull(request, filter.Value);
-                        fields.Add(Field.FName);
+                        request.Fields.Add(Field.FName);
                         break;
 
                     case "sname_eq":
                         result = SnameEq(request, filter.Value);
-                        fields.Add(Field.SName);
+                        request.Fields.Add(Field.SName);
                         break;
 
                     case "sname_starts":
                         result = SnameStarts(request, filter.Value);
-                        fields.Add(Field.SName);
+                        request.Fields.Add(Field.SName);
                         break;
 
                     case "sname_null":
                         result = SnameNull(request, filter.Value);
-                        fields.Add(Field.SName);
+                        request.Fields.Add(Field.SName);
                         break;
 
                     case "phone_code":
                         result = PhoneCode(request, filter.Value);
-                        fields.Add(Field.Phone);
+                        request.Fields.Add(Field.Phone);
                         break;
 
                     case "phone_null":
                         result = PhoneNull(request, filter.Value);
-                        fields.Add(Field.Phone);
+                        request.Fields.Add(Field.Phone);
                         break;
 
                     case "country_eq":
                         result = CountryEq(request, filter.Value);
-                        fields.Add(Field.Country);
+                        request.Fields.Add(Field.Country);
                         break;
 
                     case "country_null":
                         result = CountryNull(request, filter.Value);
-                        fields.Add(Field.Country);
+                        request.Fields.Add(Field.Country);
                         break;
 
                     case "city_eq":
                         result = CityEq(request, filter.Value);
-                        fields.Add(Field.City);
+                        request.Fields.Add(Field.City);
                         break;
 
                     case "city_any":
                         result = CityAny(request, filter.Value.ToString().Split(','));
-                        fields.Add(Field.City);
+                        request.Fields.Add(Field.City);
                         break;
 
                     case "city_null":
                         result = CityNull(request, filter.Value);
-                        fields.Add(Field.City);
+                        request.Fields.Add(Field.City);
                         break;
 
                     case "birth_lt":
                         result = BirthLt(request, filter.Value);
-                        fields.Add(Field.Birth);
+                        request.Fields.Add(Field.Birth);
                         break;
 
                     case "birth_gt":
                         result = BirthGt(request, filter.Value);
-                        fields.Add(Field.Birth);
+                        request.Fields.Add(Field.Birth);
                         break;
 
                     case "birth_year":
                         result = BirthYear(request, filter.Value);
-                        fields.Add(Field.Birth);
+                        request.Fields.Add(Field.Birth);
                         break;
 
                     case "interests_contains":
@@ -184,19 +196,21 @@ namespace AspNetCoreWebApi.Processing
 
                     case "premium_now":
                         result = PremiumNow(request, filter.Value);
-                        fields.Add(Field.Premium);
+                        request.Fields.Add(Field.Premium);
                         break;
 
                     case "premium_null":
                         result = PremiumNull(request, filter.Value);
-                        fields.Add(Field.Premium);
+                        request.Fields.Add(Field.Premium);
                         break;
 
                     default:
-                        return false;
+                        result = false;
+                        break;
                 }
                 if (!result)
                 {
+                    Free(request);
                     return false;
                 }
             }
@@ -204,15 +218,15 @@ namespace AspNetCoreWebApi.Processing
             _dataRequest.OnNext(request);
             var response = await request.TaskComletionSource.Task;
 
-            var printer = new AccountPrinter(fields.ToArray(), _storage, _context);
-
             httpResponse.StatusCode = 200;
             httpResponse.ContentType = "application/json";
             using(var sw = new StreamWriter(httpResponse.Body))
             {
-                printer.Write(response, sw);
+                _printer.Write(response, sw, request.Fields);
             }
 
+            _pool.FilterResponse.Return(response);
+            Free(request);
             return true;
         }
 
@@ -257,20 +271,18 @@ namespace AspNetCoreWebApi.Processing
         private bool LikesContains(FilterRequest request, StringValues value)
         {
             request.Likes.IsActive = true;
-            List<int> ids = new List<int>(value.Count);
             foreach(var v in value)
             {
                 int id;
                 if (int.TryParse(v, out id))
                 {
-                    ids.Add(id);
+                    request.Likes.Contains.Add(id);
                 }
                 else
                 {
                     return false;
                 }
             }
-            request.Likes.Contains = ids;
 
             return true;
         }
@@ -278,14 +290,14 @@ namespace AspNetCoreWebApi.Processing
         private bool InterestsAny(FilterRequest request, StringValues value)
         {
             request.Interests.IsActive = true;
-            request.Interests.Any = value;
+            request.Interests.Any.UnionWith(value);
             return true;
         }
 
         private bool InterestsContains(FilterRequest request, StringValues value)
         {
             request.Interests.IsActive = true;
-            request.Interests.Contains = value;
+            request.Interests.Contains.UnionWith(value);
             return true;
         }
 
@@ -372,7 +384,7 @@ namespace AspNetCoreWebApi.Processing
         private bool CityAny(FilterRequest request, StringValues value)
         {
             request.City.IsActive = true;
-            request.City.Any = value;
+            request.City.Any.UnionWith(value);
             return true;
         }
 
@@ -498,7 +510,7 @@ namespace AspNetCoreWebApi.Processing
         private bool FnameAny(FilterRequest request, StringValues value)
         {
             request.Fname.IsActive = true;
-            request.Fname.Any = value;
+            request.Fname.Any.UnionWith(value);
             return true;
         }
 

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reactive.Subjects;
 using System.Threading.Tasks;
 using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing.Pooling;
 using AspNetCoreWebApi.Processing.Printers;
 using AspNetCoreWebApi.Processing.Requests;
 using AspNetCoreWebApi.Processing.Responses;
@@ -20,21 +21,32 @@ namespace AspNetCoreWebApi.Processing
         private Subject<SuggestRequest> _dataRequest = new Subject<SuggestRequest>();
         private readonly MainContext _context;
         private readonly MainStorage _storage;
+        private readonly MainPool _pool;
+        private readonly SuggestPrinter _printer;
 
         public IObservable<SuggestRequest> DataRequest => _dataRequest;
 
         public SuggestProcessor(
             MainStorage mainStorage,
-            MainContext mainContext
+            MainContext mainContext,
+            MainPool mainPool,
+            SuggestPrinter printer
         )
         {
             _context = mainContext;
             _storage = mainStorage;
+            _pool = mainPool;
+            _printer = printer;
+        }
+
+        private void Free(SuggestRequest request)
+        {
+            _pool.SuggestRequest.Return(request);
         }
 
         public async Task<bool> Process(int id, HttpResponse httpResponse, IQueryCollection query)
         {
-            SuggestRequest request = new SuggestRequest();
+            SuggestRequest request = _pool.SuggestRequest.Get();
             request.Id = id;
 
             foreach (var filter in query)
@@ -49,13 +61,13 @@ namespace AspNetCoreWebApi.Processing
                         uint limit;
                         if (!uint.TryParse(filter.Value,  out limit))
                         {
-                            return false;
+                            res = false;
                         }
                         else
                         {
                             if (limit == 0)
                             {
-                                return false;
+                                res = false;
                             }
                             request.Limit = (int)limit;
                         }
@@ -70,11 +82,13 @@ namespace AspNetCoreWebApi.Processing
                         break;
 
                     default:
-                        return false;
+                        res = false;
+                        break;
                 }
 
                 if (!res)
                 {
+                    Free(request);
                     return false;
                 }
             }
@@ -83,15 +97,14 @@ namespace AspNetCoreWebApi.Processing
 
             var result = await request.TaskCompletionSource.Task;
 
-            var printer = new SuggestPrinter(_storage, _context);
-
             httpResponse.StatusCode = 200;
             httpResponse.ContentType = "application/json";
             using(var sw = new StreamWriter(httpResponse.Body))
             {
-                printer.Write(result, sw);
+                _printer.Write(result, sw);
             }
-
+            _pool.SuggestResponse.Return(result);
+            Free(request);
             return true;
         }
 

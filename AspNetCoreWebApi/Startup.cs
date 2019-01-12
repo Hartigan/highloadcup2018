@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Processing.Parsers;
 using AspNetCoreWebApi.Processing.Pooling;
+using AspNetCoreWebApi.Processing.Printers;
 using AspNetCoreWebApi.Storage;
 using AspNetCoreWebApi.Storage.Contexts;
 using Microsoft.AspNetCore.Builder;
@@ -49,6 +50,11 @@ namespace AspNetCoreWebApi
 
             services.AddSingleton<DataLoader>();
             services.AddSingleton<MainPool>();
+
+            services.AddSingleton<AccountPrinter>();
+            services.AddSingleton<GroupPrinter>();
+            services.AddSingleton<RecommendPrinter>();
+            services.AddSingleton<SuggestPrinter>();
 
         }
 

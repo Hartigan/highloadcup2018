@@ -2,7 +2,7 @@ using System;
 
 namespace AspNetCoreWebApi.Domain
 {
-    public class Group
+    public struct Group
     {
         public Group(
             bool? sex = null,
@@ -16,11 +16,6 @@ namespace AspNetCoreWebApi.Domain
             InterestId = interestId;
             CountryId = countryId;
             CityId = cityId;
-        }
-
-        public Group Copy()
-        {
-            return new Group(Sex, Status, InterestId, CountryId, CityId);
         }
 
         public bool? Sex;

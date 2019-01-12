@@ -85,10 +85,11 @@ namespace AspNetCoreWebApi.Processing.Printers
                 sw.PropertyNameWithColon("groups");
                 using (new JsArray(sw))
                 {
-                    for (int i = 0; i < response.Entries.Count; i++)
+                    var limit = Math.Min(response.Entries.Count, response.Limit);
+                    for (int i = 0; i < limit; i++)
                     {
                         Write(response.Entries[i], sw);
-                        if (i < response.Entries.Count - 1)
+                        if (i < limit - 1)
                         {
                             sw.Comma();
                         }

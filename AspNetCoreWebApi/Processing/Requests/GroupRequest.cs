@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing.Pooling;
 using AspNetCoreWebApi.Processing.Responses;
 
 namespace AspNetCoreWebApi.Processing.Requests
@@ -44,7 +45,7 @@ namespace AspNetCoreWebApi.Processing.Requests
         City
     }
 
-    public class GroupRequest
+    public class GroupRequest : IClearable
     {
         public GroupRequest()
         {
@@ -55,6 +56,12 @@ namespace AspNetCoreWebApi.Processing.Requests
             public bool IsActive;
             public bool IsMale;
             public bool IsFemale;
+            public void Clear()
+            {
+                IsActive = false;
+                IsMale = false;
+                IsFemale = false;
+            }
         }
         public SexRequest Sex { get; } = new SexRequest();
 
@@ -62,6 +69,10 @@ namespace AspNetCoreWebApi.Processing.Requests
         {
             public bool IsActive;
             public Status Status;
+            public void Clear()
+            {
+                IsActive = false;
+            }
         }
         public StatusRequest Status { get; } = new StatusRequest();
 
@@ -69,6 +80,11 @@ namespace AspNetCoreWebApi.Processing.Requests
         {
             public bool IsActive;
             public string Country;
+            public void Clear()
+            {
+                IsActive = false;
+                Country = null;
+            }
         }
         public CountryRequest Country { get; } = new CountryRequest();
 
@@ -76,6 +92,11 @@ namespace AspNetCoreWebApi.Processing.Requests
         {
             public bool IsActive;
             public string City;
+            public void Clear()
+            {
+                IsActive = false;
+                City = null;
+            }
         }
         public CityRequest City { get; } = new CityRequest();
 
@@ -83,6 +104,10 @@ namespace AspNetCoreWebApi.Processing.Requests
         {
             public bool IsActive;
             public int Year;
+            public void Clear()
+            {
+                IsActive = false;
+            }
         }
         public BirthRequest Birth { get; } = new BirthRequest();
 
@@ -90,6 +115,11 @@ namespace AspNetCoreWebApi.Processing.Requests
         {
             public bool IsActive;
             public string Interest;
+            public void Clear()
+            {
+                IsActive = false;
+                Interest = null;
+            }
         }
         public InterestRequest Interest { get; } = new InterestRequest();
 
@@ -97,6 +127,10 @@ namespace AspNetCoreWebApi.Processing.Requests
         {
             public bool IsActive;
             public int Id;
+            public void Clear()
+            {
+                IsActive = false;
+            }
         }
         public LikeRequest Like { get; } = new LikeRequest();
 
@@ -104,12 +138,32 @@ namespace AspNetCoreWebApi.Processing.Requests
         {
             public bool IsActive;
             public int Year;
+            public void Clear()
+            {
+                IsActive = false;
+            }
         }
         public JoinedRequest Joined { get; } = new JoinedRequest();
 
-        public TaskCompletionSource<GroupResponse> TaskCompletionSource { get; } = new TaskCompletionSource<GroupResponse>();
+        public TaskCompletionSource<GroupResponse> TaskCompletionSource { get; set; } = new TaskCompletionSource<GroupResponse>();
         public int Limit { get; set; }
         public bool Order { get; set; }
-        public IReadOnlyList<GroupKey> Keys { get; set; }
+        public List<GroupKey> Keys { get; set; } = new List<GroupKey>();
+
+        public void Clear()
+        {
+            Sex.Clear();
+            Status.Clear();
+            Country.Clear();
+            City.Clear();
+            Birth.Clear();
+            Interest.Clear();
+            Like.Clear();
+            Joined.Clear();
+            TaskCompletionSource = new TaskCompletionSource<GroupResponse>();
+            Limit = 0;
+            Order = false;
+            Keys.Clear();
+        }
     }
 }

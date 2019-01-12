@@ -107,10 +107,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 int size = groups.Count;
                 for (int i = 0; i < size; i++)
                 {
-                    Group g = groups[i].Copy();
-                    groups[i].Sex = true;
+                    Group g = groups[i];
                     g.Sex = false;
                     groups.Add(g);
+                    g.Sex = true;
+                    groups[i] = g;
                 }
             }
         }

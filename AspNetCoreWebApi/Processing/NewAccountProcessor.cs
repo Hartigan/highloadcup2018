@@ -16,6 +16,7 @@ using System.Reactive;
 using System.Threading.Tasks;
 using AspNetCoreWebApi.Storage.StringPools;
 using AspNetCoreWebApi.Processing.Parsers;
+using AspNetCoreWebApi.Processing.Pooling;
 
 namespace AspNetCoreWebApi.Processing
 {
@@ -23,37 +24,44 @@ namespace AspNetCoreWebApi.Processing
     {
         private readonly Validator _validator;
         private readonly MainStorage _storage;
-        private Subject<AccountDto> _dataReceived = new Subject<AccountDto>();
+        private readonly Subject<AccountDto> _dataReceived = new Subject<AccountDto>();
+        private readonly MainPool _pool;
 
         public NewAccountProcessor(
             Validator validator,
+            MainPool mainPool,
             MainStorage mainStorage)
         {
             _validator = validator;
             _storage = mainStorage;
+            _pool = mainPool;
         }
 
         public IObservable<AccountDto> DataReceived => _dataReceived;
 
         public bool Process(Stream body)
         {
-            AccountDto dto = null;
+            AccountDto dto = _pool.AccountDto.Get();;
+
             try
             {
                 using (StreamReader streamReader = new StreamReader(body))
                 using (var jsonTextReader = new JsonTextReader(streamReader))
                 {
-                    JsonSerializer serializer = new JsonSerializer();
-                    dto = (AccountDto)serializer.Deserialize(jsonTextReader, typeof(AccountDto));
+                    JsonSerializer serializer = JsonSerializer.CreateDefault();
+                    serializer.Populate(jsonTextReader, dto);
                 }
             }
             catch(Exception)
             {
+                _pool.AccountDto.Return(dto);
                 return false;
             }
+           
 
             if (!Validate(dto))
             {
+                _pool.AccountDto.Return(dto);
                 return false;
             }
 

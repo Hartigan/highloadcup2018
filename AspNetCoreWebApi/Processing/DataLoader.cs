@@ -42,7 +42,7 @@ namespace AspNetCoreWebApi.Processing
         public void Run(string path)
         {
             List<AccountDto> dtos = new List<AccountDto>(DataConfig.MaxId);
-            DefaultObjectPool<AccountDto> pool = new DefaultObjectPool<AccountDto>(new AccountDtoPolicy());
+            DefaultObjectPool<AccountDto> pool = new DefaultObjectPool<AccountDto>(new GenericPolicy<AccountDto>());
 
             using (ZipArchive archive = ZipFile.OpenRead(path))
             {

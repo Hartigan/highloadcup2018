@@ -14,46 +14,70 @@ using System.Reactive.Linq;
 using System.Reactive.Concurrency;
 using System.Reactive;
 using System.Threading.Tasks;
+using AspNetCoreWebApi.Processing.Pooling;
 
 namespace AspNetCoreWebApi.Processing
 {
     public class NewLikesProcessor
     {
         private readonly MainStorage _storage;
-        private Subject<IReadOnlyList<SingleLikeDto>> _dataReceived = new Subject<IReadOnlyList<SingleLikeDto>>();
+        private readonly Subject<List<SingleLikeDto>> _dataReceived = new Subject<List<SingleLikeDto>>();
+        private readonly MainPool _pool;
 
         public NewLikesProcessor(
-            MainStorage mainStorage)
+            MainStorage mainStorage,
+            MainPool mainPool)
         {
             _storage = mainStorage;
+            _pool = mainPool;
         }
 
-        public IObservable<IReadOnlyList<SingleLikeDto>> DataReceived => _dataReceived;
+        public IObservable<List<SingleLikeDto>> DataReceived => _dataReceived;
 
         public bool Process(Stream body)
         {
-            LikesDto dto = new LikesDto();
+            var dtos = _pool.ListOfLikeDto.Get();
+
             try
             {
+                JsonSerializer serializer = JsonSerializer.CreateDefault();
                 using (StreamReader streamReader = new StreamReader(body))
                 using (var jsonTextReader = new JsonTextReader(streamReader))
                 {
-                    JsonSerializer serializer = new JsonSerializer();
-                    dto = (LikesDto)serializer.Deserialize(jsonTextReader, typeof(LikesDto));
+                    jsonTextReader.Read();
+                    jsonTextReader.Read();
+                    jsonTextReader.Read();
+                    while (jsonTextReader.Read() && jsonTextReader.TokenType != JsonToken.EndArray)
+                    {
+                        var dto = _pool.SingleLikeDto.Get();
+                        serializer.Populate(jsonTextReader, dto);
+                        dtos.Add(dto);
+                    }
                 }
             }
             catch(Exception)
             {
+                Free(dtos);
                 return false;
             }
 
-            if (dto.Likes.Any(x => !Validate(x)))
+            if (dtos.Any(x => !Validate(x)))
             {
+                Free(dtos);
                 return false;
             }
 
-            _dataReceived.OnNext(dto.Likes);
+            _dataReceived.OnNext(dtos);
             return true;
+        }
+
+        private void Free(List<SingleLikeDto> dtos)
+        {
+            foreach (var dto in dtos)
+            {
+                _pool.SingleLikeDto.Return(dto);
+            }
+            _pool.ListOfLikeDto.Return(dtos);
         }
 
         private bool Validate(SingleLikeDto dto)

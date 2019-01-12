@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
+using AspNetCoreWebApi.Processing.Pooling;
 using Newtonsoft.Json;
 
 namespace AspNetCoreWebApi.Domain.Dto
 {
     [JsonObject(MemberSerialization.OptIn)]
-    public class AccountDto
+    public class AccountDto : IClearable
     {
         [JsonProperty("id")]
         public int? Id { get; set; }
@@ -95,7 +96,7 @@ namespace AspNetCoreWebApi.Domain.Dto
     }
 
     [JsonObject(MemberSerialization.OptIn)]
-    public class SingleLikeDto
+    public class SingleLikeDto : IClearable
     {
         [JsonProperty("likee")]
         public int LikeeId { get; set; }
@@ -105,12 +106,12 @@ namespace AspNetCoreWebApi.Domain.Dto
 
         [JsonProperty("ts")]
         public int Timestamp { get; set; }
-    }
 
-    [JsonObject(MemberSerialization.OptIn)]
-    public class LikesDto
-    {
-        [JsonProperty("likes")]
-        public List<SingleLikeDto> Likes { get; set; }
+        public void Clear()
+        {
+            LikerId = 0;
+            LikeeId = 0;
+            Timestamp = 0;
+        }
     }
 }

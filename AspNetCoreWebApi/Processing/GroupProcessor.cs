@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reactive.Subjects;
 using System.Threading.Tasks;
 using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing.Pooling;
 using AspNetCoreWebApi.Processing.Printers;
 using AspNetCoreWebApi.Processing.Requests;
 using AspNetCoreWebApi.Processing.Responses;
@@ -20,22 +21,32 @@ namespace AspNetCoreWebApi.Processing
         private Subject<GroupRequest> _dataRequest = new Subject<GroupRequest>();
         private readonly MainContext _context;
         private readonly MainStorage _storage;
+        private readonly MainPool _pool;
+        private readonly GroupPrinter _printer;
 
         public IObservable<GroupRequest> DataRequest => _dataRequest;
 
         public GroupProcessor(
             MainStorage mainStorage,
-            MainContext mainContext
+            MainContext mainContext,
+            MainPool mainPool,
+            GroupPrinter printer
         )
         {
             _context = mainContext;
             _storage = mainStorage;
+            _pool = mainPool;
+            _printer = printer;
+        }
+
+        private void Free(GroupRequest request)
+        {
+            _pool.GroupRequest.Return(request);
         }
 
         public async Task<bool> Process(HttpResponse httpResponse, IQueryCollection query)
         {
-            GroupRequest request = new GroupRequest();
-            List<GroupKey> keys = new List<GroupKey>(5);
+            GroupRequest request = _pool.GroupRequest.Get();
 
             foreach (var filter in query)
             {
@@ -49,13 +60,13 @@ namespace AspNetCoreWebApi.Processing
                         int limit;
                         if (!int.TryParse(filter.Value,  out limit))
                         {
-                            return false;
+                            res = false;
                         }
                         else
                         {
                             if (limit <= 0)
                             {
-                                return false;
+                                res = false;
                             }
                             request.Limit = limit;
                         }
@@ -103,46 +114,46 @@ namespace AspNetCoreWebApi.Processing
                             GroupKey key;
                             if (GroupKeyExtensions.TryParse(str, out key))
                             {
-                                keys.Add(key);
+                                request.Keys.Add(key);
                             }
                             else
                             {
-                                return false;
+                                res = false;
                             }
                         }
 
                         break;
 
                     default:
-                        return false;
+                        res = false;
+                        break;
                 }
 
                 if (!res)
                 {
+                    Free(request);
                     return false;
                 }
             }
 
-            if (keys.Count == 0)
+            if (request.Keys.Count == 0)
             {
+                Free(request);
                 return false;
             }
-
-            request.Keys = keys;
 
             _dataRequest.OnNext(request);
 
             var result = await request.TaskCompletionSource.Task;
 
-            var printer = new GroupPrinter(_storage, _context);
-
             httpResponse.StatusCode = 200;
             httpResponse.ContentType = "application/json";
             using(var sw = new StreamWriter(httpResponse.Body))
             {
-                printer.Write(result, sw);
+                _printer.Write(result, sw);
             }
-
+            _pool.GroupResponse.Return(result);
+            Free(request);
             return true;
         }
 

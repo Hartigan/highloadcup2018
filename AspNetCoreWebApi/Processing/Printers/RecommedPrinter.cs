@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing.Responses;
 using AspNetCoreWebApi.Storage;
 using AspNetCoreWebApi.Storage.Contexts;
 
@@ -71,17 +72,19 @@ namespace AspNetCoreWebApi.Processing.Printers
             }
         }
 
-        public void Write(IReadOnlyList<int> accounts, StreamWriter sw)
+        public void Write(RecommendResponse response, StreamWriter sw)
         {
             using (new JsObject(sw))
             {
                 sw.PropertyNameWithColon("accounts");
                 using (new JsArray(sw))
                 {
-                    for (int i = 0; i < accounts.Count; i++)
+                    var accounts = response.Ids;
+                    var limit = Math.Min(accounts.Count, response.Limit);
+                    for (int i = 0; i < limit; i++)
                     {
                         Write(accounts[i], sw);
-                        if (i < accounts.Count - 1)
+                        if (i < limit - 1)
                         {
                             sw.Comma();
                         }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing.Responses;
 using AspNetCoreWebApi.Storage;
 using AspNetCoreWebApi.Storage.Contexts;
 
@@ -9,21 +10,18 @@ namespace AspNetCoreWebApi.Processing.Printers
 {
     public class AccountPrinter
     {
-        private readonly IReadOnlyList<Field> _fields;
         private readonly MainStorage _storage;
         private readonly MainContext _context;
 
         public AccountPrinter(
-            IReadOnlyList<Field> fields,
             MainStorage mainStorage,
             MainContext mainContext)
         {
-            _fields = fields;
             _storage = mainStorage;
             _context = mainContext;
         }
 
-        private void Write(int id, StreamWriter sw)
+        private void Write(int id, StreamWriter sw, IEnumerable<Field> fields)
         {
             using (new JsObject(sw))
             {
@@ -38,7 +36,7 @@ namespace AspNetCoreWebApi.Processing.Printers
                 sw.Write(_storage.Domains.GetString(email.DomainId));
                 sw.Write('\"');
 
-                foreach (var field in _fields)
+                foreach (var field in fields)
                 {
                     switch (field)
                     {
@@ -120,17 +118,19 @@ namespace AspNetCoreWebApi.Processing.Printers
             }
         }
 
-        public void Write(IReadOnlyList<int> accounts, StreamWriter sw)
+        public void Write(FilterResponse response, StreamWriter sw, IEnumerable<Field> fields)
         {
             using (new JsObject(sw))
             {
                 sw.PropertyNameWithColon("accounts");
                 using (new JsArray(sw))
                 {
-                    for (int i = 0; i < accounts.Count; i++)
+                    var accounts = response.Ids;
+                    var limit = Math.Min(accounts.Count, response.Limit);
+                    for (int i = 0; i < limit ; i++)
                     {
-                        Write(accounts[i], sw);
-                        if (i < accounts.Count - 1)
+                        Write(accounts[i], sw, fields);
+                        if (i < limit - 1)
                         {
                             sw.Comma();
                         }

@@ -128,7 +128,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 {
                     foreach(var key in _id2AccId.Keys)
                     {
-                        Group g = groups[i].Copy();
+                        Group g = groups[i];
                         g.CountryId = key;
                         groups.Add(g);
                     }

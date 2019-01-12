@@ -115,13 +115,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 int size = groups.Count;
                 for (int i = 0; i < size; i++)
                 {
-                    Group g1 = groups[i].Copy();
-                    Group g2 = groups[i].Copy();
-                    groups[i].Status = Status.Complicated;
-                    g1.Status = Status.Free;
-                    g2.Status = Status.Reserved;
-                    groups.Add(g1);
-                    groups.Add(g2);
+                    Group g = groups[i];
+                    g.Status = Status.Complicated;
+                    groups[i] = g;
+                    g.Status = Status.Free;
+                    groups.Add(g);
+                    g.Status = Status.Reserved;
+                    groups.Add(g);
                 }
             }
         }

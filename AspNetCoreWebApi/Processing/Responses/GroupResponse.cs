@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
 using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing.Pooling;
 
 namespace AspNetCoreWebApi.Processing.Responses
 {
-    public class GroupEntry
+    public struct GroupEntry
     {
         public GroupEntry(Group group, int count)
         {
@@ -16,13 +17,20 @@ namespace AspNetCoreWebApi.Processing.Responses
         public int Count { get; }
     }
 
-    public class GroupResponse
+    public class GroupResponse : IClearable
     {
-        public GroupResponse(IReadOnlyList<GroupEntry> entries)
+        public GroupResponse()
         {
-            Entries = entries;
         }
 
-        public IReadOnlyList<GroupEntry> Entries { get; }
+        public List<GroupEntry> Entries { get; } = new List<GroupEntry>();
+
+        public int Limit { get; set; }
+
+        public void Clear()
+        {
+            Entries.Clear();
+            Limit = 0;
+        }
     }
 }

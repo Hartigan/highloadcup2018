@@ -50,7 +50,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             FilterRequest.InterestsRequest interests,
             InterestStorage interestsStorage)
         {
-            if (interests.Contains != null)
+            if (interests.Contains.Count > 0)
             {
                 var ids = interests.Contains.Select(x => interestsStorage.Get(x));
                 HashSet<int> result = null;
@@ -76,7 +76,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 return result ?? Enumerable.Empty<int>();
             }
 
-            if (interests.Any != null)
+            if (interests.Any.Count > 0)
             {
                 var ids = interests.Any.Select(x => interestsStorage.Get(x));
                 HashSet<int> result = null;
@@ -126,7 +126,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 {
                     foreach(var key in _id2AccId.Keys)
                     {
-                        Group g = groups[i].Copy();
+                        Group g = groups[i];
                         g.InterestId = key;
                         groups.Add(g);
                     }
@@ -160,7 +160,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return true;
         }
 
-        public void Recommend(int id, IDictionary<int, int> recomended)
+        public void Recommend(int id, Dictionary<int, int> recomended)
         {
             foreach(var pair in _id2AccId)
             {

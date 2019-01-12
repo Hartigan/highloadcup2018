@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using AspNetCoreWebApi.Domain;
 using AspNetCoreWebApi.Domain.Dto;
 using AspNetCoreWebApi.Processing.Parsers;
+using AspNetCoreWebApi.Processing.Pooling;
 using AspNetCoreWebApi.Processing.Requests;
 using AspNetCoreWebApi.Processing.Responses;
 using AspNetCoreWebApi.Storage;
@@ -29,11 +30,14 @@ namespace AspNetCoreWebApi.Processing
         private readonly MainStorage _storage;
         private readonly DomainParser _parser;
         private readonly MainContext _context;
+        private readonly MainPool _pool;
+        private readonly IComparer<int> _reverseIntComparer = new ReverseComparer<int>(Comparer<int>.Default);
 
         public MessageProcessor(
             MainContext mainContext,
             MainStorage mainStorage,
             DomainParser parser,
+            MainPool mainPool,
             NewAccountProcessor newAccountProcessor,
             EditAccountProcessor editAccountProcessor,
             NewLikesProcessor newLikesProcessor,
@@ -46,6 +50,7 @@ namespace AspNetCoreWebApi.Processing
             _context = mainContext;
             _storage = mainStorage;
             _parser = parser;
+            _pool = mainPool;
 
             _newAccountProcessorSubscription = newAccountProcessor
                 .DataReceived
@@ -90,94 +95,47 @@ namespace AspNetCoreWebApi.Processing
 
         private void Suggest(SuggestRequest request)
         {
-            IDictionary<int, double> similarity = new Dictionary<int, double>();
-            IDictionary<int, IEnumerable<int>> suggested = new Dictionary<int, IEnumerable<int>>();
+            Dictionary<int, float> similarity = _pool.DictionaryOfFloatByInt.Get();
+            Dictionary<int, IEnumerable<int>> suggested = _pool.DictionaryOfIntsByInt.Get();
             _context.Likes.Suggest(request.Id, similarity, suggested);
 
-            IEnumerable<KeyValuePair<int, IEnumerable<int>>> result = suggested;
+            IEnumerable<int> result = suggested.Keys;
+
+            bool sex = _context.Sex.Contains(true, request.Id);
+            result = result.Where(x => _context.Sex.Contains(sex, x));
 
             if (request.Country.IsActive)
             {
                 int countryId = _storage.Countries.Get(request.Country.Country);
-                result = result.Where(x => _context.Countries.Contains(countryId, x.Key));
+                result = result.Where(x => _context.Countries.Contains(countryId, x));
             }
 
             if (request.City.IsActive)
             {
                 int cityId = _storage.Cities.Get(request.City.City);
-                result = result.Where(x => _context.Cities.Contains(cityId, x.Key));
+                result = result.Where(x => _context.Cities.Contains(cityId, x));
             }
 
+            var response = _pool.SuggestResponse.Get();
+            var list = _pool.ListOfIntegers.Get();
+            var comparer = _pool.SuggestComparer.Get();
+            comparer.Init(similarity);
+            list.AddRange(result);
+            list.Sort(comparer);
+            response.Ids.AddRange(list.SelectMany(x => suggested[x]));
+            response.Limit = request.Limit;
 
-            bool sex = _context.Sex.Contains(true, request.Id);
-            result = result.Where(x => _context.Sex.Contains(sex, x.Key));
+            request.TaskCompletionSource.SetResult(response);
 
-            request.TaskCompletionSource.SetResult(
-                result
-                    .OrderBy(x => -similarity[x.Key])
-                    .SelectMany(x => x.Value)
-                    .Take(request.Limit)
-                    .ToList());
-        }
-
-        private class RecommendComparer : IComparer<int>
-        {
-            private readonly MainContext _context;
-            private readonly IDictionary<int, int> _recommeded;
-            private readonly long _birth;
-            public RecommendComparer(
-                MainContext context,
-                IDictionary<int, int> recommeded,
-                long birth)
-            {
-                _context = context;
-                _recommeded = recommeded;
-                _birth = birth;
-            }
-
-            private static Dictionary<Status, int> _statuses = new Dictionary<Status, int>()
-            {
-                { Status.Free, 0 },
-                { Status.Complicated, 1 },
-                { Status.Reserved, 2 }
-            };
-
-            public int Compare(int x, int y)
-            {
-                bool premiumX = _context.Premiums.IsNow(x);
-                bool premiumY = _context.Premiums.IsNow(y);
-
-                if (premiumX != premiumY)
-                {
-                    return premiumX ? -1 : 1;
-                }
-
-                Status statusX = _context.Statuses.Get(x);
-                Status statusY = _context.Statuses.Get(y);
-
-                if (statusX != statusY)
-                {
-                    return _statuses[statusX] - _statuses[statusY];
-                }
-
-                int countX = _recommeded[x];
-                int countY = _recommeded[y];
-
-                if (countX != countY)
-                {
-                    return countY - countX;
-                }
-
-                long diffX = Math.Abs(_context.Birth.Get(x).ToUnixTimeSeconds() - _birth);
-                long diffY = Math.Abs(_context.Birth.Get(y).ToUnixTimeSeconds() - _birth);
-
-                return (int)(diffX - diffY);
-            }
+            _pool.DictionaryOfFloatByInt.Return(similarity);
+            _pool.DictionaryOfIntsByInt.Return(suggested);
+            _pool.ListOfIntegers.Return(list);
+            _pool.SuggestComparer.Return(comparer);
         }
 
         private void Recommend(RecommendRequest request)
         {
-            IDictionary<int, int> recomended = new Dictionary<int, int>();
+            Dictionary<int, int> recomended = _pool.DictionaryOfIntByInt.Get();
             _context.Interests.Recommend(request.Id, recomended);
 
             IEnumerable<KeyValuePair<int, int>> result = recomended;
@@ -198,109 +156,21 @@ namespace AspNetCoreWebApi.Processing
             bool sex = _context.Sex.Contains(true, request.Id);
             result = result.Where(x => _context.Sex.Contains(!sex, x.Key));
 
-            var comparer = new RecommendComparer(
+            var comparer = _pool.RecommendComparer.Get();
+            comparer.Init(
                 _context,
                 recomended,
                 _context.Birth.Get(request.Id).ToUnixTimeSeconds());
 
-            result = result.OrderBy(x => x.Key, comparer).Take(request.Limit);
-            request.TaskCompletionSource.SetResult(result.Select(x => x.Key).ToList());
-        }
+            var response = _pool.RecommendResponse.Get();
+            response.Limit = request.Limit;
+            response.Ids.AddRange(result.Select(x => x.Key));
+            response.Ids.Sort(comparer);
 
-        private class GroupComparer : IComparer<KeyValuePair<Group, int>>
-        {
-            private readonly MainStorage _storage;
-            private readonly IEnumerable<GroupKey> _keys;
+            request.TaskCompletionSource.SetResult(response);
 
-            public GroupComparer(MainStorage mainStorage, IEnumerable<GroupKey> keys)
-            {
-                _storage = mainStorage;
-                _keys = keys;
-            }
-
-            public int Compare(KeyValuePair<Group, int> x, KeyValuePair<Group, int> y)
-            {
-                if (x.Value != y.Value)
-                {
-                    return x.Value - y.Value;
-                }
-
-                foreach (var key in _keys)
-                {
-                    switch (key)
-                    {
-                        case GroupKey.City:
-                            if (x.Key.CityId != y.Key.CityId)
-                            {
-                                if (y.Key.CityId == null)
-                                {
-                                    return 1;
-                                }
-                                if (x.Key.CityId == null)
-                                {
-                                    return -1;
-                                }
-
-                                return string.Compare(
-                                    _storage.Cities.GetString(x.Key.CityId.Value),
-                                    _storage.Cities.GetString(y.Key.CityId.Value),
-                                    StringComparison.Ordinal
-                                );
-                            }
-                            break;
-                        case GroupKey.Country:
-                            if (x.Key.CountryId != y.Key.CountryId)
-                            {
-                                if (y.Key.CountryId == null)
-                                {
-                                    return 1;
-                                }
-                                if (x.Key.CountryId == null)
-                                {
-                                    return -1;
-                                }
-                                return string.Compare(
-                                    _storage.Countries.GetString(x.Key.CountryId.Value),
-                                    _storage.Countries.GetString(y.Key.CountryId.Value),
-                                    StringComparison.Ordinal
-                                );
-                            }
-                            break;
-                        case GroupKey.Interest:
-                            if (x.Key.InterestId != y.Key.InterestId)
-                            {
-                                if (y.Key.InterestId == null)
-                                {
-                                    return 1;
-                                }
-                                if (x.Key.InterestId == null)
-                                {
-                                    return -1;
-                                }
-                                return string.Compare(
-                                    _storage.Interests.GetString(x.Key.InterestId.Value),
-                                    _storage.Interests.GetString(y.Key.InterestId.Value),
-                                    StringComparison.Ordinal
-                                );
-                            }
-                            break;
-                        case GroupKey.Sex:
-                            if (x.Key.Sex != y.Key.Sex)
-                            {
-                                return x.Key.Sex.Value ? 1 : -1;
-                            }
-                            break;
-                        case GroupKey.Status:
-                            if (x.Key.Status.Value != y.Key.Status.Value)
-                            {
-                                return StatusHelper.CompareString(x.Key.Status.Value, y.Key.Status.Value);
-                            }
-                            break;
-                    }
-                }
-
-                return 0;
-            }
+            _pool.DictionaryOfIntByInt.Return(recomended);
+            _pool.RecommendComparer.Return(comparer);
         }
 
         private void Group(GroupRequest request)
@@ -349,10 +219,10 @@ namespace AspNetCoreWebApi.Processing
 
             if (result == null)
             {
-                result = new HashSet<int>(_storage.Ids.Except(Enumerable.Empty<int>()));
+                result = Intersect(result, _storage.Ids.AsEnumerable());
             }
 
-            List<Group> groups = new List<Group>();
+            List<Group> groups = _pool.ListOfGroup.Get();;
 
             foreach (var key in request.Keys)
             {
@@ -376,9 +246,10 @@ namespace AspNetCoreWebApi.Processing
                 }
             }
 
-            Dictionary<Group, int> counters = new Dictionary<Group, int>(groups.Count);
-            HashSet<int> groupIds = new HashSet<int>();
-            HashSet<int> currentIds = new HashSet<int>();
+            GroupResponse response = _pool.GroupResponse.Get();
+            response.Limit = request.Limit;
+            HashSet<int> groupIds = _pool.HashSetOfIntegers.Get();
+            HashSet<int> currentIds = _pool.HashSetOfIntegers.Get();
 
             bool containsInterests = request.Keys.Contains(GroupKey.Interest);
 
@@ -418,7 +289,12 @@ namespace AspNetCoreWebApi.Processing
                     currentIds.Clear();
                 }
                 groupIds.IntersectWith(result); // filter
-                counters[group] = groupIds.Count();
+
+                if (groupIds.Count > 0)
+                {
+                    response.Entries.Add(new GroupEntry(group, groupIds.Count));
+                }
+                
                 if (!containsInterests)
                 {
                     result.ExceptWith(groupIds);
@@ -426,30 +302,16 @@ namespace AspNetCoreWebApi.Processing
                 groupIds.Clear();
             }
 
-            GroupComparer comparer = new GroupComparer(_storage, request.Keys);
+            GroupEntryComparer comparer = _pool.GroupEntryComparer.Get();
+            comparer.Init(_storage, request.Keys, request.Order);
+            response.Entries.Sort(comparer);
 
-            if (request.Order)
-            {
-                request.TaskCompletionSource.SetResult(
-                    new GroupResponse(
-                        counters
-                            .Where(x => x.Value > 0)
-                            .OrderBy(x => x, comparer)
-                            .Take(request.Limit)
-                            .Select(x => new GroupEntry(x.Key, x.Value))
-                            .ToList()));
-            }
-            else
-            {
-                request.TaskCompletionSource.SetResult(
-                    new GroupResponse(
-                        counters
-                            .Where(x => x.Value > 0)
-                            .OrderByDescending(x => x, comparer)
-                            .Take(request.Limit)
-                            .Select(x => new GroupEntry(x.Key, x.Value))
-                            .ToList()));
-            }
+            request.TaskCompletionSource.SetResult(response);
+
+            _pool.ListOfGroup.Return(groups);
+            _pool.GroupEntryComparer.Return(comparer);
+            _pool.HashSetOfIntegers.Return(groupIds);
+            _pool.HashSetOfIntegers.Return(currentIds);
         }
 
         private void Filter(FilterRequest request)
@@ -518,18 +380,24 @@ namespace AspNetCoreWebApi.Processing
 
             if (result == null)
             {
-                result = new HashSet<int>(_storage.Ids.Except(Enumerable.Empty<int>()));
+                result = Intersect(result, _storage.Ids.AsEnumerable());
             }
 
-            request.TaskComletionSource.SetResult(
-                result.OrderByDescending(x => x).Take(request.Limit).ToList());
+            var response = _pool.FilterResponse.Get();
+            response.Ids.AddRange(result);
+            response.Ids.Sort(_reverseIntComparer);
+            response.Limit = request.Limit;
+            _pool.HashSetOfIntegers.Return(result);
+
+            request.TaskComletionSource.SetResult(response);
         }
 
         private HashSet<int> Intersect(HashSet<int> result, IEnumerable<int> filtered)
         {
             if (result == null)
             {
-                result = new HashSet<int>(filtered);
+                result = _pool.HashSetOfIntegers.Get();
+                result.UnionWith(filtered);
             }
             else
             {
@@ -589,7 +457,7 @@ namespace AspNetCoreWebApi.Processing
                 _context.Statuses.Update(id, StatusHelper.Parse(dto.Status));
             }
 
-            if (dto.Interests != null)
+            if (dto.Interests != null && dto.Interests.Count > 0)
             {
                 _context.Interests.RemoveAccount(id);
                 foreach (var interestStr in dto.Interests)
@@ -613,9 +481,11 @@ namespace AspNetCoreWebApi.Processing
                     )
                 );
             }
+
+            _pool.AccountDto.Return(dto);
         }
 
-        private void NewLikes(IReadOnlyList<SingleLikeDto> likeDtos)
+        private void NewLikes(List<SingleLikeDto> likeDtos)
         {
             foreach (var likeDto in likeDtos)
             {
@@ -626,7 +496,9 @@ namespace AspNetCoreWebApi.Processing
                         DateTimeOffset.FromUnixTimeSeconds(likeDto.Timestamp)
                     )
                 );
+                _pool.SingleLikeDto.Return(likeDto);
             }
+            _pool.ListOfLikeDto.Return(likeDtos);
         }
 
         private void AddNewAccount(AccountDto dto)
@@ -708,6 +580,8 @@ namespace AspNetCoreWebApi.Processing
                     )
                 );
             }
+
+            _pool.AccountDto.Return(dto);
         }
 
         private void LoadAccount(IEnumerable<AccountDto> dtos)

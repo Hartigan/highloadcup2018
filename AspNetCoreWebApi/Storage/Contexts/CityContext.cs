@@ -76,13 +76,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (city.IsNull.Value)
                 {
-                    return (city.Eq == null && city.Any == null)
+                    return (city.Eq == null && city.Any.Count == 0)
                         ? ids.Except(_id2AccId.SelectMany(x => x.Value))
                         : Enumerable.Empty<int>();
                 }
             }
 
-            if (city.Eq != null && city.Any != null)
+            if (city.Eq != null && city.Any.Count > 0)
             {
                 if (city.Any.Contains(city.Eq))
                 {
@@ -100,7 +100,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 int cityId = cities.Get(city.Eq);
                 return _id2AccId.ContainsKey(cityId) ? _id2AccId[cityId] : Enumerable.Empty<int>();
             }
-            else if (city.Any != null)
+            else if (city.Any.Count > 0)
             {
                 return city.Any
                     .Select(x => cities.Get(x))
@@ -143,7 +143,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 {
                     foreach(var key in _id2AccId.Keys)
                     {
-                        Group g = groups[i].Copy();
+                        Group g = groups[i];
                         g.CityId = key;
                         groups.Add(g);
                     }

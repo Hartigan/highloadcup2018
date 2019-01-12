@@ -53,7 +53,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (fname.IsNull.Value)
                 {
-                    if (fname.Eq == null && fname.Any == null)
+                    if (fname.Eq == null && fname.Any.Count == 0)
                     {
                         return idStorage.Except(_ids);
                     }
@@ -64,7 +64,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 }
             }
 
-            if (fname.Eq != null && fname.Any != null)
+            if (fname.Eq != null && fname.Any.Count > 0)
             {
                 if (fname.Any.Contains(fname.Eq))
                 {
@@ -76,10 +76,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 }
             }
 
-            if (fname.Any != null)
+            if (fname.Any.Count > 0)
             {
-                HashSet<string> names = new HashSet<string>(fname.Any);
-                return _ids.Where(x => names.Contains(_names[x]));
+                return _ids.Where(x => fname.Any.Contains(_names[x]));
             }
             else if (fname.Eq != null)
             {

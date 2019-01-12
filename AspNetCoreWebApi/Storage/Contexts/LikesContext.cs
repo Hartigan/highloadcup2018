@@ -36,9 +36,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 return new LikeBucket(l.LikeeId, l.TsSum + r.TsSum, l.Count + r.Count);
             }
 
-            public double Calc()
+            public float Calc()
             {
-                return 1.0 * TsSum / Count;
+                return 1.0f * TsSum / Count;
             }
         }
 
@@ -124,8 +124,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Suggest(
             int id,
-            IDictionary<int, double> similarity,
-            IDictionary<int, IEnumerable<int>> suggested)
+            Dictionary<int, float> similarity,
+            Dictionary<int, IEnumerable<int>> suggested)
         {
             List<LikeBucket> buckets = _liker2likes[id];
             if (buckets == null)
@@ -143,25 +143,25 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
                 foreach (var liker in likers)
                 {
-                    double current = 0;
+                    float current = 0;
                     if (!similarity.TryGetValue(liker, out current))
                     {
                         current = 0;
                     }
 
-                    double x = likeePair.Calc();
+                    float x = likeePair.Calc();
                     LikeBucket bucketY = new LikeBucket(likeePair.LikeeId, 0, 0);
                     var likerList = _liker2likes[liker];
                     bucketY = likerList[likerList.BinarySearch(bucketY, _bucketKeyComparer)];
-                    double y = bucketY.Calc();
+                    float y = bucketY.Calc();
 
                     if (likeePair.TsSum * bucketY.Count == bucketY.TsSum * likeePair.Count)
                     {
-                        current += 1.0;
+                        current += 1.0f;
                     }
                     else
                     {
-                        current += 1.0 / Math.Abs(x - y);
+                        current += 1.0f / Math.Abs(x - y);
                     }
                     similarity[liker] = current;
                 }
