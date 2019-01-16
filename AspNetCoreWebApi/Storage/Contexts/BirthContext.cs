@@ -8,7 +8,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 {
     public class BirthContext : IBatchLoader<DateTimeOffset>, ICompresable
     {
-        private DateTimeOffset?[] _id2time = new DateTimeOffset?[DataConfig.MaxId];
+        private DateTimeOffset[] _id2time = new DateTimeOffset[DataConfig.MaxId];
 
         public BirthContext()
         {
@@ -19,13 +19,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _id2time[id] = time;
         }
 
-        public DateTimeOffset Get(int id) => _id2time[id].Value;
+        public DateTimeOffset Get(int id) => _id2time[id];
 
         public IEnumerable<int> Filter(FilterRequest.BirthRequest birth, IdStorage idStorage)
         {
             return idStorage.AsEnumerable().Where(x =>
             {
-                DateTimeOffset b = _id2time[x].Value;
+                DateTimeOffset b = _id2time[x];
                 if (birth.Gt.HasValue && b <= birth.Gt.Value)
                 {
                     return false;
@@ -47,7 +47,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public IEnumerable<int> Filter(GroupRequest.BirthRequest birth, IdStorage idStorage)
         {
-            return idStorage.AsEnumerable().Where(x => _id2time[x].Value.Year == birth.Year);
+            return idStorage.AsEnumerable().Where(x => _id2time[x].Year == birth.Year);
         }
 
         public void LoadBatch(IEnumerable<BatchEntry<DateTimeOffset>> batch)

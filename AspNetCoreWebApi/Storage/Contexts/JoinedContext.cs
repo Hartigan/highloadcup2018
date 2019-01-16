@@ -10,7 +10,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class JoinedContext : IBatchLoader<DateTimeOffset>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private DateTimeOffset?[] _id2time = new DateTimeOffset?[DataConfig.MaxId];
+        private DateTimeOffset[] _id2time = new DateTimeOffset[DataConfig.MaxId];
 
         public JoinedContext()
         {
@@ -27,7 +27,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public IEnumerable<int> Filter(GroupRequest.JoinedRequest joined, IdStorage idStorage)
         {
-            return idStorage.AsEnumerable().Where(x => _id2time[x].Value.Year == joined.Year);
+            return idStorage.AsEnumerable().Where(x => _id2time[x].Year == joined.Year);
         }
 
         public void LoadBatch(IEnumerable<BatchEntry<DateTimeOffset>> batch)

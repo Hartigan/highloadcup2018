@@ -18,25 +18,25 @@ namespace AspNetCoreWebApi.Processing
 {
     public class RecommendProcessor
     {
-        private Subject<RecommendRequest> _dataRequest = new Subject<RecommendRequest>();
         private readonly MainContext _context;
         private readonly MainStorage _storage;
         private readonly MainPool _pool;
         private readonly RecommendPrinter _printer;
-
-        public IObservable<RecommendRequest> DataRequest => _dataRequest;
+        private readonly MessageProcessor _processor;
 
         public RecommendProcessor(
             MainStorage mainStorage,
             MainContext mainContext,
             MainPool mainPool,
-            RecommendPrinter printer
+            RecommendPrinter printer,
+            MessageProcessor processor
         )
         {
             _context = mainContext;
             _storage = mainStorage;
             _pool = mainPool;
             _printer = printer;
+            _processor = processor;
         }
 
         private void Free(RecommendRequest request)
@@ -44,7 +44,7 @@ namespace AspNetCoreWebApi.Processing
             _pool.RecommendRequest.Return(request);
         }
 
-        public async Task<bool> Process(int id, HttpResponse httpResponse, IQueryCollection query)
+        public bool Process(int id, HttpResponse httpResponse, IQueryCollection query)
         {
             RecommendRequest request = _pool.RecommendRequest.Get();
             request.Id = id;
@@ -93,9 +93,7 @@ namespace AspNetCoreWebApi.Processing
                 }
             }
 
-            _dataRequest.OnNext(request);
-
-            var result = await request.TaskCompletionSource.Task;
+            var result = _processor.Recommend(request);
 
             httpResponse.StatusCode = 200;
             httpResponse.ContentType = "application/json";

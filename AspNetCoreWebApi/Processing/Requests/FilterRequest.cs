@@ -187,13 +187,10 @@ namespace AspNetCoreWebApi.Processing.Requests
 
         public int Limit { get; set; }
 
-        public TaskCompletionSource<FilterResponse> TaskComletionSource = new TaskCompletionSource<FilterResponse>();
-
         public HashSet<Field> Fields { get; } = new HashSet<Field>();
 
         public void Clear()
         {
-            TaskComletionSource = new TaskCompletionSource<FilterResponse>();
             Fields.Clear();
             Limit = 0;
             Sex.Clear();

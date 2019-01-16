@@ -8,16 +8,25 @@ using AspNetCoreWebApi.Storage.StringPools;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class InterestsContext : IBatchLoader<IEnumerable<int>>, ICompresable
+    public class InterestsContext : IBatchLoader<IEnumerable<short>>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private SortedDictionary<int, List<int>> _id2AccId = new SortedDictionary<int, List<int>>();
+        private Dictionary<short, List<int>> _id2AccId = new Dictionary<short, List<int>>();
+        private HashSet<int> _null = new HashSet<int>();
 
         public InterestsContext()
         {
         }
 
-        public void Add(int id, int interestId)
+        public void InitNull(IdStorage ids)
+        {
+            _null.Clear();
+            _null.UnionWith(ids.AsEnumerable());
+            _null.ExceptWith(_id2AccId.Values.SelectMany(x => x));
+            _null.TrimExcess();
+        }
+
+        public void Add(int id, short interestId)
         {
             _rw.AcquireWriterLock(2000);
             if (_id2AccId.ContainsKey(interestId))
@@ -109,32 +118,17 @@ namespace AspNetCoreWebApi.Storage.Contexts
             GroupRequest.InterestRequest interests,
             InterestStorage interestsStorage)
         {
-            int id = interestsStorage.Get(interests.Interest);
+            short id = interestsStorage.Get(interests.Interest);
             return _id2AccId.GetValueOrDefault(id) ?? Enumerable.Empty<int>();
         }
 
-        public void FillGroups(List<Group> groups)
+        public void FillGroups(List<short?> groups)
         {
-            if (groups.Count == 0)
-            {
-                groups.AddRange(_id2AccId.Keys.Select(x => new Group(interestId: x)));
-            }
-            else
-            {
-                int size = groups.Count;
-                for (int i = 0; i < size; i++)
-                {
-                    foreach(var key in _id2AccId.Keys)
-                    {
-                        Group g = groups[i];
-                        g.InterestId = key;
-                        groups.Add(g);
-                    }
-                }
-            }
+            groups.AddRange(_id2AccId.Keys.Cast<short?>());
+            groups.Add(null);
         }
 
-        public bool Contains(int? interestId, int id)
+        public bool Contains(short? interestId, int id)
         {
             if (interestId.HasValue)
             {
@@ -149,15 +143,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 }
             }
 
-            foreach(var ids in _id2AccId.Values)
-            {
-                if (ids.BinarySearch(id) >= 0)
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return _null.Contains(id);
         }
 
         public void Recommend(int id, Dictionary<int, int> recomended)
@@ -183,22 +169,20 @@ namespace AspNetCoreWebApi.Storage.Contexts
             recomended.Remove(id);
         }
 
-        public void GetByInterestId(
-            int? interestId,
-            HashSet<int> currentIds,
-            IdStorage ids)
+        public IEnumerable<int> GetByInterestId(
+            short? interestId)
         {
             if (interestId.HasValue)
             {
-                currentIds.UnionWith(_id2AccId[interestId.Value]);
+                return _id2AccId[interestId.Value];
             }
             else
             {
-                currentIds.UnionWith(ids.Except(_id2AccId.SelectMany(x => x.Value)));
+                return _null;
             }
         }
 
-        public void LoadBatch(IEnumerable<BatchEntry<IEnumerable<int>>> batch)
+        public void LoadBatch(IEnumerable<BatchEntry<IEnumerable<short>>> batch)
         {
             _rw.AcquireWriterLock(2000);
 
@@ -229,6 +213,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
+            _null.TrimExcess();
             foreach(var list in _id2AccId.Values)
             {
                 list.Compress();

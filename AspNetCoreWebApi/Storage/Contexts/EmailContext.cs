@@ -12,8 +12,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class EmailContext : IBatchLoader<Email>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private Email?[] _emails = new Email?[DataConfig.MaxId];
-        private SortedDictionary<int, List<int>> _domain2ids = new SortedDictionary<int, List<int>>();
+        private Email[] _emails = new Email[DataConfig.MaxId];
+        private Dictionary<short, List<int>> _domain2ids = new Dictionary<short, List<int>>();
 
         public EmailContext()
         {
@@ -42,7 +42,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             _rw.AcquireWriterLock(2000);
             
-            var old = _emails[id].Value;
+            var old = _emails[id];
             var list = _domain2ids[old.DomainId];
             list.RemoveAt(list.BinarySearch(id));
 
@@ -53,7 +53,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public Email Get(int id)
         {
-            return _emails[id].Value;
+            return _emails[id];
         }
 
         public IEnumerable<int> Filter(
@@ -79,7 +79,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
                 return result.Where(x =>
                 {
-                    string prefix = _emails[x].Value.Prefix;
+                    string prefix = _emails[x].Prefix;
                     return string.Compare(prefix, email.Gt) > 0 &&
                         string.Compare(prefix, email.Lt) < 0;
                 });
@@ -87,11 +87,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (email.Gt != null)
             {
-                return result.Where(x => string.Compare(_emails[x].Value.Prefix, email.Gt) > 0);
+                return result.Where(x => string.Compare(_emails[x].Prefix, email.Gt) > 0);
             }
             else if (email.Lt != null)
             {
-                return result.Where(x => string.Compare(_emails[x].Value.Prefix, email.Lt) < 0);
+                return result.Where(x => string.Compare(_emails[x].Prefix, email.Lt) < 0);
             }
 
             return result;

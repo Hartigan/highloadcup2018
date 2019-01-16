@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Processing.Parsers;
@@ -55,7 +56,7 @@ namespace AspNetCoreWebApi
             services.AddSingleton<GroupPrinter>();
             services.AddSingleton<RecommendPrinter>();
             services.AddSingleton<SuggestPrinter>();
-
+            services.AddSingleton<GroupPreprocessor>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

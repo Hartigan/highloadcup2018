@@ -1,14 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reactive.Subjects;
 using System.Threading.Tasks;
-using AspNetCoreWebApi.Domain;
 using AspNetCoreWebApi.Processing.Pooling;
 using AspNetCoreWebApi.Processing.Printers;
 using AspNetCoreWebApi.Processing.Requests;
-using AspNetCoreWebApi.Processing.Responses;
 using AspNetCoreWebApi.Storage;
 using AspNetCoreWebApi.Storage.Contexts;
 using Microsoft.AspNetCore.Http;
@@ -18,25 +14,25 @@ namespace AspNetCoreWebApi.Processing
 {
     public class SuggestProcessor
     {
-        private Subject<SuggestRequest> _dataRequest = new Subject<SuggestRequest>();
         private readonly MainContext _context;
         private readonly MainStorage _storage;
         private readonly MainPool _pool;
         private readonly SuggestPrinter _printer;
-
-        public IObservable<SuggestRequest> DataRequest => _dataRequest;
+        private readonly MessageProcessor _processor;
 
         public SuggestProcessor(
             MainStorage mainStorage,
             MainContext mainContext,
             MainPool mainPool,
-            SuggestPrinter printer
+            SuggestPrinter printer,
+            MessageProcessor processor
         )
         {
             _context = mainContext;
             _storage = mainStorage;
             _pool = mainPool;
             _printer = printer;
+            _processor = processor;
         }
 
         private void Free(SuggestRequest request)
@@ -44,7 +40,7 @@ namespace AspNetCoreWebApi.Processing
             _pool.SuggestRequest.Return(request);
         }
 
-        public async Task<bool> Process(int id, HttpResponse httpResponse, IQueryCollection query)
+        public bool Process(int id, HttpResponse httpResponse, IQueryCollection query)
         {
             SuggestRequest request = _pool.SuggestRequest.Get();
             request.Id = id;
@@ -93,9 +89,7 @@ namespace AspNetCoreWebApi.Processing
                 }
             }
 
-            _dataRequest.OnNext(request);
-
-            var result = await request.TaskCompletionSource.Task;
+            var result = _processor.Suggest(request);
 
             httpResponse.StatusCode = 200;
             httpResponse.ContentType = "application/json";

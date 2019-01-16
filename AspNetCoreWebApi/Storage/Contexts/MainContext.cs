@@ -46,5 +46,16 @@ namespace AspNetCoreWebApi.Storage.Contexts
             Likes.Compress();
             Premiums.Compress();
         }
+
+        public void InitNull(IdStorage ids)
+        {
+            Cities.InitNull(ids);
+            Countries.InitNull(ids);
+            Interests.InitNull(ids);
+            FirstNames.InitNull(ids);
+            LastNames.InitNull(ids);
+            Phones.InitNull(ids);
+            Premiums.InitNull(ids);
+        }
     }
 }

@@ -13,9 +13,18 @@ namespace AspNetCoreWebApi.Storage.Contexts
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private string[] _names = new string[DataConfig.MaxId];
         private HashSet<int> _ids = new HashSet<int>();
+        private HashSet<int> _null = new HashSet<int>();
 
         public FirstNameContext()
         {
+        }
+
+        public void InitNull(IdStorage ids)
+        {
+            _null.Clear();
+            _null.UnionWith(ids.AsEnumerable());
+            _null.ExceptWith(_ids);
+            _null.TrimExcess();
         }
 
         public void LoadBatch(IEnumerable<BatchEntry<string>> batch)
@@ -55,7 +64,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 {
                     if (fname.Eq == null && fname.Any.Count == 0)
                     {
-                        return idStorage.Except(_ids);
+                        return _null;
                     }
                     else
                     {
@@ -90,6 +99,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
+            _ids.TrimExcess();
+            _null.TrimExcess();
         }
     }
 }

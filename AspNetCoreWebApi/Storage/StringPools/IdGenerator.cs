@@ -7,9 +7,9 @@ namespace AspNetCoreWebApi.Storage.StringPools
     {
         private volatile int _last = 0;
 
-        public int Get()
+        public short Get()
         {
-            return Interlocked.Increment(ref _last);
+            return (short)Interlocked.Increment(ref _last);
         }
     }
 }

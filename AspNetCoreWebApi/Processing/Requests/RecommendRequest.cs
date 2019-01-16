@@ -37,8 +37,6 @@ namespace AspNetCoreWebApi.Processing.Requests
         }
         public CityRequest City { get; } = new CityRequest();
 
-        public TaskCompletionSource<RecommendResponse> TaskCompletionSource { get; set; } = new TaskCompletionSource<RecommendResponse>();
-
         public int Id { get; set; }
         public int Limit { get; set; }
 
@@ -48,7 +46,6 @@ namespace AspNetCoreWebApi.Processing.Requests
             City.Clear();
             Id = 0;
             Limit = 0;
-            TaskCompletionSource = new TaskCompletionSource<RecommendResponse>();
         }
     }
 }

@@ -29,11 +29,6 @@ namespace AspNetCoreWebApi.Storage
             return result;
         }
 
-        public IEnumerable<int> Except(IEnumerable<int> except)
-        {
-            return _set.AsEnumerable().Except(except);
-        }
-
         public IEnumerable<int> AsEnumerable()
         {
             return _set.AsEnumerable();

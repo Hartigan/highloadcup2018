@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Storage;
 using Microsoft.AspNetCore.Mvc;
@@ -106,9 +103,9 @@ namespace AspNetCoreWebApi.Controllers
 
         [Route("accounts/filter")]
         [HttpGet]
-        public async Task Filter()
+        public void Filter()
         {
-            if (!await _filterProcessor.Process(Response, Request.Query))
+            if (!_filterProcessor.Process(Response, Request.Query))
             {
                 Response.StatusCode = 400;
             }
@@ -116,9 +113,9 @@ namespace AspNetCoreWebApi.Controllers
 
         [Route("accounts/group")]
         [HttpGet]
-        public async Task Group()
+        public void Group()
         {
-            if (!await _groupProcessor.Process(Response, Request.Query))
+            if (!_groupProcessor.Process(Response, Request.Query))
             {
                 Response.StatusCode = 400;
             }
@@ -126,7 +123,7 @@ namespace AspNetCoreWebApi.Controllers
 
         [Route("accounts/{id}/recommend")]
         [HttpGet]
-        public async Task Recommend(int id)
+        public void Recommend(int id)
         {
             if (!_storage.Ids.Contains(id))
             {
@@ -134,7 +131,7 @@ namespace AspNetCoreWebApi.Controllers
                 return;
             }
 
-            if (!await _recommendProcessor.Process(id, Response, Request.Query))
+            if (!_recommendProcessor.Process(id, Response, Request.Query))
             {
                 Response.StatusCode = 400;
             }
@@ -142,7 +139,7 @@ namespace AspNetCoreWebApi.Controllers
 
         [Route("accounts/{id}/suggest")]
         [HttpGet]
-        public async Task Suggest(int id)
+        public void Suggest(int id)
         {
             if (!_storage.Ids.Contains(id))
             {
@@ -150,7 +147,7 @@ namespace AspNetCoreWebApi.Controllers
                 return;
             }
 
-            if (!await _suggestProcessor.Process(id, Response, Request.Query))
+            if (!_suggestProcessor.Process(id, Response, Request.Query))
             {
                 Response.StatusCode = 400;
             }

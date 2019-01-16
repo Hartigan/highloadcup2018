@@ -3,23 +3,27 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Processing.Requests;
 using AspNetCoreWebApi.Storage.StringPools;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class CityContext : IBatchLoader<int>, ICompresable
+    public class CityContext : IBatchLoader<short>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private SortedDictionary<int, List<int>> _id2AccId = new SortedDictionary<int, List<int>>();
+        private short?[] _raw = new short?[DataConfig.MaxId];
+        private Dictionary<short, List<int>> _id2AccId = new Dictionary<short, List<int>>();
+        private readonly HashSet<int> _null = new HashSet<int>();
 
         public CityContext()
         {
         }
 
-        public void Add(int id, int cityId)
+        public void Add(int id, short cityId)
         {
             _rw.AcquireWriterLock(2000);
+            _raw[id] = cityId;
             if (_id2AccId.ContainsKey(cityId))
             {
                 var list = _id2AccId[cityId];
@@ -32,7 +36,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _rw.ReleaseWriterLock();
         }
 
-        public void AddOrUpdate(int id, int cityId)
+        public void AddOrUpdate(int id, short cityId)
         {
             _rw.AcquireWriterLock(2000);
             foreach (var list in _id2AccId.Values)
@@ -50,21 +54,23 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _rw.ReleaseWriterLock();
         }
 
-        public bool TryGet(int id, out int cityId)
+        public bool TryGet(int id, out short cityId)
         {
-            cityId = 0;
-            bool res = false;
-            foreach (var pair in _id2AccId)
+            if (_raw[id].HasValue)
             {
-                int index = pair.Value.BinarySearch(id);
-                if (index >= 0)
-                {
-                    res = true;
-                    cityId = pair.Key;
-                    break;
-                }
+                cityId = _raw[id].Value;
+                return true;
             }
-            return res;
+            else
+            {
+                cityId = default(short);
+                return false;
+            }
+        }
+
+        public short? Get(int id)
+        {
+            return _raw[id];
         }
 
         public IEnumerable<int> Filter(
@@ -77,7 +83,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 if (city.IsNull.Value)
                 {
                     return (city.Eq == null && city.Any.Count == 0)
-                        ? ids.Except(_id2AccId.SelectMany(x => x.Value))
+                        ? _null
                         : Enumerable.Empty<int>();
                 }
             }
@@ -86,7 +92,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (city.Any.Contains(city.Eq))
                 {
-                    int cityId = cities.Get(city.Eq);
+                    short cityId = cities.Get(city.Eq);
                     return _id2AccId.ContainsKey(cityId) ? _id2AccId[cityId] : Enumerable.Empty<int>();
                 }
                 else
@@ -97,7 +103,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (city.Eq != null)
             {
-                int cityId = cities.Get(city.Eq);
+                short cityId = cities.Get(city.Eq);
                 return _id2AccId.ContainsKey(cityId) ? _id2AccId[cityId] : Enumerable.Empty<int>();
             }
             else if (city.Any.Count > 0)
@@ -117,7 +123,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             GroupRequest.CityRequest city,
             CityStorage cities)
         {
-            int cityId = cities.Get(city.City);
+            short cityId = cities.Get(city.City);
 
             if (_id2AccId.ContainsKey(cityId))
             {
@@ -129,56 +135,21 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public void FillGroups(List<Group> groups)
+        public bool Contains(short? cityId, int id)
         {
-            if (groups.Count == 0)
-            {
-                groups.AddRange(_id2AccId.Keys.Select(x => new Group(cityId: x)));
-                groups.Add(new Group());
-            }
-            else
-            {
-                int size = groups.Count;
-                for (int i = 0; i < size; i++)
-                {
-                    foreach(var key in _id2AccId.Keys)
-                    {
-                        Group g = groups[i];
-                        g.CityId = key;
-                        groups.Add(g);
-                    }
-                }
-            }
+            return _raw[id] == cityId;
         }
 
-        public bool Contains(int? cityId, int id)
+        public void InitNull(IdStorage ids)
         {
-            if (cityId.HasValue)
-            {
-                List<int> ids;
-                if (_id2AccId.TryGetValue(cityId.Value, out ids))
-                {
-                    return ids.BinarySearch(id) >= 0;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-
-            foreach (var ids in _id2AccId.Values)
-            {
-                if (ids.BinarySearch(id) >= 0)
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            _null.Clear();
+            _null.UnionWith(ids.AsEnumerable());
+            _null.ExceptWith(_id2AccId.Values.SelectMany(x => x));
+            _null.TrimExcess();
         }
 
         public void GetByCityId(
-            int? cityId,
+            short? cityId,
             HashSet<int> currentIds, 
             IdStorage ids)
         {
@@ -188,16 +159,17 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
             else
             {
-                currentIds.UnionWith(ids.Except(_id2AccId.SelectMany(x => x.Value)));
+                currentIds.UnionWith(_null);
             }
         }
 
-        public void LoadBatch(IEnumerable<BatchEntry<int>> batch)
+        public void LoadBatch(IEnumerable<BatchEntry<short>> batch)
         {
             _rw.AcquireWriterLock(2000);
 
             foreach(var entry in batch)
             {
+                _raw[entry.Id] = entry.Value;
                 if (_id2AccId.ContainsKey(entry.Value))
                 {
                     _id2AccId[entry.Value].Add(entry.Id);
@@ -218,6 +190,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
+            _null.TrimExcess();
             foreach (var list in _id2AccId.Values)
             {
                 list.Compress();

@@ -11,6 +11,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
+using AspNetCoreWebApi.Storage.Contexts;
+using AspNetCoreWebApi.Storage;
 
 namespace AspNetCoreWebApi
 {
@@ -25,11 +27,21 @@ namespace AspNetCoreWebApi
             var loader = host.Services.GetRequiredService<DataLoader>();
             loader.Config("../../highloadcup2018_data/data/options.txt");
             loader.Run("../../highloadcup2018_data/data/data.zip");
+            var context = host.Services.GetRequiredService<MainContext>();
+            var storage = host.Services.GetRequiredService<MainStorage>();
+            context.InitNull(storage.Ids);
+
+            var groupPreprocessor = host.Services.GetRequiredService<GroupPreprocessor>();
+            groupPreprocessor.Rebuild();
+            context.Compress();
 
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.WaitForFullGCComplete();
             GC.Collect();
+
+            var res = GC.TryStartNoGCRegion(1024 * 1024);
+
             host.Run();
         }
 

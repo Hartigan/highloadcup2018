@@ -12,10 +12,19 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private Phone?[] _phones = new Phone?[DataConfig.MaxId];
-        private SortedDictionary<short, List<int>> _code2ids = new SortedDictionary<short, List<int>>();
+        private HashSet<int> _null = new HashSet<int>();
+        private Dictionary<short, List<int>> _code2ids = new Dictionary<short, List<int>>();
 
         public PhoneContext()
         {
+        }
+
+        public void InitNull(IdStorage ids)
+        {
+            _null.Clear();
+            _null.UnionWith(ids.AsEnumerable());
+            _null.ExceptWith(_code2ids.Values.SelectMany(x => x));
+            _null.TrimExcess();
         }
 
         public void LoadBatch(IEnumerable<BatchEntry<Phone>> batch)
@@ -102,7 +111,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (phone.IsNull.Value)
                 {
-                    return phone.Code.HasValue ? Enumerable.Empty<int>() : idStorage.Except(_code2ids.SelectMany(x => x.Value));
+                    return phone.Code.HasValue ? Enumerable.Empty<int>() : _null;
                 }
             }
 
@@ -125,6 +134,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
+            _null.TrimExcess();
             foreach(var list in _code2ids.Values)
             {
                 list.Compress();

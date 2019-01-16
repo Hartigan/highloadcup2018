@@ -72,7 +72,7 @@ namespace AspNetCoreWebApi.Domain
         }
     }
 
-    public enum Status
+    public enum Status : byte
     {
         Free,
         Reserved,

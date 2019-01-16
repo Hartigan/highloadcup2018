@@ -80,7 +80,7 @@ namespace AspNetCoreWebApi.Processing.Printers
                             }
                             break;
                         case Field.Country:
-                            int countryId;
+                            short countryId;
                             if (_context.Countries.TryGet(id, out countryId))
                             {
                                 sw.Comma();
@@ -88,7 +88,7 @@ namespace AspNetCoreWebApi.Processing.Printers
                             }
                             break;
                         case Field.City:
-                            int cityId;
+                            short cityId;
                             if (_context.Cities.TryGet(id, out cityId))
                             {
                                 sw.Comma();

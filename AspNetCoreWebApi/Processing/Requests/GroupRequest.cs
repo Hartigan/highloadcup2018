@@ -36,9 +36,9 @@ namespace AspNetCoreWebApi.Processing.Requests
         }
     }
 
-    public enum GroupKey
+    public enum GroupKey : byte
     {
-        Sex,
+        Sex = 0,
         Status,
         Interest,
         Country,
@@ -145,7 +145,6 @@ namespace AspNetCoreWebApi.Processing.Requests
         }
         public JoinedRequest Joined { get; } = new JoinedRequest();
 
-        public TaskCompletionSource<GroupResponse> TaskCompletionSource { get; set; } = new TaskCompletionSource<GroupResponse>();
         public int Limit { get; set; }
         public bool Order { get; set; }
         public List<GroupKey> Keys { get; set; } = new List<GroupKey>();
@@ -160,7 +159,6 @@ namespace AspNetCoreWebApi.Processing.Requests
             Interest.Clear();
             Like.Clear();
             Joined.Clear();
-            TaskCompletionSource = new TaskCompletionSource<GroupResponse>();
             Limit = 0;
             Order = false;
             Keys.Clear();

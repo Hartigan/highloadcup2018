@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using AspNetCoreWebApi.Domain;
 using AspNetCoreWebApi.Domain.Dto;
@@ -22,78 +23,71 @@ namespace AspNetCoreWebApi.Processing
         private readonly IDisposable _newAccountProcessorSubscription;
         private readonly IDisposable _editAccountProcessorSubscription;
         private readonly IDisposable _newLikesProcessorSubscription;
-        private readonly IDisposable _filterProcessorSubscription;
-        private readonly IDisposable _groupProcessorSubscription;
         private readonly IDisposable _dataLoaderSubscription;
-        private readonly IDisposable _recommendProcessorSubscription;
-        private readonly IDisposable _suggestProcessorSubscription;
+        private readonly IDisposable _secondPhaseEndSubscription;
         private readonly MainStorage _storage;
         private readonly DomainParser _parser;
         private readonly MainContext _context;
         private readonly MainPool _pool;
+        private readonly GroupPreprocessor _groupPreprocessor;
         private readonly IComparer<int> _reverseIntComparer = new ReverseComparer<int>(Comparer<int>.Default);
+        private volatile int _editQuery = 0;
 
         public MessageProcessor(
             MainContext mainContext,
             MainStorage mainStorage,
             DomainParser parser,
             MainPool mainPool,
+            GroupPreprocessor groupPreprocessor,
             NewAccountProcessor newAccountProcessor,
             EditAccountProcessor editAccountProcessor,
             NewLikesProcessor newLikesProcessor,
-            FilterProcessor filterProcessor,
-            DataLoader dataLoader,
-            GroupProcessor groupProcessor,
-            RecommendProcessor recommendProcessor,
-            SuggestProcessor suggestProcessor)
+            DataLoader dataLoader)
         {
             _context = mainContext;
             _storage = mainStorage;
             _parser = parser;
             _pool = mainPool;
+            _groupPreprocessor = groupPreprocessor;
 
-            _newAccountProcessorSubscription = newAccountProcessor
+            var newAccountObservable = newAccountProcessor
                 .DataReceived
-                .ObserveOn(ThreadPoolScheduler.Instance)
-                .Subscribe(AddNewAccount);
+                .ObserveOn(ThreadPoolScheduler.Instance);
 
-            _editAccountProcessorSubscription = editAccountProcessor
+            var editAccountObservable = editAccountProcessor
                 .DataReceived
-                .ObserveOn(ThreadPoolScheduler.Instance)
-                .Subscribe(EditAccount);
+                .ObserveOn(ThreadPoolScheduler.Instance);
 
-            _newLikesProcessorSubscription = newLikesProcessor
+            var newLikesObservable = newLikesProcessor
                 .DataReceived
-                .ObserveOn(ThreadPoolScheduler.Instance)
-                .Subscribe(NewLikes);
-
-            _filterProcessorSubscription = filterProcessor
-                .DataRequest
-                .ObserveOn(ThreadPoolScheduler.Instance)
-                .Subscribe(Filter);
-
-            _groupProcessorSubscription = groupProcessor
-                .DataRequest
-                .ObserveOn(ThreadPoolScheduler.Instance)
-                .Subscribe(Group);
+                .ObserveOn(ThreadPoolScheduler.Instance);
 
             _dataLoaderSubscription = dataLoader
                 .AccountLoaded
                 .Subscribe(LoadAccount);
 
-            _recommendProcessorSubscription = recommendProcessor
-                .DataRequest
-                .ObserveOn(ThreadPoolScheduler.Instance)
-                .Subscribe(Recommend);
+            _newAccountProcessorSubscription = newAccountObservable
+                .Subscribe(AddNewAccount);
 
-            _suggestProcessorSubscription = suggestProcessor
-                .DataRequest
-                .ObserveOn(ThreadPoolScheduler.Instance)
-                .Subscribe(Suggest);
+            _editAccountProcessorSubscription = editAccountObservable
+                .Subscribe(EditAccount);
 
+            _newLikesProcessorSubscription = newLikesObservable
+                .Subscribe(NewLikes);
+
+            _secondPhaseEndSubscription = newAccountObservable
+                .Select(_ => Interlocked.Increment(ref _editQuery))
+                .Merge(editAccountObservable.Select(_ => Interlocked.Increment(ref _editQuery)))
+                .Merge(newLikesObservable.Select(_ => Interlocked.Increment(ref _editQuery)))
+                .Throttle(TimeSpan.FromSeconds(5))
+                .Subscribe(_ =>
+                    {
+                        _context.InitNull(_storage.Ids);
+                        _groupPreprocessor.Rebuild();
+                    });
         }
 
-        private void Suggest(SuggestRequest request)
+        public SuggestResponse Suggest(SuggestRequest request)
         {
             Dictionary<int, float> similarity = _pool.DictionaryOfFloatByInt.Get();
             Dictionary<int, IEnumerable<int>> suggested = _pool.DictionaryOfIntsByInt.Get();
@@ -106,13 +100,13 @@ namespace AspNetCoreWebApi.Processing
 
             if (request.Country.IsActive)
             {
-                int countryId = _storage.Countries.Get(request.Country.Country);
+                short countryId = _storage.Countries.Get(request.Country.Country);
                 result = result.Where(x => _context.Countries.Contains(countryId, x));
             }
 
             if (request.City.IsActive)
             {
-                int cityId = _storage.Cities.Get(request.City.City);
+                short cityId = _storage.Cities.Get(request.City.City);
                 result = result.Where(x => _context.Cities.Contains(cityId, x));
             }
 
@@ -125,15 +119,15 @@ namespace AspNetCoreWebApi.Processing
             response.Ids.AddRange(list.SelectMany(x => suggested[x]));
             response.Limit = request.Limit;
 
-            request.TaskCompletionSource.SetResult(response);
-
             _pool.DictionaryOfFloatByInt.Return(similarity);
             _pool.DictionaryOfIntsByInt.Return(suggested);
             _pool.ListOfIntegers.Return(list);
             _pool.SuggestComparer.Return(comparer);
+
+            return response;
         }
 
-        private void Recommend(RecommendRequest request)
+        public RecommendResponse Recommend(RecommendRequest request)
         {
             Dictionary<int, int> recomended = _pool.DictionaryOfIntByInt.Get();
             _context.Interests.Recommend(request.Id, recomended);
@@ -142,13 +136,13 @@ namespace AspNetCoreWebApi.Processing
 
             if (request.Country.IsActive)
             {
-                int countryId = _storage.Countries.Get(request.Country.Country);
+                short countryId = _storage.Countries.Get(request.Country.Country);
                 result = result.Where(x => _context.Countries.Contains(countryId, x.Key));
             }
 
             if (request.City.IsActive)
             {
-                int cityId = _storage.Cities.Get(request.City.City);
+                short cityId = _storage.Cities.Get(request.City.City);
                 result = result.Where(x => _context.Cities.Contains(cityId, x.Key));
             }
 
@@ -167,243 +161,164 @@ namespace AspNetCoreWebApi.Processing
             response.Ids.AddRange(result.Select(x => x.Key));
             response.Ids.Sort(comparer);
 
-            request.TaskCompletionSource.SetResult(response);
-
             _pool.DictionaryOfIntByInt.Return(recomended);
             _pool.RecommendComparer.Return(comparer);
+
+            return response;
         }
 
-        private void Group(GroupRequest request)
+        public GroupResponse Group(GroupRequest request)
         {
-            HashSet<int> result = null;
+            var result = _pool.FilterSet.Get();
 
             if (request.Sex.IsActive)
             {
-                result = Intersect(result, _context.Sex.Filter(request.Sex));
+                Intersect(result, _context.Sex.Filter(request.Sex));
             }
 
             if (request.Status.IsActive)
             {
-                result = Intersect(result, _context.Statuses.Filter(request.Status));
+                Intersect(result, _context.Statuses.Filter(request.Status));
             }
 
             if (request.Country.IsActive)
             {
-                result = Intersect(result, _context.Countries.Filter(request.Country, _storage.Countries));
+                Intersect(result, _context.Countries.Filter(request.Country, _storage.Countries));
             }
 
             if (request.City.IsActive)
             {
-                result = Intersect(result, _context.Cities.Filter(request.City, _storage.Cities));
+                Intersect(result, _context.Cities.Filter(request.City, _storage.Cities));
             }
 
             if (request.Birth.IsActive)
             {
-                result = Intersect(result, _context.Birth.Filter(request.Birth, _storage.Ids));
+                Intersect(result, _context.Birth.Filter(request.Birth, _storage.Ids));
             }
 
             if (request.Interest.IsActive)
             {
-                result = Intersect(result, _context.Interests.Filter(request.Interest, _storage.Interests));
+                Intersect(result, _context.Interests.Filter(request.Interest, _storage.Interests));
             }
 
             if (request.Like.IsActive)
             {
-                result = Intersect(result, _context.Likes.Filter(request.Like));
+                Intersect(result, _context.Likes.Filter(request.Like));
             }
 
             if (request.Joined.IsActive)
             {
-                result = Intersect(result, _context.Joined.Filter(request.Joined, _storage.Ids));
+                Intersect(result, _context.Joined.Filter(request.Joined, _storage.Ids));
             }
 
-            if (result == null)
+            if (!result.Inited)
             {
-                result = Intersect(result, _storage.Ids.AsEnumerable());
-            }
-
-            List<Group> groups = _pool.ListOfGroup.Get();;
-
-            foreach (var key in request.Keys)
-            {
-                switch (key)
-                {
-                    case GroupKey.City:
-                        _context.Cities.FillGroups(groups);
-                        break;
-                    case GroupKey.Country:
-                        _context.Countries.FillGroups(groups);
-                        break;
-                    case GroupKey.Interest:
-                        _context.Interests.FillGroups(groups);
-                        break;
-                    case GroupKey.Sex:
-                        _context.Sex.FillGroups(groups);
-                        break;
-                    case GroupKey.Status:
-                        _context.Statuses.FillGroups(groups);
-                        break;
-                }
+                Intersect(result, _storage.Ids.AsEnumerable());
             }
 
             GroupResponse response = _pool.GroupResponse.Get();
             response.Limit = request.Limit;
-            HashSet<int> groupIds = _pool.HashSetOfIntegers.Get();
-            HashSet<int> currentIds = _pool.HashSetOfIntegers.Get();
 
-            bool containsInterests = request.Keys.Contains(GroupKey.Interest);
-
-            foreach (var group in groups)
-            {
-                bool inited = false;
-                foreach (var key in request.Keys)
-                {
-                    switch (key)
-                    {
-                        case GroupKey.City:
-                            _context.Cities.GetByCityId(group.CityId, currentIds, _storage.Ids);
-                            break;
-                        case GroupKey.Country:
-                            _context.Countries.GetByCountryId(group.CountryId, currentIds, _storage.Ids);
-                            break;
-                        case GroupKey.Interest:
-                            _context.Interests.GetByInterestId(group.InterestId, currentIds, _storage.Ids);
-                            break;
-                        case GroupKey.Sex:
-                            _context.Sex.GetBySex(group.Sex.Value, currentIds);
-                            break;
-                        case GroupKey.Status:
-                            _context.Statuses.GetByStatus(group.Status.Value, currentIds);
-                            break;
-                    }
-
-                    if (!inited)
-                    {
-                        groupIds.UnionWith(currentIds);
-                        inited = true;
-                    }
-                    else
-                    {
-                        groupIds.IntersectWith(currentIds);
-                    }
-                    currentIds.Clear();
-                }
-                groupIds.IntersectWith(result); // filter
-
-                if (groupIds.Count > 0)
-                {
-                    response.Entries.Add(new GroupEntry(group, groupIds.Count));
-                }
-                
-                if (!containsInterests)
-                {
-                    result.ExceptWith(groupIds);
-                }
-                groupIds.Clear();
-            }
+            _groupPreprocessor.FillResponse(response, result, request.Keys);
 
             GroupEntryComparer comparer = _pool.GroupEntryComparer.Get();
             comparer.Init(_storage, request.Keys, request.Order);
             response.Entries.Sort(comparer);
 
-            request.TaskCompletionSource.SetResult(response);
-
-            _pool.ListOfGroup.Return(groups);
+            _pool.FilterSet.Return(result);
             _pool.GroupEntryComparer.Return(comparer);
-            _pool.HashSetOfIntegers.Return(groupIds);
-            _pool.HashSetOfIntegers.Return(currentIds);
+
+            return response;
         }
 
-        private void Filter(FilterRequest request)
+        public FilterResponse Filter(FilterRequest request)
         {
-            HashSet<int> result = null;
+            FilterSet result = _pool.FilterSet.Get();
 
             if (request.Sex.IsActive)
             {
-                result = Intersect(result, _context.Sex.Filter(request.Sex));
+                Intersect(result, _context.Sex.Filter(request.Sex));
             }
 
             if (request.Email.IsActive)
             {
-                result = Intersect(result, _context.Emails.Filter(request.Email, _storage.Domains, _storage.Ids));
+                Intersect(result, _context.Emails.Filter(request.Email, _storage.Domains, _storage.Ids));
             }
 
             if (request.Status.IsActive)
             {
-                result = Intersect(result, _context.Statuses.Filter(request.Status));
+                Intersect(result, _context.Statuses.Filter(request.Status));
             }
 
             if (request.Fname.IsActive)
             {
-                result = Intersect(result, _context.FirstNames.Filter(request.Fname, _storage.Ids));
+                Intersect(result, _context.FirstNames.Filter(request.Fname, _storage.Ids));
             }
 
             if (request.Sname.IsActive)
             {
-                result = Intersect(result, _context.LastNames.Filter(request.Sname, _storage.Ids));
+                Intersect(result, _context.LastNames.Filter(request.Sname, _storage.Ids));
             }
 
             if (request.Phone.IsActive)
             {
-                result = Intersect(result, _context.Phones.Filter(request.Phone, _storage.Ids));
+                Intersect(result, _context.Phones.Filter(request.Phone, _storage.Ids));
             }
 
             if (request.Country.IsActive)
             {
-                result = Intersect(result, _context.Countries.Filter(request.Country, _storage.Ids, _storage.Countries));
+                Intersect(result, _context.Countries.Filter(request.Country, _storage.Ids, _storage.Countries));
             }
 
             if (request.City.IsActive)
             {
-                result = Intersect(result, _context.Cities.Filter(request.City, _storage.Ids, _storage.Cities));
+                Intersect(result, _context.Cities.Filter(request.City, _storage.Ids, _storage.Cities));
             }
 
             if (request.Birth.IsActive)
             {
-                result = Intersect(result, _context.Birth.Filter(request.Birth, _storage.Ids));
+                Intersect(result, _context.Birth.Filter(request.Birth, _storage.Ids));
             }
 
             if (request.Interests.IsActive)
             {
-                result = Intersect(result, _context.Interests.Filter(request.Interests, _storage.Interests));
+                Intersect(result, _context.Interests.Filter(request.Interests, _storage.Interests));
             }
 
             if (request.Likes.IsActive)
             {
-                result = Intersect(result, _context.Likes.Filter(request.Likes));
+                Intersect(result, _context.Likes.Filter(request.Likes));
             }
 
             if (request.Premium.IsActive)
             {
-                result = Intersect(result, _context.Premiums.Filter(request.Premium, _storage.Ids));
+                Intersect(result, _context.Premiums.Filter(request.Premium, _storage.Ids));
             }
 
-            if (result == null)
+            if (!result.Inited)
             {
-                result = Intersect(result, _storage.Ids.AsEnumerable());
+                Intersect(result, _storage.Ids.AsEnumerable());
             }
 
             var response = _pool.FilterResponse.Get();
-            response.Ids.AddRange(result);
+            for(int id = 0; id < DataConfig.MaxId; id++)
+            {
+                if (result.Contains(id))
+                {
+                    response.Ids.Add(id);
+                }
+            }
             response.Ids.Sort(_reverseIntComparer);
             response.Limit = request.Limit;
-            _pool.HashSetOfIntegers.Return(result);
 
-            request.TaskComletionSource.SetResult(response);
+            _pool.FilterSet.Return(result);
+
+            return response;
         }
 
-        private HashSet<int> Intersect(HashSet<int> result, IEnumerable<int> filtered)
+        private void Intersect(FilterSet result, IEnumerable<int> filtered)
         {
-            if (result == null)
-            {
-                result = _pool.HashSetOfIntegers.Get();
-                result.UnionWith(filtered);
-            }
-            else
-            {
-                result.IntersectWith(filtered);
-            }
-            return result;
+            result.IntersectWith(filtered);
         }
 
         private void EditAccount(AccountDto dto)
@@ -587,11 +502,11 @@ namespace AspNetCoreWebApi.Processing
         private void LoadAccount(IEnumerable<AccountDto> dtos)
         {
             var birthList = new List<BatchEntry<DateTimeOffset>>();
-            var cityList = new List<BatchEntry<int>>();
-            var countryList = new List<BatchEntry<int>>();
+            var cityList = new List<BatchEntry<short>>();
+            var countryList = new List<BatchEntry<short>>();
             var emailList = new List<BatchEntry<Email>>();
             var fnameList = new List<BatchEntry<string>>();
-            var interestList = new List<BatchEntry<IEnumerable<int>>>();
+            var interestList = new List<BatchEntry<IEnumerable<short>>>();
             var joinedList = new List<BatchEntry<DateTimeOffset>>();
             var snameList = new List<BatchEntry<string>>();
             var likeList = new List<BatchEntry<IEnumerable<Like>>>();
@@ -633,12 +548,12 @@ namespace AspNetCoreWebApi.Processing
 
                 if (dto.Country != null)
                 {
-                    countryList.Add(new BatchEntry<int>(id, _storage.Countries.Get(dto.Country)));
+                    countryList.Add(new BatchEntry<short>(id, _storage.Countries.Get(dto.Country)));
                 }
 
                 if (dto.City != null)
                 {
-                    cityList.Add(new BatchEntry<int>(id, _storage.Cities.Get(dto.City)));
+                    cityList.Add(new BatchEntry<short>(id, _storage.Cities.Get(dto.City)));
                 }
 
                 if (dto.Joined != null)
@@ -653,7 +568,7 @@ namespace AspNetCoreWebApi.Processing
 
                 if (dto.Interests != null)
                 {
-                    interestList.Add(new BatchEntry<IEnumerable<int>>(id, dto.Interests.Select(x => _storage.Interests.Get(x))));
+                    interestList.Add(new BatchEntry<IEnumerable<short>>(id, dto.Interests.Select(x => _storage.Interests.Get(x))));
                 }
 
                 if (dto.Sex != null)

@@ -21,8 +21,6 @@ namespace AspNetCoreWebApi.Processing.Pooling
     
         public DefaultObjectPool<SuggestRequest> SuggestRequest { get; } = new DefaultObjectPool<SuggestRequest>(new GenericPolicy<SuggestRequest>());
 
-        public DefaultObjectPool<HashSet<int>> HashSetOfIntegers { get; } = new DefaultObjectPool<HashSet<int>>(new HashSetPolicy<int>());
-
         public DefaultObjectPool<List<int>> ListOfIntegers { get; } = new DefaultObjectPool<List<int>>(new ListPolicy<int>());
 
         public DefaultObjectPool<FilterResponse> FilterResponse { get; } = new DefaultObjectPool<FilterResponse>(new GenericPolicy<FilterResponse>());
@@ -48,5 +46,11 @@ namespace AspNetCoreWebApi.Processing.Pooling
         public DefaultObjectPool<List<Group>> ListOfGroup { get; } = new DefaultObjectPool<List<Group>>(new ListPolicy<Group>());
 
         public DefaultObjectPool<List<SingleLikeDto>> ListOfLikeDto { get; } = new DefaultObjectPool<List<SingleLikeDto>>(new ListPolicy<SingleLikeDto>());
+
+        public DefaultObjectPool<FilterSet> FilterSet { get; } = new DefaultObjectPool<FilterSet>(new GenericPolicy<FilterSet>());
+
+        public DefaultObjectPool<CountSet> CountSet { get; } = new DefaultObjectPool<CountSet>(new GenericPolicy<CountSet>());
+
+        public DefaultObjectPool<GroupComparer> GroupComparer { get; } = new DefaultObjectPool<GroupComparer>(new GenericPolicy<GroupComparer>());
     }
 }

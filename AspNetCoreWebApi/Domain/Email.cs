@@ -4,7 +4,7 @@ namespace AspNetCoreWebApi.Domain
 {
     public struct Email
     {
-        public Email(string prefix, int domainId)
+        public Email(string prefix, short domainId)
         {
             Prefix = string.Intern(prefix);
             DomainId = domainId;
@@ -12,6 +12,6 @@ namespace AspNetCoreWebApi.Domain
 
         public string Prefix;
 
-        public int DomainId;
+        public short DomainId;
     }
 }

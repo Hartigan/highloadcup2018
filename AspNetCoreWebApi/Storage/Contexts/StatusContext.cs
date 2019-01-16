@@ -1,7 +1,10 @@
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
@@ -9,6 +12,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class StatusContext : IBatchLoader<Status>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
+        private Dictionary<Status, BitArray> _raw = new Dictionary<Status, BitArray>();
         private Dictionary<Status, List<int>> _id2AccId = new Dictionary<Status, List<int>>();
 
         public StatusContext()
@@ -16,6 +20,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _id2AccId[Status.Complicated] = new List<int>();
             _id2AccId[Status.Free] = new List<int>();
             _id2AccId[Status.Reserved] = new List<int>();
+            _raw[Status.Complicated] = new BitArray(DataConfig.MaxId);
+            _raw[Status.Free] = new BitArray(DataConfig.MaxId);
+            _raw[Status.Reserved] = new BitArray(DataConfig.MaxId);
         }
 
         public void LoadBatch(IEnumerable<BatchEntry<Status>> batch)
@@ -27,12 +34,17 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _id2AccId[Status.Complicated].Sort();
             _id2AccId[Status.Free].Sort();
             _id2AccId[Status.Reserved].Sort();
+            foreach(var entry in batch)
+            {
+                _raw[entry.Value][entry.Id] = true;
+            }
             _rw.ReleaseWriterLock();
         }
 
         public void Add(int id, Status status)
         {
             _rw.AcquireWriterLock(2000);
+            _raw[status][id] = true;
             var list = _id2AccId[status];
             list.Insert(~list.BinarySearch(id), id);
             _rw.ReleaseWriterLock();
@@ -42,6 +54,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             _rw.AcquireWriterLock(2000);
 
+            foreach(var bitarray in _raw.Values)
+            {
+                bitarray[id] = false;
+            }
+
+            _raw[status][id] = true;
             var list = _id2AccId[status];
 
             if (list.BinarySearch(id) < 0)
@@ -68,18 +86,15 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public Status Get(int id)
         {
-            Status status = Status.Complicated;
-            if (_id2AccId[Status.Free].BinarySearch(id) >= 0)
+            foreach (var pair in _raw)
             {
-                status = Status.Free;
+                if (pair.Value[id])
+                {
+                    return pair.Key;
+                }
             }
 
-            if (_id2AccId[Status.Reserved].BinarySearch(id) >= 0)
-            {
-                status = Status.Reserved;
-            }
-
-            return status;
+            throw new ArgumentException("public Status Get(int id)");
         }
 
         public IEnumerable<int> Filter(FilterRequest.StatusRequest status)
@@ -128,7 +143,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public bool Contains(Status status, int id)
         {
-            return _id2AccId[status].BinarySearch(id) >= 0;
+            return _raw[status][id];
         }
 
         public void GetByStatus(Status value, HashSet<int> currentIds)

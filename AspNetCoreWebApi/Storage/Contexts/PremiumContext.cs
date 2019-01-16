@@ -14,10 +14,19 @@ namespace AspNetCoreWebApi.Storage.Contexts
         private Premium?[] _premiums = new Premium?[DataConfig.MaxId];
         private HashSet<int> _now = new HashSet<int>();
         private HashSet<int> _ids = new HashSet<int>();
+        private HashSet<int> _null = new HashSet<int>();
 
 
         public PremiumContext()
         {
+        }
+
+        public void InitNull(IdStorage ids)
+        {
+            _null.Clear();
+            _null.UnionWith(ids.AsEnumerable());
+            _null.ExceptWith(_ids);
+            _null.TrimExcess();
         }
 
         public void LoadBatch(IEnumerable<BatchEntry<Premium>> batch)
@@ -93,7 +102,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (premium.IsNull.Value)
                 {
-                    return premium.Now ? Enumerable.Empty<int>() : ids.Except(_ids);
+                    return premium.Now ? Enumerable.Empty<int>() : _null;
                 }
             }
 
@@ -111,6 +120,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
+            _now.TrimExcess();
+            _ids.TrimExcess();
+            _null.TrimExcess();
         }
     }
 }

@@ -18,25 +18,25 @@ namespace AspNetCoreWebApi.Processing
 {
     public class GroupProcessor
     {
-        private Subject<GroupRequest> _dataRequest = new Subject<GroupRequest>();
         private readonly MainContext _context;
         private readonly MainStorage _storage;
         private readonly MainPool _pool;
         private readonly GroupPrinter _printer;
-
-        public IObservable<GroupRequest> DataRequest => _dataRequest;
+        private readonly MessageProcessor _processor;
 
         public GroupProcessor(
             MainStorage mainStorage,
             MainContext mainContext,
             MainPool mainPool,
-            GroupPrinter printer
+            GroupPrinter printer,
+            MessageProcessor processor
         )
         {
             _context = mainContext;
             _storage = mainStorage;
             _pool = mainPool;
             _printer = printer;
+            _processor = processor;
         }
 
         private void Free(GroupRequest request)
@@ -44,7 +44,7 @@ namespace AspNetCoreWebApi.Processing
             _pool.GroupRequest.Return(request);
         }
 
-        public async Task<bool> Process(HttpResponse httpResponse, IQueryCollection query)
+        public bool Process(HttpResponse httpResponse, IQueryCollection query)
         {
             GroupRequest request = _pool.GroupRequest.Get();
 
@@ -142,9 +142,7 @@ namespace AspNetCoreWebApi.Processing
                 return false;
             }
 
-            _dataRequest.OnNext(request);
-
-            var result = await request.TaskCompletionSource.Task;
+            var result = _processor.Group(request);
 
             httpResponse.StatusCode = 200;
             httpResponse.ContentType = "application/json";

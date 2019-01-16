@@ -21,25 +21,25 @@ namespace AspNetCoreWebApi.Processing
 
         private readonly MainContext _context;
 
-        private Subject<FilterRequest> _dataRequest = new Subject<FilterRequest>();
-
-        public IObservable<FilterRequest> DataRequest => _dataRequest;
-
         private readonly MainPool _pool;
 
         private readonly AccountPrinter _printer;
+
+        private readonly MessageProcessor _processor;
 
         public FilterProcessor(
             MainStorage mainStorage,
             MainContext mainContext,
             MainPool mainPool,
-            AccountPrinter accountPrinter
+            AccountPrinter accountPrinter,
+            MessageProcessor processor
         )
         {
             _pool = mainPool;
             _storage = mainStorage;
             _context = mainContext;
             _printer = accountPrinter;
+            _processor = processor;
         }
 
         private void Free(FilterRequest request)
@@ -47,7 +47,7 @@ namespace AspNetCoreWebApi.Processing
             _pool.FilterRequest.Return(request);
         }
 
-        public async Task<bool> Process(HttpResponse httpResponse, IQueryCollection query)
+        public bool Process(HttpResponse httpResponse, IQueryCollection query)
         {
             FilterRequest request = _pool.FilterRequest.Get();
 
@@ -215,8 +215,8 @@ namespace AspNetCoreWebApi.Processing
                 }
             }
 
-            _dataRequest.OnNext(request);
-            var response = await request.TaskComletionSource.Task;
+
+            var response = _processor.Filter(request);
 
             httpResponse.StatusCode = 200;
             httpResponse.ContentType = "application/json";
