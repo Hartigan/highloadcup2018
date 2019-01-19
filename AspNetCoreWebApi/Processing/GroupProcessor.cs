@@ -114,7 +114,8 @@ namespace AspNetCoreWebApi.Processing
                             GroupKey key;
                             if (GroupKeyExtensions.TryParse(str, out key))
                             {
-                                request.Keys.Add(key);
+                                request.Keys |= key;
+                                request.KeyOrder.Add(key);
                             }
                             else
                             {
@@ -136,7 +137,7 @@ namespace AspNetCoreWebApi.Processing
                 }
             }
 
-            if (request.Keys.Count == 0)
+            if (request.Keys == GroupKey.Empty)
             {
                 Free(request);
                 return false;

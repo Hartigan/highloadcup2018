@@ -36,13 +36,15 @@ namespace AspNetCoreWebApi.Processing.Requests
         }
     }
 
-    public enum GroupKey : byte
+    [Flags]
+    public enum GroupKey : int
     {
-        Sex = 0,
-        Status,
-        Interest,
-        Country,
-        City
+        Empty = 0,
+        Sex = 1,
+        Status = 2,
+        Interest = 4,
+        Country = 8,
+        City = 16
     }
 
     public class GroupRequest : IClearable
@@ -147,7 +149,8 @@ namespace AspNetCoreWebApi.Processing.Requests
 
         public int Limit { get; set; }
         public bool Order { get; set; }
-        public List<GroupKey> Keys { get; set; } = new List<GroupKey>();
+        public GroupKey Keys { get; set; }
+        public List<GroupKey> KeyOrder { get; set; } = new List<GroupKey>();
 
         public void Clear()
         {
@@ -161,7 +164,8 @@ namespace AspNetCoreWebApi.Processing.Requests
             Joined.Clear();
             Limit = 0;
             Order = false;
-            Keys.Clear();
+            Keys = 0;
+            KeyOrder.Clear();
         }
     }
 }

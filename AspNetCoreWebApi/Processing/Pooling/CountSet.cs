@@ -13,6 +13,7 @@ namespace AspNetCoreWebApi.Processing.Pooling
             if (!_data[item])
             {
                 _count++;
+                _data[item] = true;
             }
         }
 

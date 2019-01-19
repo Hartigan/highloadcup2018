@@ -37,10 +37,8 @@ namespace AspNetCoreWebApi.Processing
         private readonly MainContext _context;
         private readonly MainStorage _storage;
         private readonly MainPool _pool;
-        private readonly List<Group> _index = new List<Group>();
-        private readonly List<List<int>> _data = new List<List<int>>();
-        private readonly List<int>[] _sorted = new List<int>[120];
-        private readonly Dictionary<int, int> _pointer = new Dictionary<int, int>();
+
+        private Dictionary<GroupKey, Dictionary<Group, List<int>>> _data = new Dictionary<GroupKey, Dictionary<Group, List<int>>>(); 
 
         public GroupPreprocessor(
             MainContext mainContext,
@@ -55,10 +53,15 @@ namespace AspNetCoreWebApi.Processing
         public void Rebuild()
         {
             Console.WriteLine("Rebuild");
-            Dictionary<Group, List<int>> groups = new Dictionary<Group, List<int>>(new GroupEqualityComparer());
             List<short?> interests = new List<short?>();
-
+            var comparer = new GroupEqualityComparer();
             _context.Interests.FillGroups(interests);
+
+            for(int i = 1; i < 32; i++)
+            {
+                GroupKey keys = (GroupKey)i;
+                _data[keys] = new Dictionary<Group, List<int>>(comparer);
+            }
 
             foreach(var interestId in interests)
             {
@@ -70,154 +73,91 @@ namespace AspNetCoreWebApi.Processing
                     bool sex = _context.Sex.Get(id);
                     Status status = _context.Statuses.Get(id);
 
-                    Group key = new Group(sex, status, interestId, countryId, cityId);
-                    var group = groups.GetValueOrDefault(key);
-                    if (group == null)
+                    foreach(var section in _data)
                     {
-                        group = new List<int>();
-                        groups[key] = group;
-                    }
-                    group.Add(id);
-                }
-            }
-
-            foreach(var group in groups)
-            {
-                group.Value.TrimExcess();
-                _index.Add(group.Key);
-                _data.Add(group.Value);
-            }
-
-            _index.TrimExcess();
-            _data.TrimExcess();
-
-            int sortedIndex = 0;
-            var comparer = new GroupComparer();
-            var keys = new List<GroupKey>(4);
-
-            for (GroupKey index_0 = GroupKey.Sex; index_0 <= GroupKey.City; index_0++)
-            {
-                keys.Add(index_0);
-                for (GroupKey index_1 = GroupKey.Sex; index_1 <= GroupKey.City; index_1++)
-                {
-                    if (index_1 == index_0) continue;
-                    keys.Add(index_1);
-                    for (GroupKey index_2 = GroupKey.Sex; index_2 <= GroupKey.City; index_2++)
-                    {
-                        if (index_2 == index_0 || index_2 == index_1) continue;
-                        keys.Add(index_2);
-                        for (GroupKey index_3 = GroupKey.Sex; index_3 <= GroupKey.City; index_3++)
+                        Group group = new Group();
+                        int i = 0;
+                        if (section.Key.HasFlag(GroupKey.City))
                         {
-                            if (index_3 == index_0 || index_3 == index_1 || index_3 == index_2) continue;
-                            keys.Add(index_3);
-
-                            int keyCode1 = (byte)index_0 + (byte)index_1 * 4 + (byte)index_2 * 16 + (byte)index_3 * 64;
-                            int keyCode2 = (byte)index_0 + (byte)index_1 * 4 + (byte)index_2 * 16;
-                            int keyCode3 = (byte)index_0 + (byte)index_1 * 4;
-                            int keyCode4 = (byte)index_0;
-
-                            _pointer[keyCode1] = sortedIndex;
-                            _pointer[keyCode2] = sortedIndex;
-                            _pointer[keyCode3] = sortedIndex;
-                            _pointer[keyCode4] = sortedIndex;
-
-                            comparer.Init(keys, _index);
-                            var list = new List<int>(_index.Count);
-                            for (int i = 0; i < _index.Count; i++)
-                            {
-                                list.Add(i);
-                            }
-                            list.Sort(comparer);
-                            _sorted[sortedIndex] = list;
-
-                            sortedIndex++;
-                            keys.RemoveAt(3);
+                            group.CityId = cityId;
+                            i++;
                         }
-                        keys.RemoveAt(2);
+                        if (section.Key.HasFlag(GroupKey.Country))
+                        {
+                            group.CountryId = countryId;
+                            i++;
+                        }
+                        if (section.Key.HasFlag(GroupKey.Interest))
+                        {
+                            group.InterestId = interestId;
+                            i++;
+                        }
+                        if (section.Key.HasFlag(GroupKey.Sex))
+                        {
+                            group.Sex = sex;
+                            i++;
+                        }
+                        if (section.Key.HasFlag(GroupKey.Status))
+                        {
+                            group.Status = status;
+                            i++;
+                        }
+                        if (!group.CityId.HasValue &&
+                            !group.CountryId.HasValue &&
+                            !group.InterestId.HasValue &&
+                            !group.Sex.HasValue &&
+                            !group.Status.HasValue &&
+                            i > 1)
+                        {
+                            continue;
+                        }
+
+                        if (!group.InterestId.HasValue && section.Key == GroupKey.Interest && i == 1)
+                        {
+                            continue;
+                        }
+
+                        List<int> groupIds;
+                        if (!section.Value.TryGetValue(group, out groupIds))
+                        {
+                            groupIds = new List<int>();
+                            section.Value[group] = groupIds;
+                        }
+                        var index = groupIds.BinarySearch(id);
+                        if (index < 0)
+                        {
+                            groupIds.Insert(~index, id);
+                        }
                     }
-                    keys.RemoveAt(1);
                 }
-                keys.RemoveAt(0);
+            }
+
+            _data.TrimExcess();
+            foreach(var dict in _data.Values)
+            {
+                dict.TrimExcess();
+                foreach(var list in dict.Values)
+                {
+                    list.TrimExcess();
+                }
             }
 
             Console.WriteLine("End of groups rebuild");
         }
 
-        private Group GetCurrent(Group current, List<GroupKey> keys)
-        {
-            var newKey = new Group();
-            foreach (var key in keys)
-            {
-                switch (key)
-                {
-                    case GroupKey.City:
-                        newKey.CityId = current.CityId;
-                        break;
-                    case GroupKey.Country:
-                        newKey.CountryId = current.CountryId;
-                        break;
-                    case GroupKey.Interest:
-                        newKey.InterestId = current.InterestId;
-                        break;
-                    case GroupKey.Sex:
-                        newKey.Sex = current.Sex;
-                        break;
-                    case GroupKey.Status:
-                        newKey.Status = current.Status;
-                        break;
-                }
-            }
-            return newKey;
-        }
-
         public void FillResponse(
             GroupResponse response,
             FilterSet ids,
-            List<GroupKey> keys)
+            GroupKey keys)
         {
-            var currentSet = _pool.CountSet.Get();
-            var comparer = _pool.GroupComparer.Get();
-
-            comparer.Init(keys, _index);
-
-            // calculate groups
-            List<int> groups = null;
-            if (keys.Count == 5)
+            foreach(var group in _data[keys])
             {
-                groups = _sorted[0];
-            }
-            else
-            {
-                int q = 1;
-                int sum = 0;
-                foreach (var key in keys)
+                int count = group.Value.Count(x => ids.Contains(x));
+                if (count > 0)
                 {
-                    sum += (byte)key * q;
-                    q *= 4;
+                    response.Entries.Add(new GroupEntry(group.Key, count));
                 }
-                groups = _sorted[_pointer[sum]];
             }
-
-            var currentKey = GetCurrent(_index[groups[0]], keys);
-            var lastIndex = 0;
-
-            foreach(var groupKey in groups)
-            {
-                if (comparer.Compare(lastIndex, groupKey) != 0)
-                {
-                    response.Entries.Add(new GroupEntry(currentKey, currentSet.Count));
-                    currentSet.Clear();
-                    currentKey = GetCurrent(_index[groupKey], keys);
-                    lastIndex = groupKey;
-                }
-                currentSet.UnionWith(_data[groupKey]);
-            }
-
-            // last group
-            response.Entries.Add(new GroupEntry(currentKey, currentSet.Count));
-
-            _pool.CountSet.Return(currentSet);
-            _pool.GroupComparer.Return(comparer);
         }
     }
 }

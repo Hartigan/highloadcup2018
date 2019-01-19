@@ -222,7 +222,7 @@ namespace AspNetCoreWebApi.Processing
             _groupPreprocessor.FillResponse(response, result, request.Keys);
 
             GroupEntryComparer comparer = _pool.GroupEntryComparer.Get();
-            comparer.Init(_storage, request.Keys, request.Order);
+            comparer.Init(_storage, request.KeyOrder, request.Order);
             response.Entries.Sort(comparer);
 
             _pool.FilterSet.Return(result);
