@@ -27,6 +27,10 @@ namespace AspNetCoreWebApi.Storage
         public bool Contains(int item)
         {
             _rw.AcquireReaderLock(2000);
+            if (item >= DataConfig.MaxId)
+            {
+                return false;
+            }
             var result = _set[item];
             _rw.ReleaseReaderLock();
             return result;
