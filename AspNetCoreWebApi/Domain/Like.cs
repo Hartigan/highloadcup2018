@@ -1,13 +1,11 @@
 using System;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AspNetCoreWebApi.Domain
 {
 
     public struct Like
     {
-        public Like(int likeeId, int likerId, DateTimeOffset ts)
+        public Like(int likeeId, int likerId, UnixTime ts)
         {
             LikeeId = likeeId;
             LikerId = likerId;
@@ -16,6 +14,6 @@ namespace AspNetCoreWebApi.Domain
 
         public int LikeeId;
         public int LikerId;
-        public DateTimeOffset Timestamp;
+        public UnixTime Timestamp;
     }
 }

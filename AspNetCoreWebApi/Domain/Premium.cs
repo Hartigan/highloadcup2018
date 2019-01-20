@@ -4,13 +4,13 @@ namespace AspNetCoreWebApi.Domain
 {
     public struct Premium
     {
-        public Premium(DateTimeOffset start, DateTimeOffset finish)
+        public Premium(UnixTime start, UnixTime finish)
         {
             Start = start;
             Finish = finish;
         }
 
-        public DateTimeOffset Start;
-        public DateTimeOffset Finish;
+        public UnixTime Start;
+        public UnixTime Finish;
     }
 }

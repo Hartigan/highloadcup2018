@@ -55,7 +55,7 @@ namespace AspNetCoreWebApi.Processing.Printers
                 }
 
                 sw.Comma();
-                sw.Property("birth", _context.Birth.Get(id).ToUnixTimeSeconds());
+                sw.Property("birth", _context.Birth.Get(id).Seconds);
 
                 Premium premium;
                 if (_context.Premiums.TryGet(id, out premium))
@@ -64,9 +64,9 @@ namespace AspNetCoreWebApi.Processing.Printers
                     sw.PropertyNameWithColon("premium");
                     using (new JsObject(sw))
                     {
-                        sw.Property("start", premium.Start.ToUnixTimeSeconds());
+                        sw.Property("start", premium.Start.Seconds);
                         sw.Comma();
-                        sw.Property("finish", premium.Finish.ToUnixTimeSeconds());
+                        sw.Property("finish", premium.Finish.Seconds);
                     }
                 }
             }

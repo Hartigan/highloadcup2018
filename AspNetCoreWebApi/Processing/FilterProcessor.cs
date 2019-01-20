@@ -322,7 +322,7 @@ namespace AspNetCoreWebApi.Processing
             int gt;
             if (int.TryParse(value, out gt))
             {
-                var gtOffset = DateTimeOffset.FromUnixTimeSeconds(gt);
+                var gtOffset = new UnixTime(gt);
                 if (request.Birth.Gt.HasValue)
                 {
                     request.Birth.Gt = gtOffset > request.Birth.Gt.Value ? gtOffset : request.Birth.Gt;
@@ -345,7 +345,7 @@ namespace AspNetCoreWebApi.Processing
             int lt;
             if (int.TryParse(value, out lt))
             {
-                var ltOffset = DateTimeOffset.FromUnixTimeSeconds(lt);
+                var ltOffset = new UnixTime(lt);
                 if (request.Birth.Lt.HasValue)
                 {
                     request.Birth.Lt = ltOffset < request.Birth.Lt.Value ? ltOffset : request.Birth.Lt;

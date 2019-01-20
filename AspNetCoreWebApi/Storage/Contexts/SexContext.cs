@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using AspNetCoreWebApi.Domain;
 using AspNetCoreWebApi.Processing;
+using AspNetCoreWebApi.Processing.Pooling;
 using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
@@ -13,24 +14,21 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private BitArray _raw = new BitArray(DataConfig.MaxId);
-        private List<int>[] _id2AccId = new List<int>[2];
+        private FilterSet[] _id2AccId = new FilterSet[2];
 
         public SexContext()
         {
-            _id2AccId[0] = new List<int>();
-            _id2AccId[1] = new List<int>();
+            _id2AccId[0] = new FilterSet();
+            _id2AccId[1] = new FilterSet();
         }
 
         public void LoadBatch(IEnumerable<BatchEntry<bool>> batch)
         {
             _rw.AcquireWriterLock(2000);
-            _id2AccId[0].AddRange(batch.Where(x => !x.Value).Select(x => x.Id));
-            _id2AccId[1].AddRange(batch.Where(x => x.Value).Select(x => x.Id));
-            _id2AccId[0].Sort();
-            _id2AccId[1].Sort();
             foreach(var entry in batch)
             {
                 _raw[entry.Id] = entry.Value;
+                _id2AccId[entry.Value ? 1 : 0].Add(entry.Id);
             }
             _rw.ReleaseWriterLock();
         }
@@ -39,9 +37,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             _rw.AcquireWriterLock(2000);
             _raw[id] = sex;
-            var list = _id2AccId[sex ? 1 : 0];
-            int index = list.BinarySearch(id);
-            list.Insert(~index, id);
+            _id2AccId[sex ? 1 : 0].Add(id);
             _rw.ReleaseWriterLock();
         }
 
@@ -49,16 +45,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             _rw.AcquireWriterLock(2000);
             _raw[id] = sex;
-            var list = _id2AccId[sex ? 1 : 0];
-            int index = list.BinarySearch(id);
-
-            if (index < 0)
-            {
-                list.Insert(~index, id);
-                list = _id2AccId[!sex ? 1 : 0];
-                index = list.BinarySearch(id);
-                list.RemoveAt(index);
-            }
+            _id2AccId[sex ? 1 : 0].Add(id);
+            _id2AccId[sex ? 0 : 1].Remove(id);
             _rw.ReleaseWriterLock();
         }
 
@@ -67,11 +55,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return _raw[id];
         }
 
-        public IEnumerable<int> Filter(FilterRequest.SexRequest sex)
+        public FilterSet Filter(FilterRequest.SexRequest sex)
         {
             if (sex.IsFemale && sex.IsMale)
             {
-                return Enumerable.Empty<int>();
+                return FilterSet.Empty;
             }
 
             if (sex.IsMale)
@@ -84,11 +72,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public IEnumerable<int> Filter(GroupRequest.SexRequest sex)
+        public FilterSet Filter(GroupRequest.SexRequest sex)
         {
             if (sex.IsFemale && sex.IsMale)
             {
-                return Enumerable.Empty<int>();
+                return FilterSet.Empty;
             }
 
             if (sex.IsMale)
@@ -127,26 +115,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return _raw[id] == sex;
         }
 
-        public void GetBySex(
-            bool value,
-            HashSet<int> currentIds)
-        {
-            if (value)
-            {
-                currentIds.UnionWith(_id2AccId[1]);
-            }
-            else
-            {
-                currentIds.UnionWith(_id2AccId[0]);
-            }
-        }
-
         public void Compress()
         {
-            foreach(var list in _id2AccId)
-            {
-                list.Compress();
-            }
         }
     }
 }

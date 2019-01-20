@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using AspNetCoreWebApi.Domain;
 using AspNetCoreWebApi.Processing;
+using AspNetCoreWebApi.Processing.Pooling;
 using AspNetCoreWebApi.Processing.Requests;
 using AspNetCoreWebApi.Storage.StringPools;
 
@@ -14,7 +15,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private short?[] _raw = new short?[DataConfig.MaxId];
         private Dictionary<short, List<int>> _id2AccId = new Dictionary<short, List<int>>();
-        private readonly HashSet<int> _null = new HashSet<int>();
+        private List<int> _null = new List<int>();
+        private List<int> _ids = new List<int>();
 
         public CityContext()
         {
@@ -24,15 +26,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             _rw.AcquireWriterLock(2000);
             _raw[id] = cityId;
-            if (_id2AccId.ContainsKey(cityId))
+            _ids.SortedInsert(id);
+            if (!_id2AccId.ContainsKey(cityId))
             {
-                var list = _id2AccId[cityId];
-                list.Insert(~list.BinarySearch(id), id);
+                _id2AccId[cityId] = new List<int>();
             }
-            else
-            {
-                _id2AccId[cityId] = new List<int>() { id };
-            }
+            _id2AccId[cityId].SortedInsert(id);
             _rw.ReleaseWriterLock();
         }
 
@@ -41,12 +40,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _rw.AcquireWriterLock(2000);
             foreach (var list in _id2AccId.Values)
             {
-                int index = list.BinarySearch(id);
-                if (index >= 0)
-                {
-                    list.RemoveAt(index);
-                    break;
-                }
+                list.SortedRemove(id);
             }
 
             Add(id, cityId);
@@ -108,14 +102,43 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
             else if (city.Any.Count > 0)
             {
-                return city.Any
-                    .Select(x => cities.Get(x))
-                    .Where(x => _id2AccId.ContainsKey(x))
-                    .SelectMany(x => _id2AccId[x]);
+                return MergeSort(city.Any.Select(x => cities.Get(x)).Where(x => _id2AccId.ContainsKey(x)));
             }
             else
             {
-                return _id2AccId.SelectMany(x => x.Value);
+                return _ids;
+            }
+        }
+
+        private IEnumerable<int> MergeSort(IEnumerable<short> cities)
+        {
+            List<IEnumerator<int>> enumerators = cities.Select(x => _id2AccId[x].AsEnumerable().GetEnumerator()).ToList();
+
+            for (int i = 0; i < enumerators.Count;)
+            {
+                if (!enumerators[i].MoveNext())
+                {
+                    enumerators.RemoveAt(i);
+                }
+            }
+
+            while (enumerators.Count > 0)
+            {
+                int maxIndex = 0;
+                for (int i = 1; i < enumerators.Count; i++)
+                {
+                    if (enumerators[maxIndex].Current < enumerators[i].Current)
+                    {
+                        maxIndex = i;
+                    }
+                }
+
+                yield return enumerators[maxIndex].Current;
+
+                if (!enumerators[maxIndex].MoveNext())
+                {
+                    enumerators.RemoveAt(maxIndex);
+                }
             }
         }
 
@@ -143,23 +166,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void InitNull(IdStorage ids)
         {
             _null.Clear();
-            _null.UnionWith(ids.AsEnumerable());
-            _null.ExceptWith(_id2AccId.Values.SelectMany(x => x));
-            _null.TrimExcess();
-        }
-
-        public void GetByCityId(
-            short? cityId,
-            HashSet<int> currentIds, 
-            IdStorage ids)
-        {
-            if (cityId.HasValue)
+            foreach(var id in ids.AsEnumerable())
             {
-                currentIds.UnionWith(_id2AccId[cityId.Value]);
-            }
-            else
-            {
-                currentIds.UnionWith(_null);
+                if (_raw[id] == null)
+                {
+                    _null.Add(id);
+                }
             }
         }
 
@@ -170,19 +182,17 @@ namespace AspNetCoreWebApi.Storage.Contexts
             foreach(var entry in batch)
             {
                 _raw[entry.Id] = entry.Value;
-                if (_id2AccId.ContainsKey(entry.Value))
+                if (!_id2AccId.ContainsKey(entry.Value))
                 {
-                    _id2AccId[entry.Value].Add(entry.Id);
+                    _id2AccId[entry.Value] = new List<int>();
                 }
-                else
-                {
-                    _id2AccId[entry.Value] = new List<int>() { entry.Id };
-                }
+                _id2AccId[entry.Value].Add(entry.Id);
             }
 
-            foreach(var cityId in batch.Select(x => x.Value).Distinct())
+            foreach (var cityId in batch.Select(x => x.Value).Distinct())
             {
                 _id2AccId[cityId].Sort();
+                _id2AccId[cityId].TrimExcess();
             }
 
             _rw.ReleaseWriterLock();
@@ -190,11 +200,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
-            _null.TrimExcess();
-            foreach (var list in _id2AccId.Values)
-            {
-                list.Compress();
-            }
         }
     }
 }

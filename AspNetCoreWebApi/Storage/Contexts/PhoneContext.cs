@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using AspNetCoreWebApi.Domain;
 using AspNetCoreWebApi.Processing;
+using AspNetCoreWebApi.Processing.Pooling;
 using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
@@ -11,9 +12,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class PhoneContext : IBatchLoader<Phone>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private Phone?[] _phones = new Phone?[DataConfig.MaxId];
-        private HashSet<int> _null = new HashSet<int>();
-        private Dictionary<short, List<int>> _code2ids = new Dictionary<short, List<int>>();
+        private Phone[] _phones = new Phone[DataConfig.MaxId];
+        private FilterSet _ids = new FilterSet();
+        private FilterSet _null = new FilterSet();
+        private Dictionary<short, FilterSet> _code2ids = new Dictionary<short, FilterSet>();
 
         public PhoneContext()
         {
@@ -22,9 +24,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void InitNull(IdStorage ids)
         {
             _null.Clear();
-            _null.UnionWith(ids.AsEnumerable());
-            _null.ExceptWith(_code2ids.Values.SelectMany(x => x));
-            _null.TrimExcess();
+            foreach (var id in ids.AsEnumerable())
+            {
+                if (!_ids.Contains(id))
+                {
+                    _null.Add(id);
+                }
+            }
         }
 
         public void LoadBatch(IEnumerable<BatchEntry<Phone>> batch)
@@ -37,19 +43,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
                 _phones[entry.Id] = phone;
 
-                if (_code2ids.ContainsKey(phone.Code))
+                if (!_code2ids.ContainsKey(phone.Code))
                 {
-                    _code2ids[phone.Code].Add(entry.Id);
+                    _code2ids[phone.Code] = new FilterSet();
                 }
-                else
-                {
-                    _code2ids[phone.Code] = new List<int>() { entry.Id };
-                }
-            }
-
-            foreach(var code in batch.Select(x => x.Value.Code).Distinct())
-            {
-                _code2ids[code].Sort();
+                _code2ids[phone.Code].Add(entry.Id);
+                _ids.Add(entry.Id);
             }
 
             _rw.ReleaseWriterLock();
@@ -59,17 +58,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             _rw.AcquireWriterLock(2000);
 
+            _ids.Add(id);
             _phones[id] = phone;
 
-            if (_code2ids.ContainsKey(phone.Code))
+            if (!_code2ids.ContainsKey(phone.Code))
             {
-                var list = _code2ids[phone.Code];
-                list.Insert(~list.BinarySearch(id), id);
+                _code2ids[phone.Code] = new FilterSet();
             }
-            else
-            {
-                _code2ids[phone.Code] = new List<int>() { id };
-            }
+            _code2ids[phone.Code].Add(id);
 
             _rw.ReleaseWriterLock();
         }
@@ -80,10 +76,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             var old = _phones[id];
 
-            if (old.HasValue)
+            if (_ids.Contains(id))
             {
-                var list = _code2ids[old.Value.Code];
-                list.RemoveAt(list.BinarySearch(id));
+                _code2ids[old.Code].Remove(id);
             }
 
             Add(id, phone);
@@ -93,9 +88,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public bool TryGet(int id, out Phone phone)
         {
-            if (_phones[id].HasValue)
+            if (_ids.Contains(id))
             {
-                phone = _phones[id].Value;
+                phone = _phones[id];
                 return true;
             }
             else
@@ -105,13 +100,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public IEnumerable<int> Filter(FilterRequest.PhoneRequest phone, IdStorage idStorage)
+        public FilterSet Filter(FilterRequest.PhoneRequest phone, IdStorage idStorage)
         {
             if (phone.IsNull.HasValue)
             {
                 if (phone.IsNull.Value)
                 {
-                    return phone.Code.HasValue ? Enumerable.Empty<int>() : _null;
+                    return phone.Code.HasValue ? FilterSet.Empty : _null;
                 }
             }
 
@@ -123,22 +118,17 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 }
                 else
                 {
-                    return Enumerable.Empty<int>();
+                    return FilterSet.Empty;
                 }
             }
             else
             {
-                return _code2ids.SelectMany(x => x.Value);
+                return _ids;
             }
         }
 
         public void Compress()
         {
-            _null.TrimExcess();
-            foreach(var list in _code2ids.Values)
-            {
-                list.Compress();
-            }
         }
     }
 }

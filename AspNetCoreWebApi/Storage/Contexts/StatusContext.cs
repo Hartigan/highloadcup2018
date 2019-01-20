@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using AspNetCoreWebApi.Domain;
 using AspNetCoreWebApi.Processing;
+using AspNetCoreWebApi.Processing.Pooling;
 using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
@@ -12,31 +13,21 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class StatusContext : IBatchLoader<Status>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private Dictionary<Status, BitArray> _raw = new Dictionary<Status, BitArray>();
-        private Dictionary<Status, List<int>> _id2AccId = new Dictionary<Status, List<int>>();
+        private Dictionary<Status, FilterSet> _raw = new Dictionary<Status, FilterSet>();
 
         public StatusContext()
         {
-            _id2AccId[Status.Complicated] = new List<int>();
-            _id2AccId[Status.Free] = new List<int>();
-            _id2AccId[Status.Reserved] = new List<int>();
-            _raw[Status.Complicated] = new BitArray(DataConfig.MaxId);
-            _raw[Status.Free] = new BitArray(DataConfig.MaxId);
-            _raw[Status.Reserved] = new BitArray(DataConfig.MaxId);
+            _raw[Status.Complicated] = new FilterSet();
+            _raw[Status.Free] = new FilterSet();
+            _raw[Status.Reserved] = new FilterSet();
         }
 
         public void LoadBatch(IEnumerable<BatchEntry<Status>> batch)
         {
             _rw.AcquireWriterLock(2000);
-            _id2AccId[Status.Complicated].AddRange(batch.Where(x => x.Value == Status.Complicated).Select(x => x.Id));
-            _id2AccId[Status.Free].AddRange(batch.Where(x => x.Value == Status.Free).Select(x => x.Id));
-            _id2AccId[Status.Reserved].AddRange(batch.Where(x => x.Value == Status.Reserved).Select(x => x.Id));
-            _id2AccId[Status.Complicated].Sort();
-            _id2AccId[Status.Free].Sort();
-            _id2AccId[Status.Reserved].Sort();
             foreach(var entry in batch)
             {
-                _raw[entry.Value][entry.Id] = true;
+                _raw[entry.Value].Add(entry.Id);
             }
             _rw.ReleaseWriterLock();
         }
@@ -44,9 +35,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void Add(int id, Status status)
         {
             _rw.AcquireWriterLock(2000);
-            _raw[status][id] = true;
-            var list = _id2AccId[status];
-            list.Insert(~list.BinarySearch(id), id);
+            _raw[status].Add(id);
             _rw.ReleaseWriterLock();
         }
 
@@ -56,31 +45,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             foreach(var bitarray in _raw.Values)
             {
-                bitarray[id] = false;
+                bitarray.Remove(id);
             }
 
-            _raw[status][id] = true;
-            var list = _id2AccId[status];
+            _raw[status].Add(id);
 
-            if (list.BinarySearch(id) < 0)
-            {
-                list.Insert(~list.BinarySearch(id), id);
-
-                foreach(var l in _id2AccId)
-                {
-                    if (l.Key == status)
-                    {
-                        continue;
-                    }
-
-                    int index = l.Value.BinarySearch(id);
-                    if (index >= 0)
-                    {
-                        l.Value.RemoveAt(index);
-                        break;
-                    }
-                }
-            }
             _rw.ReleaseWriterLock();
         }
 
@@ -88,7 +57,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             foreach (var pair in _raw)
             {
-                if (pair.Value[id])
+                if (pair.Value.Contains(id))
                 {
                     return pair.Key;
                 }
@@ -97,24 +66,29 @@ namespace AspNetCoreWebApi.Storage.Contexts
             throw new ArgumentException("public Status Get(int id)");
         }
 
-        public IEnumerable<int> Filter(FilterRequest.StatusRequest status)
+        public bool Filter(FilterRequest.StatusRequest status, FilterSet result)
         {
             if (status.Eq == status.Neq)
             {
-                return Enumerable.Empty<int>();
+                return false;
             }
 
             if (status.Eq != null)
             {
-                return _id2AccId[status.Eq.Value];
+                result.IntersectWith(_raw[status.Eq.Value]);
+                return true;
             }
 
-            return _id2AccId.Where(x => x.Key != status.Neq.Value).SelectMany(x => x.Value);
+            foreach(var pair in _raw.Where(x => x.Key != status.Neq.Value))
+            {
+                result.Add(pair.Value);
+            }
+            return true;
         }
 
-        public IEnumerable<int> Filter(GroupRequest.StatusRequest status)
+        public FilterSet Filter(GroupRequest.StatusRequest status)
         {
-            return _id2AccId[status.Status];
+            return _raw[status.Status];
         }
 
         public void FillGroups(List<Group> groups)
@@ -143,20 +117,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public bool Contains(Status status, int id)
         {
-            return _raw[status][id];
-        }
-
-        public void GetByStatus(Status value, HashSet<int> currentIds)
-        {
-            currentIds.UnionWith(_id2AccId[value]);
+            return _raw[status].Contains(id);
         }
 
         public void Compress()
         {
-            foreach(var list in _id2AccId.Values)
-            {
-                list.Compress();
-            }
         }
     }
 }

@@ -33,7 +33,7 @@ namespace AspNetCoreWebApi.Processing
             using(StreamReader reader = new StreamReader(path))
             {
                 DataConfig.NowSeconds = int.Parse(reader.ReadLine());
-                DataConfig.Now = DateTimeOffset.FromUnixTimeSeconds(DataConfig.NowSeconds);
+                DataConfig.Now = new UnixTime(DataConfig.NowSeconds);
             }
         }
 

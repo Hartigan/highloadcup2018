@@ -1,31 +1,48 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using AspNetCoreWebApi.Domain;
 using AspNetCoreWebApi.Processing;
+using AspNetCoreWebApi.Processing.Pooling;
 using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class BirthContext : IBatchLoader<DateTimeOffset>, ICompresable
+    public class BirthContext : IBatchLoader<UnixTime>, ICompresable
     {
-        private DateTimeOffset[] _id2time = new DateTimeOffset[DataConfig.MaxId];
+        private UnixTime[] _id2time = new UnixTime[DataConfig.MaxId];
+        private Dictionary<int, FilterSet> _years = new Dictionary<int, FilterSet>(); 
 
         public BirthContext()
         {
         }
 
-        public void AddOrUpdate(int id, DateTimeOffset time)
+        public void AddOrUpdate(int id, UnixTime time)
         {
+            var oldYear = _id2time[id].Year;
             _id2time[id] = time;
+
+            if (_years.ContainsKey(oldYear))
+            {
+                _years[oldYear].Remove(id);
+            }
+
+            var newYear = time.Year;
+            if (!_years.ContainsKey(newYear))
+            {
+                _years[newYear] = new FilterSet();
+            }
+
+            _years[newYear].Add(id);
         }
 
-        public DateTimeOffset Get(int id) => _id2time[id];
+        public UnixTime Get(int id) => _id2time[id];
 
         public IEnumerable<int> Filter(FilterRequest.BirthRequest birth, IdStorage idStorage)
         {
             return idStorage.AsEnumerable().Where(x =>
             {
-                DateTimeOffset b = _id2time[x];
+                UnixTime b = _id2time[x];
                 if (birth.Gt.HasValue && b <= birth.Gt.Value)
                 {
                     return false;
@@ -45,15 +62,29 @@ namespace AspNetCoreWebApi.Storage.Contexts
             });
         }
 
-        public IEnumerable<int> Filter(GroupRequest.BirthRequest birth, IdStorage idStorage)
+        public FilterSet Filter(GroupRequest.BirthRequest birth)
         {
-            return idStorage.AsEnumerable().Where(x => _id2time[x].Year == birth.Year);
+            if (_years.ContainsKey(birth.Year))
+            {
+                return _years[birth.Year];
+            }
+            else
+            {
+                return FilterSet.Empty;
+            }
         }
 
-        public void LoadBatch(IEnumerable<BatchEntry<DateTimeOffset>> batch)
+        public void LoadBatch(IEnumerable<BatchEntry<UnixTime>> batch)
         {
             foreach(var entry in batch)
             {
+                var newYear = entry.Value.Year;
+                if (!_years.ContainsKey(newYear))
+                {
+                    _years[newYear] = new FilterSet();
+                }
+
+                _years[newYear].Add(entry.Id);
                 _id2time[entry.Id] = entry.Value;
             }
         }

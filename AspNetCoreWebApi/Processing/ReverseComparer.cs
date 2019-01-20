@@ -4,6 +4,8 @@ namespace AspNetCoreWebApi.Processing
 {
     public class ReverseComparer<T> : IComparer<T>
     {
+        public static ReverseComparer<T> Default { get; } = new ReverseComparer<T>(Comparer<T>.Default);
+
         private readonly IComparer<T> _source;
 
         public ReverseComparer(IComparer<T> source)
@@ -16,5 +18,4 @@ namespace AspNetCoreWebApi.Processing
             return _source.Compare(y, x);
         }
     }
-
 }

@@ -59,7 +59,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             if (_likee2likers[like.LikeeId] != null)
             {
                 var list = _likee2likers[like.LikeeId];
-                int likerIndex = list.BinarySearch(like.LikerId);
+                int likerIndex = list.BinarySearch(like.LikerId, ReverseComparer<int>.Default);
                 if (likerIndex < 0)
                 {
                     list.Insert(~likerIndex, like.LikerId);
@@ -78,7 +78,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             likes = _liker2likes[like.LikerId];
 
-            LikeBucket bucket = new LikeBucket(like.LikeeId, (int)like.Timestamp.ToUnixTimeSeconds(), 1);
+            LikeBucket bucket = new LikeBucket(like.LikeeId, like.Timestamp.Seconds, 1);
             int index = likes.BinarySearch(bucket, _bucketKeyComparer);
             if (index >= 0)
             {

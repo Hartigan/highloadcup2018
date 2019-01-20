@@ -28,7 +28,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             if (_domain2ids.ContainsKey(email.DomainId))
             {
                 var list = _domain2ids[email.DomainId];
-                list.Insert(~list.BinarySearch(id), id);
+                list.SortedInsert(id);
             }
             else
             {
@@ -44,7 +44,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             
             var old = _emails[id];
             var list = _domain2ids[old.DomainId];
-            list.RemoveAt(list.BinarySearch(id));
+            list.RemoveAt(list.BinarySearch(id, ReverseComparer<int>.Default));
 
             Add(id, updated);
 
@@ -121,7 +121,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             foreach(var domainId in batch.Select(x => x.Value.DomainId).Distinct())
             {
-                _domain2ids[domainId].Sort();
+                _domain2ids[domainId].Sort(ReverseComparer<int>.Default);
             }
 
             _rw.ReleaseWriterLock();

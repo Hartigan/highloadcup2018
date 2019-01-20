@@ -154,7 +154,7 @@ namespace AspNetCoreWebApi.Processing
             comparer.Init(
                 _context,
                 recomended,
-                _context.Birth.Get(request.Id).ToUnixTimeSeconds());
+                _context.Birth.Get(request.Id).Seconds);
 
             var response = _pool.RecommendResponse.Get();
             response.Limit = request.Limit;
@@ -170,50 +170,53 @@ namespace AspNetCoreWebApi.Processing
         public GroupResponse Group(GroupRequest request)
         {
             var result = _pool.FilterSet.Get();
+            var filterList = _pool.ListOfLists.Get();
+            bool inited = false;
 
             if (request.Sex.IsActive)
             {
-                Intersect(result, _context.Sex.Filter(request.Sex));
+                Intersect(result, _context.Sex.Filter(request.Sex), ref inited);
             }
 
             if (request.Status.IsActive)
             {
-                Intersect(result, _context.Statuses.Filter(request.Status));
+                Intersect(result, _context.Statuses.Filter(request.Status), ref inited);
             }
 
             if (request.Country.IsActive)
             {
-                Intersect(result, _context.Countries.Filter(request.Country, _storage.Countries));
+                Intersect(result, _context.Countries.Filter(request.Country, _storage.Countries), ref inited);
             }
 
             if (request.City.IsActive)
             {
-                Intersect(result, _context.Cities.Filter(request.City, _storage.Cities));
+                var tmp = _pool.FilterSet.Get();
+                tmp.Add(_context.Cities.Filter(request.City, _storage.Cities));
+                Intersect(result, tmp, ref inited);
+                _pool.FilterSet.Return(tmp);
             }
 
             if (request.Birth.IsActive)
             {
-                Intersect(result, _context.Birth.Filter(request.Birth, _storage.Ids));
+                Intersect(result, _context.Birth.Filter(request.Birth), ref inited);
             }
 
             if (request.Interest.IsActive)
             {
-                Intersect(result, _context.Interests.Filter(request.Interest, _storage.Interests));
+                Intersect(result, _context.Interests.Filter(request.Interest, _storage.Interests), ref inited);
             }
 
             if (request.Like.IsActive)
             {
-                Intersect(result, _context.Likes.Filter(request.Like));
+                var tmp = _pool.FilterSet.Get();
+                tmp.Add(_context.Likes.Filter(request.Like));
+                Intersect(result, tmp, ref inited);
+                _pool.FilterSet.Return(tmp);
             }
 
             if (request.Joined.IsActive)
             {
-                Intersect(result, _context.Joined.Filter(request.Joined, _storage.Ids));
-            }
-
-            if (!result.Inited)
-            {
-                Intersect(result, _storage.Ids.AsEnumerable());
+                Intersect(result, _context.Joined.Filter(request.Joined), ref inited);
             }
 
             GroupResponse response = _pool.GroupResponse.Get();
@@ -227,6 +230,7 @@ namespace AspNetCoreWebApi.Processing
 
             _pool.FilterSet.Return(result);
             _pool.GroupEntryComparer.Return(comparer);
+            _pool.ListOfLists.Return(filterList);
 
             return response;
         }
@@ -234,91 +238,164 @@ namespace AspNetCoreWebApi.Processing
         public FilterResponse Filter(FilterRequest request)
         {
             FilterSet result = _pool.FilterSet.Get();
+            var listFilters = _pool.ListOfLists.Get();
+            bool inited = false;
 
             if (request.Sex.IsActive)
             {
-                Intersect(result, _context.Sex.Filter(request.Sex));
+                Intersect(result, _context.Sex.Filter(request.Sex), ref inited);
             }
 
             if (request.Email.IsActive)
             {
-                Intersect(result, _context.Emails.Filter(request.Email, _storage.Domains, _storage.Ids));
+                listFilters.Add(_context.Emails.Filter(request.Email, _storage.Domains, _storage.Ids));
             }
 
             if (request.Status.IsActive)
             {
-                Intersect(result, _context.Statuses.Filter(request.Status));
+                var tmp = _pool.FilterSet.Get();
+                _context.Statuses.Filter(request.Status, tmp);
+                Intersect(result, tmp, ref inited);
+                _pool.FilterSet.Return(tmp);
             }
 
             if (request.Fname.IsActive)
             {
-                Intersect(result, _context.FirstNames.Filter(request.Fname, _storage.Ids));
+                listFilters.Add(_context.FirstNames.Filter(request.Fname, _storage.Ids));
             }
 
             if (request.Sname.IsActive)
             {
-                Intersect(result, _context.LastNames.Filter(request.Sname, _storage.Ids));
+                listFilters.Add(_context.LastNames.Filter(request.Sname, _storage.Ids));
             }
 
             if (request.Phone.IsActive)
             {
-                Intersect(result, _context.Phones.Filter(request.Phone, _storage.Ids));
+                Intersect(result, _context.Phones.Filter(request.Phone, _storage.Ids), ref inited);
             }
 
             if (request.Country.IsActive)
             {
-                Intersect(result, _context.Countries.Filter(request.Country, _storage.Ids, _storage.Countries));
+                Intersect(result, _context.Countries.Filter(request.Country, _storage.Ids, _storage.Countries), ref inited);
             }
 
             if (request.City.IsActive)
             {
-                Intersect(result, _context.Cities.Filter(request.City, _storage.Ids, _storage.Cities));
+                listFilters.Add(_context.Cities.Filter(request.City, _storage.Ids, _storage.Cities));
             }
 
             if (request.Birth.IsActive)
             {
-                Intersect(result, _context.Birth.Filter(request.Birth, _storage.Ids));
+                listFilters.Add(_context.Birth.Filter(request.Birth, _storage.Ids));
             }
 
             if (request.Interests.IsActive)
             {
-                Intersect(result, _context.Interests.Filter(request.Interests, _storage.Interests));
+                var tmp = _pool.FilterSet.Get();
+                _context.Interests.Filter(request.Interests, _storage.Interests, tmp);
+                Intersect(result, tmp, ref inited);
+                _pool.FilterSet.Return(tmp);
             }
 
             if (request.Likes.IsActive)
             {
-                Intersect(result, _context.Likes.Filter(request.Likes));
+                listFilters.Add(_context.Likes.Filter(request.Likes));
             }
 
             if (request.Premium.IsActive)
             {
-                Intersect(result, _context.Premiums.Filter(request.Premium, _storage.Ids));
+                Intersect(result, _context.Premiums.Filter(request.Premium, _storage.Ids), ref inited);
             }
 
-            if (!result.Inited)
-            {
-                Intersect(result, _storage.Ids.AsEnumerable());
-            }
-
+            bool noFiltres = !inited && listFilters.Count == 0;
+            bool noLists = listFilters.Count == 0;
             var response = _pool.FilterResponse.Get();
-            for(int id = 0; id < DataConfig.MaxId; id++)
+
+            if (noFiltres)
             {
-                if (result.Contains(id))
+                response.Ids.AddRange(_storage.Ids.AsEnumerable().Take(request.Limit));
+            }
+            else
+            {
+                if (noLists)
                 {
-                    response.Ids.Add(id);
+                    int count = 0;
+                    foreach(var id in _storage.Ids.AsEnumerable())
+                    {
+                        if (count == request.Limit)
+                        {
+                            break;
+                        }
+                        if (result.Contains(id))
+                        {
+                            response.Ids.Add(id);
+                            count++;
+                        }
+                    }
+                }
+                else
+                {
+                    List<IEnumerator<int>> enumerators = listFilters.Select(x => x.GetEnumerator()).ToList();
+                    int min = DataConfig.MaxId;
+                    foreach (var enumerator in enumerators)
+                    {
+                        if (!enumerator.MoveNext())
+                        {
+                            goto Finish;
+                        }
+                        min = Math.Min(min, enumerator.Current);
+                    }
+                    do
+                    {
+                        foreach (var enumerator in enumerators)
+                        {
+                            while (enumerator.Current > min)
+                            {
+                                if (!enumerator.MoveNext())
+                                {
+                                    goto Finish;
+                                }
+                            }
+                        }
+
+                        var currentMin = enumerators.Min(x => x.Current);
+                        if (currentMin == min)
+                        {
+                            if (inited && result.Contains(min))
+                            {
+                                response.Ids.Add(min);
+                                if (response.Ids.Count == request.Limit)
+                                {
+                                    goto Finish;
+                                }
+                            }
+                        }
+
+                        if (enumerators[0].MoveNext())
+                        {
+                            min = enumerators[0].Current;
+                        }
+                        else
+                        {
+                            goto Finish;
+                        }
+                    }
+                    while (true);
                 }
             }
-            response.Ids.Sort(_reverseIntComparer);
+        Finish:
             response.Limit = request.Limit;
 
             _pool.FilterSet.Return(result);
+            _pool.ListOfLists.Return(listFilters);
 
             return response;
         }
 
-        private void Intersect(FilterSet result, IEnumerable<int> filtered)
+        private void Intersect(FilterSet result, FilterSet filtered, ref bool inited)
         {
             result.IntersectWith(filtered);
+            inited = true;
         }
 
         private void EditAccount(AccountDto dto)
@@ -349,7 +426,7 @@ namespace AspNetCoreWebApi.Processing
 
             if (dto.Birth.HasValue)
             {
-                _context.Birth.AddOrUpdate(id, DateTimeOffset.FromUnixTimeSeconds(dto.Birth.Value));
+                _context.Birth.AddOrUpdate(id, new UnixTime(dto.Birth.Value));
             }
 
             if (dto.Country != null)
@@ -364,7 +441,7 @@ namespace AspNetCoreWebApi.Processing
 
             if (dto.Joined != null)
             {
-                _context.Joined.AddOrUpdate(id, DateTimeOffset.FromUnixTimeSeconds(dto.Joined.Value));
+                _context.Joined.AddOrUpdate(id, new UnixTime(dto.Joined.Value));
             }
 
             if (dto.Status != null)
@@ -391,8 +468,8 @@ namespace AspNetCoreWebApi.Processing
                 _context.Premiums.AddOrUpdate(
                     id,
                     new Premium(
-                        DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Start),
-                        DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Finish)
+                        new UnixTime(dto.Premium.Start),
+                        new UnixTime(dto.Premium.Finish)
                     )
                 );
             }
@@ -408,7 +485,7 @@ namespace AspNetCoreWebApi.Processing
                     new Like(
                         likeDto.LikeeId,
                         likeDto.LikerId,
-                        DateTimeOffset.FromUnixTimeSeconds(likeDto.Timestamp)
+                        new UnixTime(likeDto.Timestamp)
                     )
                 );
                 _pool.SingleLikeDto.Return(likeDto);
@@ -441,7 +518,7 @@ namespace AspNetCoreWebApi.Processing
 
             if (dto.Birth.HasValue)
             {
-                _context.Birth.AddOrUpdate(id, DateTimeOffset.FromUnixTimeSeconds(dto.Birth.Value));
+                _context.Birth.AddOrUpdate(id, new UnixTime(dto.Birth.Value));
             }
 
             if (dto.Country != null)
@@ -456,7 +533,7 @@ namespace AspNetCoreWebApi.Processing
 
             if (dto.Joined != null)
             {
-                _context.Joined.AddOrUpdate(id, DateTimeOffset.FromUnixTimeSeconds(dto.Joined.Value));
+                _context.Joined.AddOrUpdate(id, new UnixTime(dto.Joined.Value));
             }
 
             if (dto.Status != null)
@@ -481,7 +558,7 @@ namespace AspNetCoreWebApi.Processing
             {
                 foreach (var like in dto.Likes)
                 {
-                    _context.Likes.Add(new Like(like.Id, id, DateTimeOffset.FromUnixTimeSeconds(like.Timestamp)));
+                    _context.Likes.Add(new Like(like.Id, id, new UnixTime(like.Timestamp)));
                 }
             }
 
@@ -490,8 +567,8 @@ namespace AspNetCoreWebApi.Processing
                 _context.Premiums.AddOrUpdate(
                     id,
                     new Premium(
-                        DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Start),
-                        DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Finish)
+                        new UnixTime(dto.Premium.Start),
+                        new UnixTime(dto.Premium.Finish)
                     )
                 );
             }
@@ -501,13 +578,13 @@ namespace AspNetCoreWebApi.Processing
 
         private void LoadAccount(IEnumerable<AccountDto> dtos)
         {
-            var birthList = new List<BatchEntry<DateTimeOffset>>();
+            var birthList = new List<BatchEntry<UnixTime>>();
             var cityList = new List<BatchEntry<short>>();
             var countryList = new List<BatchEntry<short>>();
             var emailList = new List<BatchEntry<Email>>();
             var fnameList = new List<BatchEntry<string>>();
             var interestList = new List<BatchEntry<IEnumerable<short>>>();
-            var joinedList = new List<BatchEntry<DateTimeOffset>>();
+            var joinedList = new List<BatchEntry<UnixTime>>();
             var snameList = new List<BatchEntry<string>>();
             var likeList = new List<BatchEntry<IEnumerable<Like>>>();
             var phoneList = new List<BatchEntry<Phone>>();
@@ -543,7 +620,7 @@ namespace AspNetCoreWebApi.Processing
 
                 if (dto.Birth.HasValue)
                 {
-                    birthList.Add(new BatchEntry<DateTimeOffset>(id, DateTimeOffset.FromUnixTimeSeconds(dto.Birth.Value)));
+                    birthList.Add(new BatchEntry<UnixTime>(id, new UnixTime(dto.Birth.Value)));
                 }
 
                 if (dto.Country != null)
@@ -558,7 +635,7 @@ namespace AspNetCoreWebApi.Processing
 
                 if (dto.Joined != null)
                 {
-                    joinedList.Add(new BatchEntry<DateTimeOffset>(id, DateTimeOffset.FromUnixTimeSeconds(dto.Joined.Value)));
+                    joinedList.Add(new BatchEntry<UnixTime>(id, new UnixTime(dto.Joined.Value)));
                 }
 
                 if (dto.Status != null)
@@ -578,14 +655,14 @@ namespace AspNetCoreWebApi.Processing
 
                 if (dto.Likes != null)
                 {
-                    likeList.Add(new BatchEntry<IEnumerable<Like>>(id, dto.Likes.Select(x => new Like(x.Id, id, DateTimeOffset.FromUnixTimeSeconds(x.Timestamp)))));
+                    likeList.Add(new BatchEntry<IEnumerable<Like>>(id, dto.Likes.Select(x => new Like(x.Id, id, new UnixTime(x.Timestamp)))));
                 }
 
                 if (dto.Premium != null)
                 {
                     premiumList.Add(new BatchEntry<Premium>(id, new Premium(
-                            DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Start),
-                            DateTimeOffset.FromUnixTimeSeconds(dto.Premium.Finish)
+                            new UnixTime(dto.Premium.Start),
+                            new UnixTime(dto.Premium.Finish)
                         )));
                 }
             }

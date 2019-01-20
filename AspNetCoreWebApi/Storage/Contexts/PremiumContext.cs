@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using AspNetCoreWebApi.Domain;
 using AspNetCoreWebApi.Processing;
+using AspNetCoreWebApi.Processing.Pooling;
 using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
@@ -11,11 +12,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class PremiumContext : IBatchLoader<Premium>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private Premium?[] _premiums = new Premium?[DataConfig.MaxId];
-        private HashSet<int> _now = new HashSet<int>();
-        private HashSet<int> _ids = new HashSet<int>();
-        private HashSet<int> _null = new HashSet<int>();
-
+        private Premium[] _premiums = new Premium[DataConfig.MaxId];
+        
+        private FilterSet _ids = new FilterSet();
+        private FilterSet _null = new FilterSet();
+        private FilterSet _now = new FilterSet();
 
         public PremiumContext()
         {
@@ -24,9 +25,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void InitNull(IdStorage ids)
         {
             _null.Clear();
-            _null.UnionWith(ids.AsEnumerable());
-            _null.ExceptWith(_ids);
-            _null.TrimExcess();
+            foreach(var id in ids.AsEnumerable())
+            {
+                if (!_ids.Contains(id))
+                {
+                    _null.Add(id);
+                }
+            }
         }
 
         public void LoadBatch(IEnumerable<BatchEntry<Premium>> batch)
@@ -52,11 +57,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             var prev = _premiums[id];
 
-            if (prev.HasValue)
+            if (!_ids.Contains(id))
             {
-                if (prev.Value.IsNow() != item.IsNow())
+                if (prev.IsNow() != item.IsNow())
                 {
-                    if (prev.Value.IsNow())
+                    if (prev.IsNow())
                     {
                         _now.Remove(id);
                     }
@@ -82,19 +87,19 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public bool TryGet(int id, out Premium premium)
         {
-            if (_premiums[id].HasValue)
-            {
-                premium = _premiums[id].Value;
-                return true;
-            }
-            else
+            if (_null.Contains(id))
             {
                 premium = default(Premium);
                 return false;
             }
+            else
+            {
+                premium = _premiums[id];
+                return true;
+            }
         }
 
-        public IEnumerable<int> Filter(
+        public FilterSet Filter(
             FilterRequest.PremiumRequest premium,
             IdStorage ids)
         {
@@ -102,7 +107,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (premium.IsNull.Value)
                 {
-                    return premium.Now ? Enumerable.Empty<int>() : _null;
+                    return premium.Now ? FilterSet.Empty : _null;
                 }
             }
 
@@ -120,9 +125,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
-            _now.TrimExcess();
-            _ids.TrimExcess();
-            _null.TrimExcess();
         }
     }
 }

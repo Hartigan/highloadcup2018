@@ -12,11 +12,11 @@ namespace AspNetCoreWebApi.Processing.Responses
     {
         private MainContext _context;
         private Dictionary<int, int> _recommeded;
-        private long _birth;
+        private int _birth;
         public void Init(
             MainContext context,
             Dictionary<int, int> recommeded,
-            long birth)
+            int birth)
         {
             _context = context;
             _recommeded = recommeded;
@@ -63,10 +63,10 @@ namespace AspNetCoreWebApi.Processing.Responses
                 return countY - countX;
             }
 
-            long diffX = Math.Abs(_context.Birth.Get(x).ToUnixTimeSeconds() - _birth);
-            long diffY = Math.Abs(_context.Birth.Get(y).ToUnixTimeSeconds() - _birth);
+            int diffX = Math.Abs(_context.Birth.Get(x).Seconds - _birth);
+            int diffY = Math.Abs(_context.Birth.Get(y).Seconds - _birth);
 
-            return (int)(diffX - diffY);
+            return (diffX - diffY);
         }
     }
 }

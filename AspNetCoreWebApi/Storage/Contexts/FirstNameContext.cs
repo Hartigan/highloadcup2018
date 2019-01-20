@@ -1,8 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using AspNetCoreWebApi.Domain;
 using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Processing.Requests;
 
@@ -12,8 +10,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private string[] _names = new string[DataConfig.MaxId];
-        private HashSet<int> _ids = new HashSet<int>();
-        private HashSet<int> _null = new HashSet<int>();
+        private List<int> _ids = new List<int>();
+        private List<int> _null = new List<int>();
 
         public FirstNameContext()
         {
@@ -22,8 +20,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void InitNull(IdStorage ids)
         {
             _null.Clear();
-            _null.UnionWith(ids.AsEnumerable());
-            _null.ExceptWith(_ids);
+            foreach(var id in ids.AsEnumerable())
+            {
+                if (_names[id] == null)
+                {
+                    _null.SortedInsert(id);
+                }
+            }
             _null.TrimExcess();
         }
 
@@ -35,6 +38,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 _names[entry.Id] = string.Intern(entry.Value);
                 _ids.Add(entry.Id);
             }
+            _ids.Sort(ReverseComparer<int>.Default);
             _rw.ReleaseWriterLock();
         }
 
@@ -43,7 +47,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _rw.AcquireWriterLock(2000);
 
             _names[id] = string.Intern(name);
-            _ids.Add(id);
+            _ids.SortedInsert(id);
 
             _rw.ReleaseWriterLock();
         }

@@ -132,8 +132,8 @@ namespace AspNetCoreWebApi.Processing.Requests
         public class BirthRequest
         {
             public bool IsActive;
-            public DateTimeOffset? Lt;
-            public DateTimeOffset? Gt;
+            public UnixTime? Lt;
+            public UnixTime? Gt;
             public int? Year;
             public void Clear()
             {

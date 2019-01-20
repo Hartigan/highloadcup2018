@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing;
+using AspNetCoreWebApi.Processing.Pooling;
 using AspNetCoreWebApi.Processing.Requests;
 using AspNetCoreWebApi.Storage.StringPools;
 
@@ -11,8 +13,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class InterestsContext : IBatchLoader<IEnumerable<short>>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private Dictionary<short, List<int>> _id2AccId = new Dictionary<short, List<int>>();
-        private HashSet<int> _null = new HashSet<int>();
+        private Dictionary<short, FilterSet> _id2AccId = new Dictionary<short, FilterSet>();
+        private List<int> _null = new List<int>();
 
         public InterestsContext()
         {
@@ -21,74 +23,71 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void InitNull(IdStorage ids)
         {
             _null.Clear();
-            _null.UnionWith(ids.AsEnumerable());
-            _null.ExceptWith(_id2AccId.Values.SelectMany(x => x));
+            foreach(var id in ids.AsEnumerable())
+            {
+                if (!_id2AccId.Values.Any(x => x.Contains(id)))
+                {
+                    _null.Add(id);
+                }
+            }
+            _null.Sort(ReverseComparer<int>.Default);
             _null.TrimExcess();
         }
 
         public void Add(int id, short interestId)
         {
             _rw.AcquireWriterLock(2000);
-            if (_id2AccId.ContainsKey(interestId))
+            if (!_id2AccId.ContainsKey(interestId))
             {
-                var list = _id2AccId[interestId];
-                list.Insert(~list.BinarySearch(id), id);
+                _id2AccId[interestId] = new FilterSet();
             }
-            else
-            {
-                _id2AccId[interestId] = new List<int>() { id };
-            }
+            _id2AccId[interestId].Add(id);
             _rw.ReleaseWriterLock();
         }
 
         public void RemoveAccount(int id)
         {
             _rw.AcquireWriterLock(2000);
-            foreach(var list in _id2AccId.Values)
+            foreach(var set in _id2AccId.Values)
             {
-                int index = list.BinarySearch(id);
-                if (index >= 0)
-                {
-                    list.RemoveAt(index);
-                }
+                set.Remove(id);
             }
             _rw.ReleaseWriterLock();
         }
 
-        public IEnumerable<int> Filter(
+        public void Filter(
             FilterRequest.InterestsRequest interests,
-            InterestStorage interestsStorage)
+            InterestStorage interestsStorage,
+            FilterSet output)
         {
             if (interests.Contains.Count > 0)
             {
                 var ids = interests.Contains.Select(x => interestsStorage.Get(x));
-                HashSet<int> result = null;
-
+                bool inited = false;
                 foreach(var interest in ids)
                 {
                     var tmp = _id2AccId.GetValueOrDefault(interest);
                     if (tmp == null)
                     {
-                        return Enumerable.Empty<int>();
+                        return;
                     }
 
-                    if (result == null)
+                    if (!inited)
                     {
-                        result = new HashSet<int>(tmp);
+                        output.Add(tmp);
                     }
                     else
                     {
-                        result.IntersectWith(tmp);
+                        output.IntersectWith(tmp);
                     }
                 }
 
-                return result ?? Enumerable.Empty<int>();
+                return;
             }
 
             if (interests.Any.Count > 0)
             {
                 var ids = interests.Any.Select(x => interestsStorage.Get(x));
-                HashSet<int> result = null;
 
                 foreach(var interest in ids)
                 {
@@ -98,28 +97,19 @@ namespace AspNetCoreWebApi.Storage.Contexts
                         continue;
                     }
 
-                    if (result == null)
-                    {
-                        result = new HashSet<int>(tmp);
-                    }
-                    else
-                    {
-                        result.UnionWith(tmp);
-                    }
+                    output.Add(tmp);
                 }
 
-                return result ?? Enumerable.Empty<int>();
+                return;
             }
-
-            return Enumerable.Empty<int>();
         }
 
-        public IEnumerable<int> Filter(
+        public FilterSet Filter(
             GroupRequest.InterestRequest interests,
             InterestStorage interestsStorage)
         {
             short id = interestsStorage.Get(interests.Interest);
-            return _id2AccId.GetValueOrDefault(id) ?? Enumerable.Empty<int>();
+            return _id2AccId.GetValueOrDefault(id) ?? FilterSet.Empty;
         }
 
         public void FillGroups(List<short?> groups)
@@ -128,31 +118,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
             groups.Add(null);
         }
 
-        public bool Contains(short? interestId, int id)
-        {
-            if (interestId.HasValue)
-            {
-                List<int> ids;
-                if (_id2AccId.TryGetValue(interestId.Value, out ids))
-                {
-                    return ids.BinarySearch(id) >= 0;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-
-            return _null.Contains(id);
-        }
-
         public void Recommend(int id, Dictionary<int, int> recomended)
         {
             foreach(var pair in _id2AccId)
             {
-                if (pair.Value.BinarySearch(id) >= 0)
+                if (pair.Value.Contains(id))
                 {
-                    foreach(var acc in pair.Value)
+                    foreach(var acc in pair.Value.AsEnumerable())
                     {
                         if (recomended.ContainsKey(acc))
                         {
@@ -174,7 +146,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             if (interestId.HasValue)
             {
-                return _id2AccId[interestId.Value];
+                return _id2AccId[interestId.Value].AsEnumerable();
             }
             else
             {
@@ -192,20 +164,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
                 foreach(var interestId in entry.Value)
                 {
-                    if (_id2AccId.ContainsKey(interestId))
+                    if (!_id2AccId.ContainsKey(interestId))
                     {
-                        _id2AccId[interestId].Add(id);
+                        _id2AccId[interestId] = new FilterSet();
                     }
-                    else
-                    {
-                        _id2AccId[interestId] = new List<int>() { id };
-                    }
+                    _id2AccId[interestId].Add(id);
                 }
-            }
-
-            foreach(var interestId in batch.SelectMany(x=> x.Value).Distinct())
-            {
-                _id2AccId[interestId].Sort();
             }
 
             _rw.ReleaseWriterLock();
@@ -214,10 +178,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void Compress()
         {
             _null.TrimExcess();
-            foreach(var list in _id2AccId.Values)
-            {
-                list.Compress();
-            }
         }
     }
 }

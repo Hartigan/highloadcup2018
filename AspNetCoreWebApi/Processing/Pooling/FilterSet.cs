@@ -1,30 +1,60 @@
-﻿using System;
+﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace AspNetCoreWebApi.Processing.Pooling
 {
     public class FilterSet : IClearable
     {
-        private byte[] _data = new byte[DataConfig.MaxId];
-        private int _count = 0;
+        public static FilterSet Empty { get; } = new FilterSet();
 
-        public void IntersectWith(IEnumerable<int> items)
+        private BitArray _data = new BitArray(DataConfig.MaxId);
+
+        public void Add(int id)
         {
-            foreach (var item in items)
-            {
-                _data[item]++;
-            }
-            _count++;
+            _data[id] = true;
         }
 
-        public bool Contains(int x) => _data[x] == _count;
+        public void Remove(int id)
+        {
+            _data[id] = false;
+        }
+
+        public void Add(IEnumerable<int> ids)
+        {
+            foreach(var id in ids)
+            {
+                Add(id);
+            }
+        }
+
+        public void Add(FilterSet set)
+        {
+            _data.Or(set._data);
+        }
+
+        public void IntersectWith(FilterSet set)
+        {
+            _data.And(set._data);
+        }
+
+        public bool Contains(int x)
+        {
+            if (x >= DataConfig.MaxId)
+            {
+                return false;
+            }
+            return _data[x];
+        }
 
         public void Clear()
         {
-            Array.Clear(_data, 0, _data.Length);
-            _count = 0;
+            _data.SetAll(false);
         }
 
-        public bool Inited => _count > 0;
+        public IEnumerable<int> AsEnumerable()
+        {
+            return Enumerable.Range(0, DataConfig.MaxId).Where(x => _data[x]);
+        }
     }
 }

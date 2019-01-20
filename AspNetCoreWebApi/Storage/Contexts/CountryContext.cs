@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using AspNetCoreWebApi.Domain;
 using AspNetCoreWebApi.Processing;
+using AspNetCoreWebApi.Processing.Pooling;
 using AspNetCoreWebApi.Processing.Requests;
 using AspNetCoreWebApi.Storage.StringPools;
 
@@ -13,8 +14,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private short?[] _raw = new short?[DataConfig.MaxId];
-        private Dictionary<short, List<int>> _id2AccId = new Dictionary<short, List<int>>();
-        private HashSet<int> _null = new HashSet<int>();
+        private Dictionary<short, FilterSet> _id2AccId = new Dictionary<short, FilterSet>();
+        private FilterSet _null = new FilterSet();
+        private FilterSet _ids = new FilterSet();
 
         public CountryContext()
         {
@@ -24,15 +26,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             _rw.AcquireWriterLock(2000);
             _raw[id] = countryId;
-            if (_id2AccId.ContainsKey(countryId))
+            _ids.Add(id);
+            if (!_id2AccId.ContainsKey(countryId))
             {
-                var list = _id2AccId[countryId];
-                list.Insert(~list.BinarySearch(id), id);
+                _id2AccId[countryId] = new FilterSet();
             }
-            else
-            {
-                _id2AccId[countryId] = new List<int>() { id };
-            }
+            _id2AccId[countryId].Add(id);
             _rw.ReleaseWriterLock();
         }
 
@@ -41,12 +40,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _rw.AcquireWriterLock(2000);
             foreach(var value in _id2AccId.Values)
             {
-                int index = value.BinarySearch(id);
-                if (index >= 0)
-                {
-                    value.RemoveAt(index);
-                    break;
-                }
+                value.Remove(id);
             }
 
             Add(id, countryId);
@@ -60,8 +54,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             bool res = false;
             foreach(var pair in _id2AccId)
             {
-                int index = pair.Value.BinarySearch(id);
-                if (index >= 0)
+                if (pair.Value.Contains(id))
                 {
                     res = true;
                     countryId = pair.Key;
@@ -76,7 +69,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return _raw[id];
         }
 
-        public IEnumerable<int> Filter(
+        public FilterSet Filter(
             FilterRequest.CountryRequest country,
             IdStorage ids,
             CountryStorage countries)
@@ -87,13 +80,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 {
                     return country.Eq == null
                         ? _null
-                        : Enumerable.Empty<int>();
+                        : FilterSet.Empty;
                 }
             }
 
             if (country.Eq == null)
             {
-                return _id2AccId.SelectMany(x => x.Value);
+                return _ids;
             }
             short countryId = countries.Get(country.Eq);
 
@@ -103,11 +96,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
             else
             {
-                return Enumerable.Empty<int>();
+                return FilterSet.Empty;
             }
         }
 
-        public IEnumerable<int> Filter(
+        public FilterSet Filter(
             GroupRequest.CountryRequest country,
             CountryStorage countries)
         {
@@ -119,7 +112,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
             else
             {
-                return Enumerable.Empty<int>();
+                return FilterSet.Empty;
             }
         }
 
@@ -137,23 +130,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void InitNull(IdStorage ids)
         {
             _null.Clear();
-            _null.UnionWith(ids.AsEnumerable());
-            _null.ExceptWith(_id2AccId.Values.SelectMany(x => x));
-            _null.TrimExcess();
-        }
-
-        public void GetByCountryId(
-            short? countryId,
-            HashSet<int> currentIds,
-            IdStorage ids)
-        {
-            if (countryId.HasValue)
+            foreach(var id in ids.AsEnumerable())
             {
-                currentIds.UnionWith(_id2AccId[countryId.Value]);
-            }
-            else
-            {
-                currentIds.UnionWith(_null);
+                if (_raw[id] == null)
+                {
+                    _null.Add(id);
+                }
             }
         }
 
@@ -164,19 +146,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
             foreach (var entry in batch)
             {
                 _raw[entry.Id] = entry.Value;
-                if (_id2AccId.ContainsKey(entry.Value))
+                _ids.Add(entry.Id);
+                if (!_id2AccId.ContainsKey(entry.Value))
                 {
-                    _id2AccId[entry.Value].Add(entry.Id);
+                    _id2AccId[entry.Value] = new FilterSet();
                 }
-                else
-                {
-                    _id2AccId[entry.Value] = new List<int>() { entry.Id };
-                }
-            }
-
-            foreach (var countryId in batch.Select(x => x.Value).Distinct())
-            {
-                _id2AccId[countryId].Sort();
+                _id2AccId[entry.Value].Add(entry.Id);
             }
 
             _rw.ReleaseWriterLock();
@@ -184,11 +159,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
-            _null.TrimExcess();
-            foreach(var list in _id2AccId.Values)
-            {
-                list.Compress();
-            }
         }
     }
 }
