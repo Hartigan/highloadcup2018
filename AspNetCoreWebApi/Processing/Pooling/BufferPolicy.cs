@@ -4,11 +4,11 @@ using Microsoft.Extensions.ObjectPool;
 
 namespace AspNetCoreWebApi.Processing.Pooling
 {
-    public class FilterArrayPolicy : IPooledObjectPolicy<byte[]>
+    public class BufferPolicy : IPooledObjectPolicy<byte[]>
     {
         public byte[] Create()
         {
-            return new byte[DataConfig.MaxId];
+            return new byte[8 * 1024];
         }
 
         public bool Return(byte[] obj)

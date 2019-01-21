@@ -93,10 +93,20 @@ namespace AspNetCoreWebApi.Processing
 
             httpResponse.StatusCode = 200;
             httpResponse.ContentType = "application/json";
-            using(var sw = new StreamWriter(httpResponse.Body))
+
+            var buffer = _pool.WriteBuffer.Get();
+            int contentLength = 0;
+            using(var bufferStream = new MemoryStream(buffer))
+            using(var sw = new StreamWriter(bufferStream))
             {
                 _printer.Write(result, sw);
+                sw.Flush();
+                httpResponse.ContentLength = contentLength = (int)bufferStream.Position;
             }
+
+            httpResponse.Body.Write(buffer, 0, contentLength);
+            _pool.WriteBuffer.Return(buffer);
+
             _pool.SuggestResponse.Return(result);
             Free(request);
             return true;
