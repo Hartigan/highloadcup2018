@@ -38,7 +38,7 @@ namespace AspNetCoreWebApi.Storage
 
         public IEnumerable<int> AsEnumerable()
         {
-            for (int i = DataConfig.MaxId; i >= 0; i--)
+            for (int i = DataConfig.MaxId - 1; i >= 0; i--)
             {
                 if (_set[i])
                 {

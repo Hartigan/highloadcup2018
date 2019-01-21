@@ -150,12 +150,26 @@ namespace AspNetCoreWebApi.Processing
             FilterSet ids,
             GroupKey keys)
         {
-            foreach(var group in _data[keys])
+            if (ids == null)
             {
-                int count = group.Value.Count(x => ids.Contains(x));
-                if (count > 0)
+                foreach(var group in _data[keys])
                 {
-                    response.Entries.Add(new GroupEntry(group.Key, count));
+                    int count = group.Value.Count;
+                    if (count > 0)
+                    {
+                        response.Entries.Add(new GroupEntry(group.Key, count));
+                    }
+                }
+            }
+            else
+            {
+                foreach(var group in _data[keys])
+                {
+                    int count = group.Value.Count(x => ids.Contains(x));
+                    if (count > 0)
+                    {
+                        response.Entries.Add(new GroupEntry(group.Key, count));
+                    }
                 }
             }
         }

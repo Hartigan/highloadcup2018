@@ -219,15 +219,10 @@ namespace AspNetCoreWebApi.Processing
                 Intersect(result, _context.Joined.Filter(request.Joined), ref inited);
             }
 
-            if (!inited)
-            {
-                result.Add(_storage.Ids.AsEnumerable());
-            }
-
             GroupResponse response = _pool.GroupResponse.Get();
             response.Limit = request.Limit;
 
-            _groupPreprocessor.FillResponse(response, result, request.Keys);
+            _groupPreprocessor.FillResponse(response, inited ? result : null, request.Keys);
 
             GroupEntryComparer comparer = _pool.GroupEntryComparer.Get();
             comparer.Init(_storage, request.KeyOrder, request.Order);
