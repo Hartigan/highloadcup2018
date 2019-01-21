@@ -57,7 +57,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             var prev = _premiums[id];
 
-            if (!_ids.Contains(id))
+            if (_ids.Contains(id))
             {
                 if (prev.IsNow() != item.IsNow())
                 {

@@ -120,6 +120,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 {
                     enumerators.RemoveAt(i);
                 }
+                else
+                {
+                    i++;
+                }
             }
 
             while (enumerators.Count > 0)
@@ -173,6 +177,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     _null.Add(id);
                 }
             }
+            _null.Sort(ReverseComparer<int>.Default);
         }
 
         public void LoadBatch(IEnumerable<BatchEntry<short>> batch)
@@ -182,6 +187,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             foreach(var entry in batch)
             {
                 _raw[entry.Id] = entry.Value;
+                _ids.Add(entry.Id);
                 if (!_id2AccId.ContainsKey(entry.Value))
                 {
                     _id2AccId[entry.Value] = new List<int>();
@@ -189,9 +195,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 _id2AccId[entry.Value].Add(entry.Id);
             }
 
+            _ids.Sort(ReverseComparer<int>.Default);
             foreach (var cityId in batch.Select(x => x.Value).Distinct())
             {
-                _id2AccId[cityId].Sort();
+                _id2AccId[cityId].Sort(ReverseComparer<int>.Default);
                 _id2AccId[cityId].TrimExcess();
             }
 

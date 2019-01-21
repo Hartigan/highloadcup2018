@@ -361,7 +361,7 @@ namespace AspNetCoreWebApi.Processing
                         var currentMin = enumerators.Min(x => x.Current);
                         if (currentMin == min)
                         {
-                            if (inited && result.Contains(min))
+                            if ((inited && result.Contains(min)) || !inited)
                             {
                                 response.Ids.Add(min);
                                 if (response.Ids.Count == request.Limit)
@@ -369,15 +369,19 @@ namespace AspNetCoreWebApi.Processing
                                     goto Finish;
                                 }
                             }
-                        }
 
-                        if (enumerators[0].MoveNext())
-                        {
-                            min = enumerators[0].Current;
+                            if (enumerators[0].MoveNext())
+                            {
+                                min = enumerators[0].Current;
+                            }
+                            else
+                            {
+                                goto Finish;
+                            }
                         }
                         else
                         {
-                            goto Finish;
+                            min = currentMin;
                         }
                     }
                     while (true);

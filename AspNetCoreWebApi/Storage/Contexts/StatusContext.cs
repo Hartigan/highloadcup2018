@@ -75,7 +75,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (status.Eq != null)
             {
-                result.IntersectWith(_raw[status.Eq.Value]);
+                result.Add(_raw[status.Eq.Value]);
                 return true;
             }
 

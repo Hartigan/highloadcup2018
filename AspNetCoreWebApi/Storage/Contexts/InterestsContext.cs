@@ -75,6 +75,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     if (!inited)
                     {
                         output.Add(tmp);
+                        inited = true;
                     }
                     else
                     {
