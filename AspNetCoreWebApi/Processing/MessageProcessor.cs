@@ -219,6 +219,11 @@ namespace AspNetCoreWebApi.Processing
                 Intersect(result, _context.Joined.Filter(request.Joined), ref inited);
             }
 
+            if (!inited)
+            {
+                result.Add(_storage.Ids.AsEnumerable());
+            }
+
             GroupResponse response = _pool.GroupResponse.Get();
             response.Limit = request.Limit;
 
