@@ -394,8 +394,16 @@ namespace AspNetCoreWebApi.Processing
 
         private void Intersect(FilterSet result, FilterSet filtered, ref bool inited)
         {
-            result.IntersectWith(filtered);
-            inited = true;
+            if (inited)
+            {
+                result.IntersectWith(filtered);
+            }
+            else
+            {
+                result.Add(filtered);
+                inited = true;
+            }
+            
         }
 
         private void EditAccount(AccountDto dto)
