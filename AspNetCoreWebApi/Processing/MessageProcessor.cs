@@ -84,6 +84,11 @@ namespace AspNetCoreWebApi.Processing
                     {
                         _context.InitNull(_storage.Ids);
                         _groupPreprocessor.Rebuild();
+                        _context.Compress();
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
+                        GC.WaitForFullGCComplete();
+                        GC.Collect();
                     });
         }
 
