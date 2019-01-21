@@ -79,7 +79,7 @@ namespace AspNetCoreWebApi.Processing
                 .Select(_ => Interlocked.Increment(ref _editQuery))
                 .Merge(editAccountObservable.Select(_ => Interlocked.Increment(ref _editQuery)))
                 .Merge(newLikesObservable.Select(_ => Interlocked.Increment(ref _editQuery)))
-                .Throttle(TimeSpan.FromSeconds(5))
+                .Throttle(TimeSpan.FromMilliseconds(500))
                 .Subscribe(_ =>
                     {
                         _context.InitNull(_storage.Ids);
