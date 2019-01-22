@@ -13,29 +13,24 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class StatusContext : IBatchLoader<Status>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private Dictionary<Status, FilterSet> _raw = new Dictionary<Status, FilterSet>();
+        private FilterSet[] _raw = new FilterSet[3];
 
         public StatusContext()
         {
-            _raw[Status.Complicated] = new FilterSet();
-            _raw[Status.Free] = new FilterSet();
-            _raw[Status.Reserved] = new FilterSet();
+            _raw[(int)Status.Complicated] = new FilterSet();
+            _raw[(int)Status.Free] = new FilterSet();
+            _raw[(int)Status.Reserved] = new FilterSet();
         }
 
-        public void LoadBatch(IEnumerable<BatchEntry<Status>> batch)
+        public void LoadBatch(int id, Status status)
         {
-            _rw.AcquireWriterLock(2000);
-            foreach(var entry in batch)
-            {
-                _raw[entry.Value].Add(entry.Id);
-            }
-            _rw.ReleaseWriterLock();
+            _raw[(int)status].Add(id);
         }
 
         public void Add(int id, Status status)
         {
             _rw.AcquireWriterLock(2000);
-            _raw[status].Add(id);
+            _raw[(int)status].Add(id);
             _rw.ReleaseWriterLock();
         }
 
@@ -43,27 +38,30 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             _rw.AcquireWriterLock(2000);
 
-            foreach(var bitarray in _raw.Values)
+            for(int i = 0; i < 3; i++)
             {
-                bitarray.Remove(id);
+                _raw[i].Remove(id);
             }
 
-            _raw[status].Add(id);
+            _raw[(int)status].Add(id);
 
             _rw.ReleaseWriterLock();
         }
 
         public Status Get(int id)
         {
-            foreach (var pair in _raw)
+            if (_raw[(int)Status.Free].Contains(id))
             {
-                if (pair.Value.Contains(id))
-                {
-                    return pair.Key;
-                }
+                return Status.Free;
             }
-
-            throw new ArgumentException("public Status Get(int id)");
+            else if (_raw[(int)Status.Complicated].Contains(id))
+            {
+                return Status.Complicated;
+            }
+            else
+            {
+                return Status.Reserved;
+            }
         }
 
         public bool Filter(FilterRequest.StatusRequest status, FilterSet result)
@@ -75,20 +73,24 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (status.Eq != null)
             {
-                result.Add(_raw[status.Eq.Value]);
+                result.Add(_raw[(int)status.Eq.Value]);
                 return true;
             }
 
-            foreach(var pair in _raw.Where(x => x.Key != status.Neq.Value))
+            for(int i = 0; i < 3; i++)
             {
-                result.Add(pair.Value);
+                if (i == (int)status.Neq)
+                {
+                    continue;
+                }
+                result.Add(_raw[i]);
             }
             return true;
         }
 
         public FilterSet Filter(GroupRequest.StatusRequest status)
         {
-            return _raw[status.Status];
+            return _raw[(int)status.Status];
         }
 
         public void FillGroups(List<Group> groups)
@@ -117,7 +119,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public bool Contains(Status status, int id)
         {
-            return _raw[status].Contains(id);
+            return _raw[(int)status].Contains(id);
         }
 
         public void Compress()

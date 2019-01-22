@@ -74,19 +74,16 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public void LoadBatch(IEnumerable<BatchEntry<UnixTime>> batch)
+        public void LoadBatch(int id, UnixTime item)
         {
-            foreach(var entry in batch)
+            var newYear = item.Year;
+            if (!_years.ContainsKey(newYear))
             {
-                var newYear = entry.Value.Year;
-                if (!_years.ContainsKey(newYear))
-                {
-                    _years[newYear] = new FilterSet();
-                }
-
-                _years[newYear].Add(entry.Id);
-                _id2time[entry.Id] = entry.Value;
+                _years[newYear] = new FilterSet();
             }
+
+            _years[newYear].Add(id);
+            _id2time[id] = item;
         }
 
         public void Compress()

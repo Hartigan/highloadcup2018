@@ -14,7 +14,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private short?[] _raw = new short?[DataConfig.MaxId];
-        private Dictionary<short, FilterSet> _id2AccId = new Dictionary<short, FilterSet>();
+        private FilterSet[] _id2AccId = new FilterSet[200];
         private FilterSet _null = new FilterSet();
         private FilterSet _ids = new FilterSet();
 
@@ -27,7 +27,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _rw.AcquireWriterLock(2000);
             _raw[id] = countryId;
             _ids.Add(id);
-            if (!_id2AccId.ContainsKey(countryId))
+            if (_id2AccId[countryId] == null)
             {
                 _id2AccId[countryId] = new FilterSet();
             }
@@ -38,9 +38,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void AddOrUpdate(int id, short countryId)
         {
             _rw.AcquireWriterLock(2000);
-            foreach(var value in _id2AccId.Values)
+            for(int i = 0; i < _id2AccId.Length; i++)
             {
-                value.Remove(id);
+                if (_id2AccId[i] == null)
+                {
+                    continue;
+                }
+                _id2AccId[i].Remove(id);
             }
 
             Add(id, countryId);
@@ -50,18 +54,16 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public bool TryGet(int id, out short countryId)
         {
-            countryId = 0;
-            bool res = false;
-            foreach(var pair in _id2AccId)
+            if (_raw[id].HasValue)
             {
-                if (pair.Value.Contains(id))
-                {
-                    res = true;
-                    countryId = pair.Key;
-                    break;
-                }
+                countryId = _raw[id].Value;
+                return true;
             }
-            return res;
+            else
+            {
+                countryId = 0;
+                return false;
+            }
         }
 
         public short? Get(int id)
@@ -90,7 +92,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
             short countryId = countries.Get(country.Eq);
 
-            if (_id2AccId.ContainsKey(countryId))
+            if (_id2AccId[countryId] != null)
             {
                 return _id2AccId[countryId];
             }
@@ -106,7 +108,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             short countryId = countries.Get(country.Country);
 
-            if (_id2AccId.ContainsKey(countryId))
+            if (_id2AccId[countryId] != null)
             {
                 return _id2AccId[countryId];
             }
@@ -114,12 +116,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 return FilterSet.Empty;
             }
-        }
-
-        public void FillGroups(List<int?> groups)
-        {
-            groups.AddRange(_id2AccId.Keys.Cast<int?>());
-            groups.Add(null);
         }
 
         public bool Contains(short? countryId, int id)
@@ -139,22 +135,15 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public void LoadBatch(IEnumerable<BatchEntry<short>> batch)
+        public void LoadBatch(int id, short countryId)
         {
-            _rw.AcquireWriterLock(2000);
-
-            foreach (var entry in batch)
+            _raw[id] = countryId;
+            _ids.Add(id);
+            if (_id2AccId[countryId] == null)
             {
-                _raw[entry.Id] = entry.Value;
-                _ids.Add(entry.Id);
-                if (!_id2AccId.ContainsKey(entry.Value))
-                {
-                    _id2AccId[entry.Value] = new FilterSet();
-                }
-                _id2AccId[entry.Value].Add(entry.Id);
+                _id2AccId[countryId] = new FilterSet();
             }
-
-            _rw.ReleaseWriterLock();
+            _id2AccId[countryId].Add(id);
         }
 
         public void Compress()

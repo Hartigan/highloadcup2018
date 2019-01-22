@@ -33,25 +33,16 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public void LoadBatch(IEnumerable<BatchEntry<Phone>> batch)
+        public void LoadBatch(int id, Phone phone)
         {
-            _rw.AcquireWriterLock(2000);
+            _phones[id] = phone;
 
-            foreach(var entry in batch)
+            if (!_code2ids.ContainsKey(phone.Code))
             {
-                Phone phone = entry.Value;
-
-                _phones[entry.Id] = phone;
-
-                if (!_code2ids.ContainsKey(phone.Code))
-                {
-                    _code2ids[phone.Code] = new FilterSet();
-                }
-                _code2ids[phone.Code].Add(entry.Id);
-                _ids.Add(entry.Id);
+                _code2ids[phone.Code] = new FilterSet();
             }
-
-            _rw.ReleaseWriterLock();
+            _code2ids[phone.Code].Add(id);
+            _ids.Add(id);
         }
 
         public void Add(int id, Phone phone)
@@ -129,6 +120,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
+            _code2ids.TrimExcess();
         }
     }
 }

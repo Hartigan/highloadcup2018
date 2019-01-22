@@ -14,7 +14,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private short?[] _raw = new short?[DataConfig.MaxId];
-        private Dictionary<short, List<int>> _id2AccId = new Dictionary<short, List<int>>();
+        private List<int>[] _id2AccId = new List<int>[1000];
         private List<int> _null = new List<int>();
         private List<int> _ids = new List<int>();
 
@@ -25,9 +25,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void Add(int id, short cityId)
         {
             _rw.AcquireWriterLock(2000);
+            if (_raw[id] == null)
+            {
+                _ids.SortedInsert(id);
+            }
             _raw[id] = cityId;
-            _ids.SortedInsert(id);
-            if (!_id2AccId.ContainsKey(cityId))
+
+            if (_id2AccId[cityId] == null)
             {
                 _id2AccId[cityId] = new List<int>();
             }
@@ -38,9 +42,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void AddOrUpdate(int id, short cityId)
         {
             _rw.AcquireWriterLock(2000);
-            foreach (var list in _id2AccId.Values)
+
+            for(int i = 0; i < _id2AccId.Length; i++)
             {
-                list.SortedRemove(id);
+                if (_id2AccId[i] != null && _id2AccId[i].SortedRemove(id))
+                {
+                    break;
+                }
             }
 
             Add(id, cityId);
@@ -87,7 +95,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 if (city.Any.Contains(city.Eq))
                 {
                     short cityId = cities.Get(city.Eq);
-                    return _id2AccId.ContainsKey(cityId) ? _id2AccId[cityId] : Enumerable.Empty<int>();
+                    return _id2AccId[cityId] ?? Enumerable.Empty<int>();
                 }
                 else
                 {
@@ -98,11 +106,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
             if (city.Eq != null)
             {
                 short cityId = cities.Get(city.Eq);
-                return _id2AccId.ContainsKey(cityId) ? _id2AccId[cityId] : Enumerable.Empty<int>();
+                return _id2AccId[cityId] ?? Enumerable.Empty<int>();
             }
             else if (city.Any.Count > 0)
             {
-                return MergeSort(city.Any.Select(x => cities.Get(x)).Where(x => _id2AccId.ContainsKey(x)));
+                return MergeSort(city.Any.Select(x => cities.Get(x)).Where(x => _id2AccId[x] != null));
             }
             else
             {
@@ -152,7 +160,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             short cityId = cities.Get(city.City);
 
-            if (_id2AccId.ContainsKey(cityId))
+            if (_id2AccId[cityId] != null)
             {
                 return _id2AccId[cityId];
             }
@@ -180,33 +188,31 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _null.Sort(ReverseComparer<int>.Default);
         }
 
-        public void LoadBatch(IEnumerable<BatchEntry<short>> batch)
+        public void LoadBatch(int id, short cityId)
         {
-            _rw.AcquireWriterLock(2000);
-
-            foreach(var entry in batch)
+            _raw[id] = cityId;
+            _ids.Add(id);
+            if (_id2AccId[cityId] == null)
             {
-                _raw[entry.Id] = entry.Value;
-                _ids.Add(entry.Id);
-                if (!_id2AccId.ContainsKey(entry.Value))
-                {
-                    _id2AccId[entry.Value] = new List<int>();
-                }
-                _id2AccId[entry.Value].Add(entry.Id);
+                _id2AccId[cityId] = new List<int>();
             }
-
-            _ids.Sort(ReverseComparer<int>.Default);
-            foreach (var cityId in batch.Select(x => x.Value).Distinct())
-            {
-                _id2AccId[cityId].Sort(ReverseComparer<int>.Default);
-                _id2AccId[cityId].TrimExcess();
-            }
-
-            _rw.ReleaseWriterLock();
+            _id2AccId[cityId].Add(id);
         }
 
         public void Compress()
         {
+            _ids.Sort(ReverseComparer<int>.Default);
+
+            for(int i = 0; i < _id2AccId.Length; i++)
+            {
+                if (_id2AccId[i] == null)
+                {
+                    continue;
+                }
+
+                _id2AccId[i].Sort(ReverseComparer<int>.Default);
+                _id2AccId[i].TrimExcess();
+            }
         }
     }
 }

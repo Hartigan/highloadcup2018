@@ -30,24 +30,20 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _null.TrimExcess();
         }
 
-        public void LoadBatch(IEnumerable<BatchEntry<string>> batch)
+        public void LoadBatch(int id, string name)
         {
-            _rw.AcquireWriterLock(2000);
-            foreach(var entry in batch)
-            {
-                _names[entry.Id] = string.Intern(entry.Value);
-                _ids.Add(entry.Id);
-            }
-            _ids.Sort(ReverseComparer<int>.Default);
-            _rw.ReleaseWriterLock();
+            _names[id] = string.Intern(name);
+            _ids.Add(id);
         }
 
         public void AddOrUpdate(int id, string name)
         {
             _rw.AcquireWriterLock(2000);
-
+            if (_names[id] == null)
+            {
+                _ids.SortedInsert(id);
+            }
             _names[id] = string.Intern(name);
-            _ids.SortedInsert(id);
 
             _rw.ReleaseWriterLock();
         }
@@ -103,6 +99,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
+            _ids.Sort(ReverseComparer<int>.Default);
             _ids.TrimExcess();
             _null.TrimExcess();
         }

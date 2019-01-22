@@ -22,15 +22,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _id2AccId[1] = new FilterSet();
         }
 
-        public void LoadBatch(IEnumerable<BatchEntry<bool>> batch)
+        public void LoadBatch(int id, bool sex)
         {
-            _rw.AcquireWriterLock(2000);
-            foreach(var entry in batch)
-            {
-                _raw[entry.Id] = entry.Value;
-                _id2AccId[entry.Value ? 1 : 0].Add(entry.Id);
-            }
-            _rw.ReleaseWriterLock();
+            _raw[id] = sex;
+            _id2AccId[sex ? 1 : 0].Add(id);
         }
 
         public void Add(int id, bool sex)

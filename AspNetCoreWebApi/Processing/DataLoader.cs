@@ -19,12 +19,15 @@ namespace AspNetCoreWebApi.Processing
     public class DataLoader
     {
         private readonly MainContext _context;
+        private readonly MainPool _pool;
 
-        private Subject<IEnumerable<AccountDto>> _accountLoaded = new Subject<IEnumerable<AccountDto>>();
+        private Subject<AccountDto> _accountLoaded = new Subject<AccountDto>();
 
         public DataLoader(
-            MainContext context)
+            MainContext context,
+            MainPool pool)
         {
+            _pool = pool;
             _context = context;
         }
 
@@ -37,34 +40,25 @@ namespace AspNetCoreWebApi.Processing
             }
         }
 
-        public IObservable<IEnumerable<AccountDto>> AccountLoaded => _accountLoaded;
+        public IObservable<AccountDto> AccountLoaded => _accountLoaded;
 
         public void Run(string path)
         {
-            List<AccountDto> dtos = new List<AccountDto>(DataConfig.MaxId);
-            DefaultObjectPool<AccountDto> pool = new DefaultObjectPool<AccountDto>(new GenericPolicy<AccountDto>());
-
+            Console.WriteLine($"Import started {DateTime.Now}");
             using (ZipArchive archive = ZipFile.OpenRead(path))
             {
                 foreach (ZipArchiveEntry entry in archive.Entries)
                 {
                     if (entry.FullName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                     {
-                        ParseEntry(entry, dtos, pool);
-                        _accountLoaded.OnNext(dtos);
-                        foreach (var dto in dtos)
-                        {
-                            pool.Return(dto);
-                        }
-                        dtos.Clear();
+                        ParseEntry(entry);
                     }
                 }
+                _accountLoaded.OnCompleted();
             }
-            _context.Compress();
-            Console.WriteLine("Import finished");
         }
 
-        private void ParseEntry(ZipArchiveEntry entry, List<AccountDto> dtos, ObjectPool<AccountDto> pool)
+        private void ParseEntry(ZipArchiveEntry entry)
         {
             JsonSerializer ser = JsonSerializer.CreateDefault();
             using (TextReader textReader = new StreamReader(entry.Open()))
@@ -75,9 +69,9 @@ namespace AspNetCoreWebApi.Processing
                 jsonReader.Read();
                 while (jsonReader.Read() && jsonReader.TokenType != JsonToken.EndArray)
                 {
-                    AccountDto dto = pool.Get();
+                    AccountDto dto = _pool.AccountDto.Get();
                     ser.Populate(jsonReader, dto);
-                    dtos.Add(dto);
+                    _accountLoaded.OnNext(dto);
                 }
             }
         }

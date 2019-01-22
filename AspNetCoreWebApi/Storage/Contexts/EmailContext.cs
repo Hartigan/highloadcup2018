@@ -97,40 +97,24 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return result;
         }
 
-        public void LoadBatch(IEnumerable<BatchEntry<Email>> batch)
+        public void LoadBatch(int id, Email email)
         {
-            _rw.AcquireWriterLock(2000);
+            email.Prefix = string.Intern(email.Prefix);
 
-            foreach(var entry in batch)
+            _emails[id] = email;
+
+            if (!_domain2ids.ContainsKey(email.DomainId))
             {
-                Email email = entry.Value;
-                int id = entry.Id;
-                email.Prefix = string.Intern(email.Prefix);
-
-                _emails[id] = email;
-
-                if (_domain2ids.ContainsKey(email.DomainId))
-                {
-                    _domain2ids[email.DomainId].Add(id);
-                }
-                else
-                {
-                    _domain2ids[email.DomainId] = new List<int>() { id };
-                }
+                _domain2ids[email.DomainId] = new List<int>();
             }
-
-            foreach(var domainId in batch.Select(x => x.Value.DomainId).Distinct())
-            {
-                _domain2ids[domainId].Sort(ReverseComparer<int>.Default);
-            }
-
-            _rw.ReleaseWriterLock();
+            _domain2ids[email.DomainId].Add(id);
         }
 
         public void Compress()
         {
             foreach(var list in _domain2ids.Values)
             {
+                list.Sort(ReverseComparer<int>.Default);
                 list.Compress();
             }
         }

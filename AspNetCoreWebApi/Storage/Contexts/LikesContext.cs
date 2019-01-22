@@ -175,14 +175,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public void LoadBatch(IEnumerable<BatchEntry<IEnumerable<Like>>> batch)
+        public void LoadBatch(int id, IEnumerable<Like> likes)
         {
-            foreach(var entry in batch)
+            foreach(var like in likes)
             {
-                foreach(var like in entry.Value)
-                {
-                    this.Add(like);
-                }
+                this.Add(like);
             }
         }
 

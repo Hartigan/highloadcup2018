@@ -34,21 +34,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public void LoadBatch(IEnumerable<BatchEntry<Premium>> batch)
+        public void LoadBatch(int id, Premium premium)
         {
-            _rw.AcquireWriterLock(2000);
-
-            foreach(var entry in batch)
+            _premiums[id] = premium;
+            _ids.Add(id);
+            if (premium.IsNow())
             {
-                _premiums[entry.Id] = entry.Value;
-                _ids.Add(entry.Id);
-                if (entry.Value.IsNow())
-                {
-                    _now.Add(entry.Id);
-                }
+                _now.Add(id);
             }
-
-            _rw.ReleaseWriterLock();
         }
 
         public void AddOrUpdate(int id, Premium item)
