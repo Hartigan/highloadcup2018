@@ -49,8 +49,6 @@ namespace AspNetCoreWebApi.Processing.Pooling
 
         public DefaultObjectPool<FilterSet> FilterSet { get; } = new DefaultObjectPool<FilterSet>(new GenericPolicy<FilterSet>());
 
-        public DefaultObjectPool<CountSet> CountSet { get; } = new DefaultObjectPool<CountSet>(new GenericPolicy<CountSet>());
-
         public DefaultObjectPool<GroupComparer> GroupComparer { get; } = new DefaultObjectPool<GroupComparer>(new GenericPolicy<GroupComparer>());
 
         public DefaultObjectPool<List<IEnumerable<int>>> ListOfLists { get; } = new DefaultObjectPool<List<IEnumerable<int>>>(new ListPolicy<IEnumerable<int>>());

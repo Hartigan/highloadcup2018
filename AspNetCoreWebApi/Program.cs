@@ -27,18 +27,12 @@ namespace AspNetCoreWebApi
             var loader = host.Services.GetRequiredService<DataLoader>();
             loader.Config("../../highloadcup2018_data/data/options.txt");
             loader.Run("../../highloadcup2018_data/data/data.zip");
+
+            //loader.Config("/tmp/data/options.txt");
+            //loader.Run("/tmp/data/data.zip");
+
             var context = host.Services.GetRequiredService<MainContext>();
             var storage = host.Services.GetRequiredService<MainStorage>();
-            context.InitNull(storage.Ids);
-
-            var groupPreprocessor = host.Services.GetRequiredService<GroupPreprocessor>();
-            groupPreprocessor.Rebuild();
-            context.Compress();
-
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.WaitForFullGCComplete();
-            GC.Collect();
 
             var res = GC.TryStartNoGCRegion(1024 * 1024);
 
@@ -48,7 +42,7 @@ namespace AspNetCoreWebApi
         public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
             WebHost.CreateDefaultBuilder(args)
                 .UseKestrel(options => {
-                    options.Listen(IPAddress.Any, 80);
+                    options.Listen(IPAddress.Any, 8080);
                 })
                 .UseStartup<Startup>();
     }

@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace AspNetCoreWebApi.Processing.Pooling
 {
-    public class FilterSet : IClearable
+    public class FilterSet : IClearable, IFilterSet
     {
         public static FilterSet Empty { get; } = new FilterSet();
 
@@ -20,6 +20,11 @@ namespace AspNetCoreWebApi.Processing.Pooling
             _data[id] = false;
         }
 
+        public BitArray GetBitArray()
+        {
+            return _data;
+        }
+
         public void Add(IEnumerable<int> ids)
         {
             foreach(var id in ids)
@@ -28,14 +33,14 @@ namespace AspNetCoreWebApi.Processing.Pooling
             }
         }
 
-        public void Add(FilterSet set)
+        public void Add(IFilterSet set)
         {
-            _data.Or(set._data);
+            _data.Or(set.GetBitArray());
         }
 
-        public void IntersectWith(FilterSet set)
+        public void IntersectWith(IFilterSet set)
         {
-            _data.And(set._data);
+            _data.And(set.GetBitArray());
         }
 
         public bool Contains(int x)

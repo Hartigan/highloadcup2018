@@ -13,13 +13,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class StatusContext : IBatchLoader<Status>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private FilterSet[] _raw = new FilterSet[3];
+        private CountSet[] _raw = new CountSet[3];
 
         public StatusContext()
         {
-            _raw[(int)Status.Complicated] = new FilterSet();
-            _raw[(int)Status.Free] = new FilterSet();
-            _raw[(int)Status.Reserved] = new FilterSet();
+            _raw[(int)Status.Complicated] = new CountSet();
+            _raw[(int)Status.Free] = new CountSet();
+            _raw[(int)Status.Reserved] = new CountSet();
         }
 
         public void LoadBatch(int id, Status status)
@@ -88,38 +88,21 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return true;
         }
 
-        public FilterSet Filter(GroupRequest.StatusRequest status)
+        public IFilterSet Filter(GroupRequest.StatusRequest status)
         {
             return _raw[(int)status.Status];
-        }
-
-        public void FillGroups(List<Group> groups)
-        {
-            if (groups.Count == 0)
-            {
-                groups.Add(new Group(status: Status.Complicated));
-                groups.Add(new Group(status: Status.Free));
-                groups.Add(new Group(status: Status.Reserved));
-            }
-            else
-            {
-                int size = groups.Count;
-                for (int i = 0; i < size; i++)
-                {
-                    Group g = groups[i];
-                    g.Status = Status.Complicated;
-                    groups[i] = g;
-                    g.Status = Status.Free;
-                    groups.Add(g);
-                    g.Status = Status.Reserved;
-                    groups.Add(g);
-                }
-            }
         }
 
         public bool Contains(Status status, int id)
         {
             return _raw[(int)status].Contains(id);
+        }
+
+        public IEnumerable<SingleKeyGroup<Status>> GetGroups()
+        {
+            yield return new SingleKeyGroup<Status>(Status.Complicated, _raw[(int)Status.Complicated].AsEnumerable(), _raw[(int)Status.Complicated].Count);
+            yield return new SingleKeyGroup<Status>(Status.Free, _raw[(int)Status.Free].AsEnumerable(), _raw[(int)Status.Free].Count);
+            yield return new SingleKeyGroup<Status>(Status.Reserved, _raw[(int)Status.Reserved].AsEnumerable(), _raw[(int)Status.Reserved].Count);
         }
 
         public void Compress()

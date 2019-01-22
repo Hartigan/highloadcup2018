@@ -11,7 +11,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class BirthContext : IBatchLoader<UnixTime>, ICompresable
     {
         private UnixTime[] _id2time = new UnixTime[DataConfig.MaxId];
-        private Dictionary<int, FilterSet> _years = new Dictionary<int, FilterSet>(); 
+        private Dictionary<int, CountSet> _years = new Dictionary<int, CountSet>(); 
 
         public BirthContext()
         {
@@ -30,7 +30,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             var newYear = time.Year;
             if (!_years.ContainsKey(newYear))
             {
-                _years[newYear] = new FilterSet();
+                _years[newYear] = new CountSet();
             }
 
             _years[newYear].Add(id);
@@ -62,7 +62,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             });
         }
 
-        public FilterSet Filter(GroupRequest.BirthRequest birth)
+        public IFilterSet Filter(GroupRequest.BirthRequest birth)
         {
             if (_years.ContainsKey(birth.Year))
             {
@@ -79,7 +79,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             var newYear = item.Year;
             if (!_years.ContainsKey(newYear))
             {
-                _years[newYear] = new FilterSet();
+                _years[newYear] = new CountSet();
             }
 
             _years[newYear].Add(id);

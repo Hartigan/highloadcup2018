@@ -13,9 +13,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private Phone[] _phones = new Phone[DataConfig.MaxId];
-        private FilterSet _ids = new FilterSet();
-        private FilterSet _null = new FilterSet();
-        private Dictionary<short, FilterSet> _code2ids = new Dictionary<short, FilterSet>();
+        private CountSet _ids = new CountSet();
+        private CountSet _null = new CountSet();
+        private Dictionary<short, CountSet> _code2ids = new Dictionary<short, CountSet>();
 
         public PhoneContext()
         {
@@ -39,7 +39,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (!_code2ids.ContainsKey(phone.Code))
             {
-                _code2ids[phone.Code] = new FilterSet();
+                _code2ids[phone.Code] = new CountSet();
             }
             _code2ids[phone.Code].Add(id);
             _ids.Add(id);
@@ -54,7 +54,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (!_code2ids.ContainsKey(phone.Code))
             {
-                _code2ids[phone.Code] = new FilterSet();
+                _code2ids[phone.Code] = new CountSet();
             }
             _code2ids[phone.Code].Add(id);
 
@@ -91,13 +91,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public FilterSet Filter(FilterRequest.PhoneRequest phone, IdStorage idStorage)
+        public IFilterSet Filter(FilterRequest.PhoneRequest phone, IdStorage idStorage)
         {
             if (phone.IsNull.HasValue)
             {
                 if (phone.IsNull.Value)
                 {
-                    return phone.Code.HasValue ? FilterSet.Empty : _null;
+                    return phone.Code.HasValue ? (IFilterSet)FilterSet.Empty : _null;
                 }
             }
 

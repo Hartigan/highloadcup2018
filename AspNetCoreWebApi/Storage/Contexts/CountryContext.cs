@@ -14,9 +14,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private short?[] _raw = new short?[DataConfig.MaxId];
-        private FilterSet[] _id2AccId = new FilterSet[200];
-        private FilterSet _null = new FilterSet();
-        private FilterSet _ids = new FilterSet();
+        private CountSet[] _id2AccId = new CountSet[200];
+        private CountSet _null = new CountSet();
+        private CountSet _ids = new CountSet();
 
         public CountryContext()
         {
@@ -29,7 +29,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _ids.Add(id);
             if (_id2AccId[countryId] == null)
             {
-                _id2AccId[countryId] = new FilterSet();
+                _id2AccId[countryId] = new CountSet();
             }
             _id2AccId[countryId].Add(id);
             _rw.ReleaseWriterLock();
@@ -71,7 +71,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return _raw[id];
         }
 
-        public FilterSet Filter(
+        public IFilterSet Filter(
             FilterRequest.CountryRequest country,
             IdStorage ids,
             CountryStorage countries)
@@ -81,7 +81,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 if (country.IsNull.Value)
                 {
                     return country.Eq == null
-                        ? _null
+                        ? (IFilterSet)_null
                         : FilterSet.Empty;
                 }
             }
@@ -102,7 +102,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public FilterSet Filter(
+        public IFilterSet Filter(
             GroupRequest.CountryRequest country,
             CountryStorage countries)
         {
@@ -141,9 +141,21 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _ids.Add(id);
             if (_id2AccId[countryId] == null)
             {
-                _id2AccId[countryId] = new FilterSet();
+                _id2AccId[countryId] = new CountSet();
             }
             _id2AccId[countryId].Add(id);
+        }
+
+        public IEnumerable<SingleKeyGroup<short?>> GetGroups()
+        {
+            yield return new SingleKeyGroup<short?>(null, _null.AsEnumerable(), _null.Count);
+            for(short i = 0; i < _id2AccId.Length; i++)
+            {
+                if (_id2AccId[i] != null)
+                {
+                    yield return new SingleKeyGroup<short?>(i, _id2AccId[i].AsEnumerable(), _id2AccId[i].Count);
+                }
+            }
         }
 
         public void Compress()

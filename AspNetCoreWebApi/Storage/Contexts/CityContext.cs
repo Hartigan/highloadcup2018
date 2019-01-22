@@ -214,5 +214,17 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 _id2AccId[i].TrimExcess();
             }
         }
+
+        public IEnumerable<SingleKeyGroup<short?>> GetGroups()
+        {
+            yield return new SingleKeyGroup<short?>(null, _null, _null.Count);
+            for(short i = 0; i < _id2AccId.Length; i++)
+            {
+                if (_id2AccId[i] != null)
+                {
+                    yield return new SingleKeyGroup<short?>(i, _id2AccId[i], _id2AccId[i].Count);
+                }
+            }
+        }
     }
 }

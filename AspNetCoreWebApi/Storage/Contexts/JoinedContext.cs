@@ -13,7 +13,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private UnixTime[] _id2time = new UnixTime[DataConfig.MaxId];
-        private Dictionary<int, FilterSet> _years = new Dictionary<int, FilterSet>();
+        private Dictionary<int, CountSet> _years = new Dictionary<int, CountSet>();
 
         public JoinedContext()
         {
@@ -32,7 +32,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             var newYear = time.Year;
             if (!_years.ContainsKey(newYear))
             {
-                _years[newYear] = new FilterSet();
+                _years[newYear] = new CountSet();
             }
 
             _years[newYear].Add(id);
@@ -43,7 +43,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _years.TrimExcess();
         }
 
-        public FilterSet Filter(GroupRequest.JoinedRequest joined)
+        public IFilterSet Filter(GroupRequest.JoinedRequest joined)
         {
             if (_years.ContainsKey(joined.Year))
             {
@@ -60,7 +60,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             var newYear = joined.Year;
             if (!_years.ContainsKey(newYear))
             {
-                _years[newYear] = new FilterSet();
+                _years[newYear] = new CountSet();
             }
 
             _years[newYear].Add(id);

@@ -86,8 +86,110 @@ namespace AspNetCoreWebApi.Processing
         public void FillResponse(
             GroupResponse response,
             FilterSet ids,
-            GroupKey keys)
+            GroupKey keys,
+            bool singleKey)
         {
+            if (singleKey)
+            {
+                if (ids == null)
+                {
+                    switch(keys)
+                    {
+                        case GroupKey.City:
+                            response.Entries.AddRange(
+                                _context.Cities
+                                    .GetGroups()
+                                    .Select(x => new GroupEntry(new Group(cityId: x.Key), x.Count)));
+                            return;
+                        case GroupKey.Country:
+                            response.Entries.AddRange(
+                                _context.Countries
+                                    .GetGroups()
+                                    .Select(x => new GroupEntry(new Group(countryId: x.Key), x.Count)));
+                            return;
+                        case GroupKey.Interest:
+                            response.Entries.AddRange(
+                                _context.Interests
+                                    .GetGroups()
+                                    .Select(x => new GroupEntry(new Group(interestId: x.Key), x.Count)));
+                            return;
+                        case GroupKey.Sex:
+                            response.Entries.AddRange(
+                                _context.Sex
+                                    .GetGroups()
+                                    .Select(x => new GroupEntry(new Group(sex: x.Key), x.Count)));
+                            return;
+                        case GroupKey.Status:
+                            response.Entries.AddRange(
+                                _context.Statuses
+                                    .GetGroups()
+                                    .Select(x => new GroupEntry(new Group(status: x.Key), x.Count)));
+                            return;
+                        default:
+                            return;
+                    }
+                }
+                else
+                {
+                    switch(keys)
+                    {
+                        case GroupKey.City:
+                            foreach (var item in _context.Cities.GetGroups())
+                            {
+                                int count = item.Ids.Count(x => ids.Contains(x));
+                                if (count > 0)
+                                {
+                                    response.Entries.Add(new GroupEntry(new Group(cityId: item.Key), count));
+                                }
+                            }
+                            return;
+                        case GroupKey.Country:
+                            foreach (var item in _context.Countries.GetGroups())
+                            {
+                                int count = item.Ids.Count(x => ids.Contains(x));
+                                if (count > 0)
+                                {
+                                    response.Entries.Add(new GroupEntry(new Group(countryId: item.Key), count));
+                                }
+                            }
+                            return;
+                        case GroupKey.Interest:
+                            foreach (var item in _context.Interests.GetGroups())
+                            {
+                                int count = item.Ids.Count(x => ids.Contains(x));
+                                if (count > 0)
+                                {
+                                    response.Entries.Add(new GroupEntry(new Group(interestId: item.Key), count));
+                                }
+                            }
+                            return;
+                        case GroupKey.Sex:
+                            foreach (var item in _context.Sex.GetGroups())
+                            {
+                                int count = item.Ids.Count(x => ids.Contains(x));
+                                if (count > 0)
+                                {
+                                    response.Entries.Add(new GroupEntry(new Group(sex: item.Key), count));
+                                }
+                            }
+                            return;
+                        case GroupKey.Status:
+                            foreach (var item in _context.Statuses.GetGroups())
+                            {
+                                int count = item.Ids.Count(x => ids.Contains(x));
+                                if (count > 0)
+                                {
+                                    response.Entries.Add(new GroupEntry(new Group(status: item.Key), count));
+                                }
+                            }
+                            return;
+                        default:
+                            return;
+                    }
+                }
+            }
+
+
             if (ids == null)
             {
                 foreach(var group in _data[keys])
@@ -127,6 +229,15 @@ namespace AspNetCoreWebApi.Processing
         {
             foreach(var section in _data)
             {
+                if ((section.Key ^ GroupKey.City) == GroupKey.Empty &&
+                    (section.Key ^ GroupKey.Country) == GroupKey.Empty &&
+                    (section.Key ^ GroupKey.Interest) == GroupKey.Empty &&
+                    (section.Key ^ GroupKey.Status) == GroupKey.Empty &&
+                    (section.Key ^ GroupKey.Sex) == GroupKey.Empty) 
+                {
+                    continue;
+                }
+
                 if (interestIds.Count == 0 && (section.Key ^ GroupKey.Interest) == GroupKey.Empty)
                 {
                     continue;

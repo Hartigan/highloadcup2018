@@ -14,9 +14,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private Premium[] _premiums = new Premium[DataConfig.MaxId];
         
-        private FilterSet _ids = new FilterSet();
-        private FilterSet _null = new FilterSet();
-        private FilterSet _now = new FilterSet();
+        private CountSet _ids = new CountSet();
+        private CountSet _null = new CountSet();
+        private CountSet _now = new CountSet();
 
         public PremiumContext()
         {
@@ -92,7 +92,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public FilterSet Filter(
+        public IFilterSet Filter(
             FilterRequest.PremiumRequest premium,
             IdStorage ids)
         {
@@ -100,7 +100,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (premium.IsNull.Value)
                 {
-                    return premium.Now ? FilterSet.Empty : _null;
+                    return premium.Now ? (IFilterSet)FilterSet.Empty : _null;
                 }
             }
 

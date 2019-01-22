@@ -245,7 +245,7 @@ namespace AspNetCoreWebApi.Processing
             GroupResponse response = _pool.GroupResponse.Get();
             response.Limit = request.Limit;
 
-            _groupPreprocessor.FillResponse(response, inited ? result : null, request.Keys);
+            _groupPreprocessor.FillResponse(response, inited ? result : null, request.Keys, request.KeyOrder.Count == 1);
 
             GroupEntryComparer comparer = _pool.GroupEntryComparer.Get();
             comparer.Init(_storage, request.KeyOrder, request.Order);
@@ -419,7 +419,7 @@ namespace AspNetCoreWebApi.Processing
             return response;
         }
 
-        private void Intersect(FilterSet result, FilterSet filtered, ref bool inited)
+        private void Intersect(FilterSet result, IFilterSet filtered, ref bool inited)
         {
             if (inited)
             {

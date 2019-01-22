@@ -13,7 +13,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class InterestsContext : IBatchLoader<IEnumerable<short>>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private FilterSet[] _id2AccId = new FilterSet[200];
+        private CountSet[] _id2AccId = new CountSet[200];
         private List<int> _null = new List<int>();
 
         public InterestsContext()
@@ -50,7 +50,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _rw.AcquireWriterLock(2000);
             if (_id2AccId[interestId] == null)
             {
-                _id2AccId[interestId] = new FilterSet();
+                _id2AccId[interestId] = new CountSet();
             }
             _id2AccId[interestId].Add(id);
             _rw.ReleaseWriterLock();
@@ -119,24 +119,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public FilterSet Filter(
+        public IFilterSet Filter(
             GroupRequest.InterestRequest interests,
             InterestStorage interestsStorage)
         {
             short id = interestsStorage.Get(interests.Interest);
-            return _id2AccId[id] ?? FilterSet.Empty;
-        }
-
-        public void FillGroups(List<short?> groups)
-        {
-            for(short i = 0; i < _id2AccId.Length; i++)
-            {
-                if (_id2AccId[i] != null)
-                {
-                    groups.Add(i);
-                }
-            }
-            groups.Add(null);
+            return (IFilterSet)_id2AccId[id] ?? FilterSet.Empty;
         }
 
         public void Recommend(int id, Dictionary<int, int> recomended)
@@ -186,9 +174,21 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (_id2AccId[interestId] == null)
                 {
-                    _id2AccId[interestId] = new FilterSet();
+                    _id2AccId[interestId] = new CountSet();
                 }
                 _id2AccId[interestId].Add(id);
+            }
+        }
+
+        public IEnumerable<SingleKeyGroup<short?>> GetGroups()
+        {
+            //yield return new SingleKeyGroup<short?>(null, _null, _null.Count);
+            for(short i = 0; i < _id2AccId.Length; i++)
+            {
+                if (_id2AccId[i] != null)
+                {
+                    yield return new SingleKeyGroup<short?>(i, _id2AccId[i].AsEnumerable(), _id2AccId[i].Count);
+                }
             }
         }
 

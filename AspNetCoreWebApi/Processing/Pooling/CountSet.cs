@@ -1,28 +1,44 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace AspNetCoreWebApi.Processing.Pooling
 {
-    public class CountSet : IClearable
+    public class CountSet : IFilterSet
     {
         private BitArray _data = new BitArray(DataConfig.MaxId);
         private int _count = 0;
 
-        public void Add(int item)
+        public void Add(int id)
         {
-            if (!_data[item])
+            if (!_data[id])
             {
                 _count++;
-                _data[item] = true;
+                _data[id] = true;
             }
         }
 
-        public void UnionWith(IEnumerable<int> items)
+        public void Remove(int id)
         {
-            foreach(var item in items)
+            if (_data[id])
             {
-                Add(item);
+                _count--;
+                _data[id] = false;
             }
+        }
+
+        public BitArray GetBitArray()
+        {
+            return _data;
+        }
+
+        public bool Contains(int x)
+        {
+            if (x >= DataConfig.MaxId)
+            {
+                return false;
+            }
+            return _data[x];
         }
 
         public int Count => _count;
@@ -31,6 +47,11 @@ namespace AspNetCoreWebApi.Processing.Pooling
         {
             _data.SetAll(false);
             _count = 0;
+        }
+
+        public IEnumerable<int> AsEnumerable()
+        {
+            return Enumerable.Range(0, DataConfig.MaxId).Where(x => _data[x]);
         }
     }
 }

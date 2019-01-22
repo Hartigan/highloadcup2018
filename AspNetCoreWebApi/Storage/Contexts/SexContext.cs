@@ -14,12 +14,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private BitArray _raw = new BitArray(DataConfig.MaxId);
-        private FilterSet[] _id2AccId = new FilterSet[2];
+        private CountSet[] _id2AccId = new CountSet[2];
 
         public SexContext()
         {
-            _id2AccId[0] = new FilterSet();
-            _id2AccId[1] = new FilterSet();
+            _id2AccId[0] = new CountSet();
+            _id2AccId[1] = new CountSet();
         }
 
         public void LoadBatch(int id, bool sex)
@@ -50,7 +50,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return _raw[id];
         }
 
-        public FilterSet Filter(FilterRequest.SexRequest sex)
+        public IFilterSet Filter(FilterRequest.SexRequest sex)
         {
             if (sex.IsFemale && sex.IsMale)
             {
@@ -67,7 +67,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public FilterSet Filter(GroupRequest.SexRequest sex)
+        public IFilterSet Filter(GroupRequest.SexRequest sex)
         {
             if (sex.IsFemale && sex.IsMale)
             {
@@ -103,6 +103,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     groups[i] = g;
                 }
             }
+        }
+
+        public IEnumerable<SingleKeyGroup<bool>> GetGroups()
+        {
+            yield return new SingleKeyGroup<bool>(false, _id2AccId[0].AsEnumerable(), _id2AccId[0].Count);
+            yield return new SingleKeyGroup<bool>(true, _id2AccId[1].AsEnumerable(), _id2AccId[1].Count);
         }
 
         public bool Contains(bool sex, int id)
