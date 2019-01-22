@@ -13,6 +13,7 @@ using System.Reactive.Subjects;
 using AspNetCoreWebApi.Storage.Contexts;
 using Microsoft.Extensions.ObjectPool;
 using AspNetCoreWebApi.Processing.Pooling;
+using System.Threading;
 
 namespace AspNetCoreWebApi.Processing
 {
@@ -74,6 +75,7 @@ namespace AspNetCoreWebApi.Processing
                     _accountLoaded.OnNext(dto);
                 }
             }
+            Thread.Sleep(2000);
         }
     }
 }
