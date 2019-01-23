@@ -44,19 +44,14 @@ namespace AspNetCoreWebApi.Domain
 
         public int CompareTo(Group other)
         {
-            if (Sex != other.Sex)
-            {
-                return Sex ? 1 : -1;
-            }
-
-            if (Status != other.Status)
-            {
-                return (int)Status - (int)other.Status;
-            }
-
             if (CityId != other.CityId)
             {
                 return CityId - other.CityId;
+            }
+
+            if (InterestId != other.InterestId)
+            {
+                return InterestId - other.InterestId;
             }
 
             if (CountryId != other.CountryId)
@@ -64,7 +59,17 @@ namespace AspNetCoreWebApi.Domain
                 return CountryId - other.CountryId;
             }
 
-            return InterestId - other.InterestId;
+            if (Status != other.Status)
+            {
+                return (int)Status - (int)other.Status;
+            }
+
+            if (Sex != other.Sex)
+            {
+                return Sex ? 1 : -1;
+            }
+
+            return 0;
         }
     }
 }
