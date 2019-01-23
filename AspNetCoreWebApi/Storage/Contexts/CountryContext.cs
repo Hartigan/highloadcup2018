@@ -13,7 +13,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class CountryContext : IBatchLoader<short>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private short?[] _raw = new short?[DataConfig.MaxId];
+        private short[] _raw = new short[DataConfig.MaxId];
         private CountSet[] _id2AccId = new CountSet[200];
         private CountSet _null = new CountSet();
         private CountSet _ids = new CountSet();
@@ -54,9 +54,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public bool TryGet(int id, out short countryId)
         {
-            if (_raw[id].HasValue)
+            if (_raw[id] > 0)
             {
-                countryId = _raw[id].Value;
+                countryId = _raw[id];
                 return true;
             }
             else
@@ -66,7 +66,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public short? Get(int id)
+        public short Get(int id)
         {
             return _raw[id];
         }
@@ -128,7 +128,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _null.Clear();
             foreach(var id in ids.AsEnumerable())
             {
-                if (_raw[id] == null)
+                if (_raw[id] == 0)
                 {
                     _null.Add(id);
                 }
@@ -146,14 +146,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _id2AccId[countryId].Add(id);
         }
 
-        public IEnumerable<SingleKeyGroup<short?>> GetGroups()
+        public IEnumerable<SingleKeyGroup<short>> GetGroups()
         {
-            yield return new SingleKeyGroup<short?>(null, _null.AsEnumerable(), _null.Count);
+            yield return new SingleKeyGroup<short>(0, _null.AsEnumerable(), _null.Count);
             for(short i = 0; i < _id2AccId.Length; i++)
             {
                 if (_id2AccId[i] != null)
                 {
-                    yield return new SingleKeyGroup<short?>(i, _id2AccId[i].AsEnumerable(), _id2AccId[i].Count);
+                    yield return new SingleKeyGroup<short>(i, _id2AccId[i].AsEnumerable(), _id2AccId[i].Count);
                 }
             }
         }

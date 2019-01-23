@@ -180,14 +180,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public IEnumerable<SingleKeyGroup<short?>> GetGroups()
+        public IEnumerable<SingleKeyGroup<short>> GetGroups()
         {
-            //yield return new SingleKeyGroup<short?>(null, _null, _null.Count);
             for(short i = 0; i < _id2AccId.Length; i++)
             {
                 if (_id2AccId[i] != null)
                 {
-                    yield return new SingleKeyGroup<short?>(i, _id2AccId[i].AsEnumerable(), _id2AccId[i].Count);
+                    yield return new SingleKeyGroup<short>(i, _id2AccId[i].AsEnumerable(), _id2AccId[i].Count);
                 }
             }
         }

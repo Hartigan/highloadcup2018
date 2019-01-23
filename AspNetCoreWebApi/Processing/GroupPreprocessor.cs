@@ -8,8 +8,6 @@ using AspNetCoreWebApi.Storage.Contexts;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reactive.Concurrency;
-using System.Threading;
 
 namespace AspNetCoreWebApi.Processing
 {
@@ -17,21 +15,18 @@ namespace AspNetCoreWebApi.Processing
     {
         public bool Equals(Group x, Group y)
         {
-            return x.CityId == y.CityId &&
-                x.CountryId == y.CountryId &&
-                x.InterestId == y.InterestId &&
-                x.Sex == y.Sex &&
-                x.Status == y.Status;
+            return x.Equals(y);
         }
 
         public int GetHashCode(Group obj)
         {
-            return
-                obj.Sex.GetHashCode() ^
-                obj.Status.GetHashCode() ^
-                obj.InterestId.GetHashCode() ^
-                obj.CountryId.GetHashCode() ^
-                obj.CityId.GetHashCode();
+            int hash = 17;
+            hash = hash * 397 ^ obj.Sex.GetHashCode();
+            hash = hash * 397 ^ obj.Status.GetHashCode();
+            hash = hash * 397 ^ obj.InterestId.GetHashCode();
+            hash = hash * 397 ^ obj.CountryId.GetHashCode();
+            hash = hash * 397 ^ obj.CityId.GetHashCode();
+            return hash;
         }
     }
 
@@ -39,13 +34,16 @@ namespace AspNetCoreWebApi.Processing
     {
         private struct Request
         {
-            public Request(bool isAdd, AccountDto dto)
+            public Request(bool isAdd, AccountDto dto, bool compress)
             {
                 IsAdd = isAdd;
                 Dto = dto;
+                Compress = compress;
+
             }
             public bool IsAdd;
-            public AccountDto Dto; 
+            public AccountDto Dto;
+            public bool Compress;
         }
 
         private readonly MainContext _context;
@@ -64,6 +62,15 @@ namespace AspNetCoreWebApi.Processing
             _pool = mainPool;
 
             _worker = new SingleThreadWorker<Request>(r => {
+                if (r.Compress)
+                {
+                    CompressImpl();
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.WaitForFullGCComplete();
+                    GC.Collect();
+                    return;
+                }
                 if (r.IsAdd)
                 {
                     AddImpl(r.Dto);
@@ -83,6 +90,20 @@ namespace AspNetCoreWebApi.Processing
             }
         }
 
+        public void Compress()
+        {
+            _worker.Enqueue(new Request(false, null, true));
+        }
+
+        private void CompressImpl()
+        {
+            _data.TrimExcess();
+            foreach(var list in _data.Values.SelectMany(x => x.Values))
+            {
+                list.Capacity = list.Count + 4;
+            }
+        }
+
         public void FillResponse(
             GroupResponse response,
             FilterSet ids,
@@ -99,31 +120,31 @@ namespace AspNetCoreWebApi.Processing
                             response.Entries.AddRange(
                                 _context.Cities
                                     .GetGroups()
-                                    .Select(x => new GroupEntry(new Group(cityId: x.Key), x.Count)));
+                                    .Select(x => new GroupEntry(new Group(GroupKey.City, cityId: x.Key), x.Count)));
                             return;
                         case GroupKey.Country:
                             response.Entries.AddRange(
                                 _context.Countries
                                     .GetGroups()
-                                    .Select(x => new GroupEntry(new Group(countryId: x.Key), x.Count)));
+                                    .Select(x => new GroupEntry(new Group(GroupKey.Country, countryId: x.Key), x.Count)));
                             return;
                         case GroupKey.Interest:
                             response.Entries.AddRange(
                                 _context.Interests
                                     .GetGroups()
-                                    .Select(x => new GroupEntry(new Group(interestId: x.Key), x.Count)));
+                                    .Select(x => new GroupEntry(new Group(GroupKey.Interest, interestId: x.Key), x.Count)));
                             return;
                         case GroupKey.Sex:
                             response.Entries.AddRange(
                                 _context.Sex
                                     .GetGroups()
-                                    .Select(x => new GroupEntry(new Group(sex: x.Key), x.Count)));
+                                    .Select(x => new GroupEntry(new Group(GroupKey.Sex, sex: x.Key), x.Count)));
                             return;
                         case GroupKey.Status:
                             response.Entries.AddRange(
                                 _context.Statuses
                                     .GetGroups()
-                                    .Select(x => new GroupEntry(new Group(status: x.Key), x.Count)));
+                                    .Select(x => new GroupEntry(new Group(GroupKey.Status, status: x.Key), x.Count)));
                             return;
                         default:
                             return;
@@ -139,7 +160,7 @@ namespace AspNetCoreWebApi.Processing
                                 int count = item.Ids.Count(x => ids.Contains(x));
                                 if (count > 0)
                                 {
-                                    response.Entries.Add(new GroupEntry(new Group(cityId: item.Key), count));
+                                    response.Entries.Add(new GroupEntry(new Group(GroupKey.City, cityId: item.Key), count));
                                 }
                             }
                             return;
@@ -149,7 +170,7 @@ namespace AspNetCoreWebApi.Processing
                                 int count = item.Ids.Count(x => ids.Contains(x));
                                 if (count > 0)
                                 {
-                                    response.Entries.Add(new GroupEntry(new Group(countryId: item.Key), count));
+                                    response.Entries.Add(new GroupEntry(new Group(GroupKey.Country, countryId: item.Key), count));
                                 }
                             }
                             return;
@@ -159,7 +180,7 @@ namespace AspNetCoreWebApi.Processing
                                 int count = item.Ids.Count(x => ids.Contains(x));
                                 if (count > 0)
                                 {
-                                    response.Entries.Add(new GroupEntry(new Group(interestId: item.Key), count));
+                                    response.Entries.Add(new GroupEntry(new Group(GroupKey.Interest, interestId: item.Key), count));
                                 }
                             }
                             return;
@@ -169,7 +190,7 @@ namespace AspNetCoreWebApi.Processing
                                 int count = item.Ids.Count(x => ids.Contains(x));
                                 if (count > 0)
                                 {
-                                    response.Entries.Add(new GroupEntry(new Group(sex: item.Key), count));
+                                    response.Entries.Add(new GroupEntry(new Group(GroupKey.Sex, sex: item.Key), count));
                                 }
                             }
                             return;
@@ -179,7 +200,7 @@ namespace AspNetCoreWebApi.Processing
                                 int count = item.Ids.Count(x => ids.Contains(x));
                                 if (count > 0)
                                 {
-                                    response.Entries.Add(new GroupEntry(new Group(status: item.Key), count));
+                                    response.Entries.Add(new GroupEntry(new Group(GroupKey.Status, status: item.Key), count));
                                 }
                             }
                             return;
@@ -216,15 +237,15 @@ namespace AspNetCoreWebApi.Processing
 
         public void Add(AccountDto dto)
         {
-            _worker.Enqueue(new Request(true, dto));
+            _worker.Enqueue(new Request(true, dto, false));
         }
 
         private void UpdateGroups(
             int id,
             bool sex,
             Status status,
-            short? cityId,
-            short? countryId,
+            short cityId,
+            short countryId,
             List<short> interestIds)
         {
             foreach(var section in _data)
@@ -244,6 +265,7 @@ namespace AspNetCoreWebApi.Processing
                 }
 
                 Group group = new Group();
+                group.Keys = section.Key;
                 int i = 0;
                 if (section.Key.HasFlag(GroupKey.City))
                 {
@@ -269,11 +291,9 @@ namespace AspNetCoreWebApi.Processing
                     group.Status = status;
                     i++;
                 }
-                if (!group.CityId.HasValue &&
-                    !group.CountryId.HasValue &&
+                if (group.CityId == 0 &&
+                    group.CountryId == 0 &&
                     interestIds.Count == 0 &&
-                    !group.Sex.HasValue &&
-                    !group.Status.HasValue &&
                     i > 1)
                 {
                     continue;
@@ -312,8 +332,8 @@ namespace AspNetCoreWebApi.Processing
             int id = dto.Id.Value;
             bool sex = dto.Sex == "m";
             Status status = StatusHelper.Parse(dto.Status);
-            short? cityId = dto.City == null ? (short?)null : _storage.Cities.Get(dto.City);
-            short? countryId = dto.Country == null ? (short?)null : _storage.Countries.Get(dto.Country);
+            short cityId = dto.City == null ? (short)0 : _storage.Cities.Get(dto.City);
+            short countryId = dto.Country == null ? (short)0 : _storage.Countries.Get(dto.Country);
             if (dto.Interests != null)
             {
                 interestIds.AddRange(dto.Interests.Select(x => _storage.Interests.Get(x)));
@@ -336,15 +356,15 @@ namespace AspNetCoreWebApi.Processing
                 return;
             }
 
-            _worker.Enqueue(new Request(false, dto));
+            _worker.Enqueue(new Request(false, dto, false));
         }
 
         private void UpdateImpl(AccountDto dto)
         {
             int id = dto.Id.Value;
             bool sex = false;
-            short? cityId = null;
-            short? countryId = null;
+            short cityId = 0;
+            short countryId = 0;
             Status status = default(Status);
             var interestIds = _pool.ListOfInt16.Get();
 

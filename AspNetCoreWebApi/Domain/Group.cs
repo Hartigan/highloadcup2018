@@ -1,3 +1,4 @@
+using AspNetCoreWebApi.Processing.Requests;
 using System;
 
 namespace AspNetCoreWebApi.Domain
@@ -5,12 +6,14 @@ namespace AspNetCoreWebApi.Domain
     public struct Group
     {
         public Group(
-            bool? sex = null,
-            Status? status = null,
-            short? interestId = null,
-            short? countryId = null,
-            short? cityId = null)
+            GroupKey keys,
+            bool sex = false,
+            Status status = Status.Complicated,
+            short interestId = 0,
+            short countryId = 0,
+            short cityId = 0)
         {
+            Keys = keys;
             Sex = sex;
             Status = status;
             InterestId = interestId;
@@ -18,14 +21,25 @@ namespace AspNetCoreWebApi.Domain
             CityId = cityId;
         }
 
-        public bool? Sex;
+        public GroupKey Keys;
 
-        public Status? Status;
+        public bool Sex;
 
-        public short? InterestId;
+        public Status Status;
 
-        public short? CountryId;
+        public short InterestId;
 
-        public short? CityId;
+        public short CountryId;
+
+        public short CityId;
+
+        public bool Equals(Group y)
+        {
+            return CityId == y.CityId &&
+                CountryId == y.CountryId &&
+                InterestId == y.InterestId &&
+                Sex == y.Sex &&
+                Status == y.Status;
+        }
     }
 }

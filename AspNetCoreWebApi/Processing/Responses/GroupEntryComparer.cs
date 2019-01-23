@@ -56,18 +56,18 @@ namespace AspNetCoreWebApi.Processing.Responses
                     case GroupKey.City:
                         if (x.Group.CityId != y.Group.CityId)
                         {
-                            if (y.Group.CityId == null)
+                            if (y.Group.CityId == 0)
                             {
                                 return 1;
                             }
-                            if (x.Group.CityId == null)
+                            if (x.Group.CityId == 0)
                             {
                                 return -1;
                             }
 
                             return string.Compare(
-                                _storage.Cities.GetString(x.Group.CityId.Value),
-                                _storage.Cities.GetString(y.Group.CityId.Value),
+                                _storage.Cities.GetString(x.Group.CityId),
+                                _storage.Cities.GetString(y.Group.CityId),
                                 StringComparison.Ordinal
                             );
                         }
@@ -75,17 +75,17 @@ namespace AspNetCoreWebApi.Processing.Responses
                     case GroupKey.Country:
                         if (x.Group.CountryId != y.Group.CountryId)
                         {
-                            if (y.Group.CountryId == null)
+                            if (y.Group.CountryId == 0)
                             {
                                 return 1;
                             }
-                            if (x.Group.CountryId == null)
+                            if (x.Group.CountryId == 0)
                             {
                                 return -1;
                             }
                             return string.Compare(
-                                _storage.Countries.GetString(x.Group.CountryId.Value),
-                                _storage.Countries.GetString(y.Group.CountryId.Value),
+                                _storage.Countries.GetString(x.Group.CountryId),
+                                _storage.Countries.GetString(y.Group.CountryId),
                                 StringComparison.Ordinal
                             );
                         }
@@ -93,17 +93,17 @@ namespace AspNetCoreWebApi.Processing.Responses
                     case GroupKey.Interest:
                         if (x.Group.InterestId != y.Group.InterestId)
                         {
-                            if (y.Group.InterestId == null)
+                            if (y.Group.InterestId == 0)
                             {
                                 return 1;
                             }
-                            if (x.Group.InterestId == null)
+                            if (x.Group.InterestId == 0)
                             {
                                 return -1;
                             }
                             return string.Compare(
-                                _storage.Interests.GetString(x.Group.InterestId.Value),
-                                _storage.Interests.GetString(y.Group.InterestId.Value),
+                                _storage.Interests.GetString(x.Group.InterestId),
+                                _storage.Interests.GetString(y.Group.InterestId),
                                 StringComparison.Ordinal
                             );
                         }
@@ -111,13 +111,13 @@ namespace AspNetCoreWebApi.Processing.Responses
                     case GroupKey.Sex:
                         if (x.Group.Sex != y.Group.Sex)
                         {
-                            return x.Group.Sex.Value ? 1 : -1;
+                            return x.Group.Sex ? 1 : -1;
                         }
                         break;
                     case GroupKey.Status:
-                        if (x.Group.Status.Value != y.Group.Status.Value)
+                        if (x.Group.Status != y.Group.Status)
                         {
-                            return StatusHelper.CompareString(x.Group.Status.Value, y.Group.Status.Value);
+                            return StatusHelper.CompareString(x.Group.Status, y.Group.Status);
                         }
                         break;
                 }

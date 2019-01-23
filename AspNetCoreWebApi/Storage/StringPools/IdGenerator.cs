@@ -5,7 +5,7 @@ namespace AspNetCoreWebApi.Storage.StringPools
 {
     class IdGenerator
     {
-        private volatile int _last = 0;
+        private volatile int _last = 1;
 
         public short Get()
         {

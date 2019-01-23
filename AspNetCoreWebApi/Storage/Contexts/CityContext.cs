@@ -13,7 +13,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class CityContext : IBatchLoader<short>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private short?[] _raw = new short?[DataConfig.MaxId];
+        private short[] _raw = new short[DataConfig.MaxId];
         private List<int>[] _id2AccId = new List<int>[1000];
         private List<int> _null = new List<int>();
         private List<int> _ids = new List<int>();
@@ -25,7 +25,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void Add(int id, short cityId)
         {
             _rw.AcquireWriterLock(2000);
-            if (_raw[id] == null)
+            if (_raw[id] == 0)
             {
                 _ids.SortedInsert(id);
             }
@@ -58,9 +58,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public bool TryGet(int id, out short cityId)
         {
-            if (_raw[id].HasValue)
+            if (_raw[id] > 0)
             {
-                cityId = _raw[id].Value;
+                cityId = _raw[id];
                 return true;
             }
             else
@@ -70,7 +70,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public short? Get(int id)
+        public short Get(int id)
         {
             return _raw[id];
         }
@@ -180,7 +180,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _null.Clear();
             foreach(var id in ids.AsEnumerable())
             {
-                if (_raw[id] == null)
+                if (_raw[id] == 0)
                 {
                     _null.Add(id);
                 }
@@ -215,14 +215,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public IEnumerable<SingleKeyGroup<short?>> GetGroups()
+        public IEnumerable<SingleKeyGroup<short>> GetGroups()
         {
-            yield return new SingleKeyGroup<short?>(null, _null, _null.Count);
+            yield return new SingleKeyGroup<short>(0, _null, _null.Count);
             for(short i = 0; i < _id2AccId.Length; i++)
             {
                 if (_id2AccId[i] != null)
                 {
-                    yield return new SingleKeyGroup<short?>(i, _id2AccId[i], _id2AccId[i].Count);
+                    yield return new SingleKeyGroup<short>(i, _id2AccId[i], _id2AccId[i].Count);
                 }
             }
         }

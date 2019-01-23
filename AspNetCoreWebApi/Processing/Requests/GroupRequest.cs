@@ -37,7 +37,7 @@ namespace AspNetCoreWebApi.Processing.Requests
     }
 
     [Flags]
-    public enum GroupKey : int
+    public enum GroupKey : byte
     {
         Empty = 0,
         Sex = 1,

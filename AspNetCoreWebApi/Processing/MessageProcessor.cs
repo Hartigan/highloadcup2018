@@ -25,7 +25,6 @@ namespace AspNetCoreWebApi.Processing
         private readonly IDisposable _newLikesProcessorSubscription;
         private IDisposable _dataLoaderSubscription;
         private readonly IDisposable _secondPhaseEndSubscription;
-        private IDisposable _importEndSubscription;
         private readonly MainStorage _storage;
         private readonly DomainParser _parser;
         private readonly MainContext _context;
@@ -34,7 +33,6 @@ namespace AspNetCoreWebApi.Processing
         private readonly IComparer<int> _reverseIntComparer = new ReverseComparer<int>(Comparer<int>.Default);
         private readonly SingleThreadWorker<AccountDto> _loadWorker;
         private volatile int _editQuery = 0;
-        private volatile int _importId = 0;
 
         public MessageProcessor(
             MainContext mainContext,
@@ -74,6 +72,7 @@ namespace AspNetCoreWebApi.Processing
                     () => {
                         _context.InitNull(_storage.Ids);
                         _context.Compress();
+                        _groupPreprocessor.Compress();
                         Collect();
                         Console.WriteLine($"Import end {DateTime.Now}");
                 });

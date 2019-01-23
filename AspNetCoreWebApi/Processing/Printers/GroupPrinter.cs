@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using AspNetCoreWebApi.Domain;
+using AspNetCoreWebApi.Processing.Requests;
 using AspNetCoreWebApi.Processing.Responses;
 using AspNetCoreWebApi.Storage;
 using AspNetCoreWebApi.Storage.Contexts;
@@ -24,49 +25,49 @@ namespace AspNetCoreWebApi.Processing.Printers
             using (new JsObject(sw))
             {
                 bool needComma = false;
-                if (entry.Group.CityId.HasValue)
+                if (entry.Group.CityId > 0)
                 {
-                    sw.Property("city", _storage.Cities.GetString(entry.Group.CityId.Value));
+                    sw.Property("city", _storage.Cities.GetString(entry.Group.CityId));
                     needComma = true;
                 }
 
-                if (entry.Group.CountryId.HasValue)
+                if (entry.Group.CountryId > 0)
                 {
                     if (needComma)
                     {
                         sw.Comma();
                     }
-                    sw.Property("country", _storage.Countries.GetString(entry.Group.CountryId.Value));
+                    sw.Property("country", _storage.Countries.GetString(entry.Group.CountryId));
                     needComma = true;
                 }
 
-                if (entry.Group.InterestId.HasValue)
+                if (entry.Group.InterestId > 0)
                 {
                     if (needComma)
                     {
                         sw.Comma();
                     }
-                    sw.Property("interests", _storage.Interests.GetString(entry.Group.InterestId.Value));
+                    sw.Property("interests", _storage.Interests.GetString(entry.Group.InterestId));
                     needComma = true;
                 }
 
-                if (entry.Group.Status.HasValue)
+                if (entry.Group.Keys.HasFlag(GroupKey.Status))
                 {
                     if (needComma)
                     {
                         sw.Comma();
                     }
-                    sw.Property("status", StatusHelper.ToStr(entry.Group.Status.Value));
+                    sw.Property("status", StatusHelper.ToStr(entry.Group.Status));
                     needComma = true;
                 }
 
-                if (entry.Group.Sex.HasValue)
+                if (entry.Group.Keys.HasFlag(GroupKey.Sex))
                 {
                     if (needComma)
                     {
                         sw.Comma();
                     }
-                    sw.Property("sex", entry.Group.Sex.Value ? "m" : "f");
+                    sw.Property("sex", entry.Group.Sex ? "m" : "f");
                     needComma = true;
                 }
 

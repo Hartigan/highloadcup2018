@@ -84,27 +84,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public void FillGroups(List<Group> groups)
-        {
-            if (groups.Count == 0)
-            {
-                groups.Add(new Group(sex: true));
-                groups.Add(new Group(sex: false));
-            }
-            else
-            {
-                int size = groups.Count;
-                for (int i = 0; i < size; i++)
-                {
-                    Group g = groups[i];
-                    g.Sex = false;
-                    groups.Add(g);
-                    g.Sex = true;
-                    groups[i] = g;
-                }
-            }
-        }
-
         public IEnumerable<SingleKeyGroup<bool>> GetGroups()
         {
             yield return new SingleKeyGroup<bool>(false, _id2AccId[0].AsEnumerable(), _id2AccId[0].Count);
