@@ -27,7 +27,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     _null.Add(id);
                 }
             }
-            _null.Sort(ReverseComparer<int>.Default);
+            _null.FilterSort();
             _null.TrimExcess();
         }
 

@@ -15,6 +15,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private List<int>[] _id2AccId = new List<int>[200];
         private List<int> _null = new List<int>();
+        private CountSet _ids = new CountSet();
 
         private readonly MainPool _pool;
 
@@ -28,12 +29,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _null.Clear();
             foreach(var id in ids.AsEnumerable())
             {
-                if (!_id2AccId.Any(x => x != null && x.Contains(id)))
+                if (!_ids.Contains(id))
                 {
                     _null.Add(id);
                 }
             }
-            _null.Sort(ReverseComparer<int>.Default);
+            _null.FilterSort();
             _null.TrimExcess();
         }
 
@@ -51,6 +52,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void Add(int id, short interestId)
         {
             _rw.AcquireWriterLock(2000);
+            _ids.Add(id);
             if (_id2AccId[interestId] == null)
             {
                 _id2AccId[interestId] = new List<int>();
@@ -62,6 +64,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void RemoveAccount(int id)
         {
             _rw.AcquireWriterLock(2000);
+            _ids.Remove(id);
             for(int i = 0; i < _id2AccId.Length; i++)
             {
                 if (_id2AccId[i] != null)

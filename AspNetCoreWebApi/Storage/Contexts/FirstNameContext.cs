@@ -24,9 +24,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (_names[id] == null)
                 {
-                    _null.SortedInsert(id);
+                    _null.Add(id);
                 }
             }
+            _null.FilterSort();
             _null.TrimExcess();
         }
 

@@ -11,25 +11,6 @@ using System.Linq;
 
 namespace AspNetCoreWebApi.Processing
 {
-    public class GroupEqualityComparer : IEqualityComparer<Group>
-    {
-        public bool Equals(Group x, Group y)
-        {
-            return x.Equals(y);
-        }
-
-        public int GetHashCode(Group obj)
-        {
-            int hash = 17;
-            hash = hash * 397 ^ obj.Sex.GetHashCode();
-            hash = hash * 397 ^ obj.Status.GetHashCode();
-            hash = hash * 397 ^ obj.InterestId.GetHashCode();
-            hash = hash * 397 ^ obj.CountryId.GetHashCode();
-            hash = hash * 397 ^ obj.CityId.GetHashCode();
-            return hash;
-        }
-    }
-
     public class GroupPreprocessor
     {
         private struct Request
@@ -60,6 +41,8 @@ namespace AspNetCoreWebApi.Processing
 
         private class GroupBucketComparer : IComparer<GroupBucket>
         {
+            public static GroupBucketComparer Default { get; } = new GroupBucketComparer();
+
             public int Compare(GroupBucket x, GroupBucket y)
             {
                 return x.Key.CompareTo(y.Key);
@@ -70,7 +53,7 @@ namespace AspNetCoreWebApi.Processing
         private readonly MainStorage _storage;
         private readonly MainPool _pool;
         private readonly SingleThreadWorker<Request> _worker;
-        private Dictionary<GroupKey, List<GroupBucket>> _data = new Dictionary<GroupKey, List<GroupBucket>>(); 
+        private Dictionary<GroupKey, SortedSet<GroupBucket>> _data = new Dictionary<GroupKey, SortedSet<GroupBucket>>(); 
 
         public GroupPreprocessor(
             MainContext mainContext,
@@ -101,11 +84,39 @@ namespace AspNetCoreWebApi.Processing
                 }
             }, "Group thread started");
 
-            var comparer = new GroupEqualityComparer();
             for(int i = 1; i < 32; i++)
             {
                 GroupKey keys = (GroupKey)i;
-                _data[keys] = new List<GroupBucket>();
+
+                int initialCapacity = 1;
+                if (keys.HasFlag(GroupKey.Sex))
+                {
+                    initialCapacity *= 2;
+                }
+
+                if (keys.HasFlag(GroupKey.Status))
+                {
+                    initialCapacity *= 3;
+                }
+
+                if (keys.HasFlag(GroupKey.City))
+                {
+                    initialCapacity *= 700;
+                }
+
+                if (keys.HasFlag(GroupKey.Country))
+                {
+                    initialCapacity *= 100;
+                }
+
+                if (keys.HasFlag(GroupKey.Interest))
+                {
+                    initialCapacity *= 160;
+                }
+
+                initialCapacity = Math.Min(initialCapacity, DataConfig.MaxId);
+
+                _data[keys] = new SortedSet<GroupBucket>(GroupBucketComparer.Default);
             }
         }
 
@@ -119,7 +130,7 @@ namespace AspNetCoreWebApi.Processing
             _data.TrimExcess();
             foreach(var buckets in _data.Values)
             {
-                buckets.TrimExcess();
+                //buckets.TrimExcess();
                 foreach(var bucket in buckets)
                 {
                     bucket.Ids.TrimExcess();
@@ -330,21 +341,18 @@ namespace AspNetCoreWebApi.Processing
             }
         }
 
-        private void AddAccountToBuckets(List<GroupBucket> buckets, int id, Group group)
+        private void AddAccountToBuckets(SortedSet<GroupBucket> buckets, int id, Group group)
         {
-            bool added = false;
-            for(int bucketIndex = 0; bucketIndex < buckets.Count; bucketIndex++)
+            GroupBucket newBucket = new GroupBucket(group, id);
+            GroupBucket currentBucket;
+
+            if (buckets.TryGetValue(newBucket, out currentBucket))
             {
-                if (group.Equals(buckets[bucketIndex].Key))
-                {
-                    buckets[bucketIndex].Ids.Add(id);
-                    added = true;
-                    break;
-                }
+                currentBucket.Ids.Add(id);
             }
-            if (!added)
+            else
             {
-                buckets.Add(new GroupBucket(group, id));
+                buckets.Add(newBucket);
             }
         }
 
@@ -436,11 +444,11 @@ namespace AspNetCoreWebApi.Processing
                 interestIds.AddRange(dto.Interests.Select(x => _storage.Interests.Get(x)));
             }
 
-            foreach(var list in _data.Values)
+            foreach(var buckets in _data.Values)
             {
-                for(int i = 0; i < list.Count; i++)
+                foreach (var bucket in buckets)
                 {
-                    list[i].Ids.Remove(id);
+                    bucket.Ids.Remove(id);
                 }
             }
 

@@ -70,8 +70,8 @@ namespace AspNetCoreWebApi.Processing
                     item => { _loadWorker.Enqueue(item); },
                      _ => {},
                     () => {
-                        _context.InitNull(_storage.Ids);
                         _context.Compress();
+                        _context.InitNull(_storage.Ids);
                         _groupPreprocessor.Compress();
                         Collect();
                         Console.WriteLine($"Import end {DateTime.Now}");
@@ -95,8 +95,9 @@ namespace AspNetCoreWebApi.Processing
                 .Throttle(TimeSpan.FromMilliseconds(500))
                 .Subscribe(_ =>
                     {
-                        _context.InitNull(_storage.Ids);
                         _context.Compress();
+                        _context.InitNull(_storage.Ids);
+
                         Collect();
                     });
         }
