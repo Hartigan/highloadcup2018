@@ -76,6 +76,7 @@ namespace AspNetCoreWebApi.Processing
                 }
             }
             Thread.Sleep(1000);
+            Console.WriteLine(entry.Name);
         }
     }
 }

@@ -291,13 +291,6 @@ namespace AspNetCoreWebApi.Processing
                     group.Status = status;
                     i++;
                 }
-                if (group.CityId == 0 &&
-                    group.CountryId == 0 &&
-                    interestIds.Count == 0 &&
-                    i > 1)
-                {
-                    continue;
-                }
 
                 if (section.Key.HasFlag(GroupKey.Interest))
                 {
