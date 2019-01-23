@@ -46,11 +46,31 @@ namespace AspNetCoreWebApi.Processing
             public bool Compress;
         }
 
+        private struct GroupBucket
+        {
+            public GroupBucket(Group group, int id)
+            {
+                Key = group;
+                Ids = new List<int>() { id };
+            }
+
+            public Group Key;
+            public List<int> Ids;
+        }
+
+        private class GroupBucketComparer : IComparer<GroupBucket>
+        {
+            public int Compare(GroupBucket x, GroupBucket y)
+            {
+                return x.Key.CompareTo(y.Key);
+            }
+        }
+
         private readonly MainContext _context;
         private readonly MainStorage _storage;
         private readonly MainPool _pool;
         private readonly SingleThreadWorker<Request> _worker;
-        private Dictionary<GroupKey, Dictionary<Group, List<int>>> _data = new Dictionary<GroupKey, Dictionary<Group, List<int>>>(); 
+        private Dictionary<GroupKey, List<GroupBucket>> _data = new Dictionary<GroupKey, List<GroupBucket>>(); 
 
         public GroupPreprocessor(
             MainContext mainContext,
@@ -85,7 +105,7 @@ namespace AspNetCoreWebApi.Processing
             for(int i = 1; i < 32; i++)
             {
                 GroupKey keys = (GroupKey)i;
-                _data[keys] = new Dictionary<Group, List<int>>(comparer);
+                _data[keys] = new List<GroupBucket>();
             }
         }
 
@@ -97,9 +117,13 @@ namespace AspNetCoreWebApi.Processing
         private void CompressImpl()
         {
             _data.TrimExcess();
-            foreach(var list in _data.Values.SelectMany(x => x.Values))
+            foreach(var buckets in _data.Values)
             {
-                list.Capacity = list.Count + 4;
+                buckets.TrimExcess();
+                foreach(var bucket in buckets)
+                {
+                    bucket.Ids.TrimExcess();
+                }
             }
         }
 
@@ -214,7 +238,7 @@ namespace AspNetCoreWebApi.Processing
             {
                 foreach(var group in _data[keys])
                 {
-                    int count = group.Value.Count;
+                    int count = group.Ids.Count;
                     if (count > 0)
                     {
                         response.Entries.Add(new GroupEntry(group.Key, count));
@@ -225,7 +249,7 @@ namespace AspNetCoreWebApi.Processing
             {
                 foreach(var group in _data[keys])
                 {
-                    int count = group.Value.Count(x => ids.Contains(x));
+                    int count = group.Ids.Count(x => ids.Contains(x));
                     if (count > 0)
                     {
                         response.Entries.Add(new GroupEntry(group.Key, count));
@@ -296,25 +320,31 @@ namespace AspNetCoreWebApi.Processing
                     for(int index = 0; index < interestIds.Count; index++)
                     {
                         group.InterestId = interestIds[index];
-                        List<int> groupIds;
-                        if (!section.Value.TryGetValue(group, out groupIds))
-                        {
-                            groupIds = new List<int>();
-                            section.Value[group] = groupIds;
-                        }
-                        groupIds.Add(id);
+                        AddAccountToBuckets(section.Value, id, group);
                     }
                 }
                 else
                 {
-                    List<int> groupIds;
-                    if (!section.Value.TryGetValue(group, out groupIds))
-                    {
-                        groupIds = new List<int>();
-                        section.Value[group] = groupIds;
-                    }
-                    groupIds.Add(id);
+                    AddAccountToBuckets(section.Value, id, group);
                 }
+            }
+        }
+
+        private void AddAccountToBuckets(List<GroupBucket> buckets, int id, Group group)
+        {
+            bool added = false;
+            for(int bucketIndex = 0; bucketIndex < buckets.Count; bucketIndex++)
+            {
+                if (group.Equals(buckets[bucketIndex].Key))
+                {
+                    buckets[bucketIndex].Ids.Add(id);
+                    added = true;
+                    break;
+                }
+            }
+            if (!added)
+            {
+                buckets.Add(new GroupBucket(group, id));
             }
         }
 
@@ -406,9 +436,12 @@ namespace AspNetCoreWebApi.Processing
                 interestIds.AddRange(dto.Interests.Select(x => _storage.Interests.Get(x)));
             }
 
-            foreach(var list in _data.Values.SelectMany(x => x.Values))
+            foreach(var list in _data.Values)
             {
-                list.Remove(id);
+                for(int i = 0; i < list.Count; i++)
+                {
+                    list[i].Ids.Remove(id);
+                }
             }
 
             _pool.AccountDto.Return(dto);

@@ -3,7 +3,7 @@ using System;
 
 namespace AspNetCoreWebApi.Domain
 {
-    public struct Group
+    public struct Group : IEquatable<Group>, IComparable<Group>
     {
         public Group(
             GroupKey keys,
@@ -40,6 +40,31 @@ namespace AspNetCoreWebApi.Domain
                 InterestId == y.InterestId &&
                 Sex == y.Sex &&
                 Status == y.Status;
+        }
+
+        public int CompareTo(Group other)
+        {
+            if (Sex != other.Sex)
+            {
+                return Sex ? 1 : -1;
+            }
+
+            if (Status != other.Status)
+            {
+                return (int)Status - (int)other.Status;
+            }
+
+            if (CityId != other.CityId)
+            {
+                return CityId - other.CityId;
+            }
+
+            if (CountryId != other.CountryId)
+            {
+                return CountryId - other.CountryId;
+            }
+
+            return InterestId - other.InterestId;
         }
     }
 }
