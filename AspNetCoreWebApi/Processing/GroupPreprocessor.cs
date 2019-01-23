@@ -29,6 +29,12 @@ namespace AspNetCoreWebApi.Processing
 
         private struct GroupBucket
         {
+            public GroupBucket(Group group)
+            {
+                Key = group;
+                Ids = null;
+            }
+
             public GroupBucket(Group group, int id)
             {
                 Key = group;
@@ -130,7 +136,6 @@ namespace AspNetCoreWebApi.Processing
             _data.TrimExcess();
             foreach(var buckets in _data.Values)
             {
-                //buckets.TrimExcess();
                 foreach(var bucket in buckets)
                 {
                     bucket.Ids.TrimExcess();
@@ -343,16 +348,17 @@ namespace AspNetCoreWebApi.Processing
 
         private void AddAccountToBuckets(SortedSet<GroupBucket> buckets, int id, Group group)
         {
-            GroupBucket newBucket = new GroupBucket(group, id);
-            GroupBucket currentBucket;
+            GroupBucket currentBucket = new GroupBucket(group);
 
-            if (buckets.TryGetValue(newBucket, out currentBucket))
+            if (buckets.TryGetValue(currentBucket, out currentBucket))
             {
                 currentBucket.Ids.Add(id);
             }
             else
             {
-                buckets.Add(newBucket);
+                currentBucket.Key = group;
+                currentBucket.Ids = new List<int>() { id };
+                buckets.Add(currentBucket);
             }
         }
 
