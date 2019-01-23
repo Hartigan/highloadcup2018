@@ -14,9 +14,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private short[] _raw = new short[DataConfig.MaxId];
-        private CountSet[] _id2AccId = new CountSet[200];
-        private CountSet _null = new CountSet();
-        private CountSet _ids = new CountSet();
+        private List<int>[] _id2AccId = new List<int>[200];
+        private List<int> _null = new List<int>();
+        private List<int> _ids = new List<int>();
 
         public CountryContext()
         {
@@ -29,9 +29,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _ids.Add(id);
             if (_id2AccId[countryId] == null)
             {
-                _id2AccId[countryId] = new CountSet();
+                _id2AccId[countryId] = new List<int>();
             }
-            _id2AccId[countryId].Add(id);
+            _id2AccId[countryId].SortedInsert(id);
             _rw.ReleaseWriterLock();
         }
 
@@ -44,7 +44,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 {
                     continue;
                 }
-                _id2AccId[i].Remove(id);
+                _id2AccId[i].SortedRemove(id);
             }
 
             Add(id, countryId);
@@ -71,7 +71,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return _raw[id];
         }
 
-        public IFilterSet Filter(
+        public IEnumerable<int> Filter(
             FilterRequest.CountryRequest country,
             IdStorage ids,
             CountryStorage countries)
@@ -81,8 +81,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 if (country.IsNull.Value)
                 {
                     return country.Eq == null
-                        ? (IFilterSet)_null
-                        : FilterSet.Empty;
+                        ? _null
+                        : Enumerable.Empty<int>();
                 }
             }
 
@@ -98,11 +98,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
             else
             {
-                return FilterSet.Empty;
+                return Enumerable.Empty<int>();
             }
         }
 
-        public IFilterSet Filter(
+        public IEnumerable<int> Filter(
             GroupRequest.CountryRequest country,
             CountryStorage countries)
         {
@@ -114,7 +114,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
             else
             {
-                return FilterSet.Empty;
+                return Enumerable.Empty<int>();
             }
         }
 
@@ -133,6 +133,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     _null.Add(id);
                 }
             }
+            _null.Sort(ReverseComparer<int>.Default);
+            _null.TrimExcess();
         }
 
         public void LoadBatch(int id, short countryId)
@@ -141,25 +143,35 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _ids.Add(id);
             if (_id2AccId[countryId] == null)
             {
-                _id2AccId[countryId] = new CountSet();
+                _id2AccId[countryId] = new List<int>();
             }
             _id2AccId[countryId].Add(id);
         }
 
         public IEnumerable<SingleKeyGroup<short>> GetGroups()
         {
-            yield return new SingleKeyGroup<short>(0, _null.AsEnumerable(), _null.Count);
+            yield return new SingleKeyGroup<short>(0, _null, _null.Count);
             for(short i = 0; i < _id2AccId.Length; i++)
             {
-                if (_id2AccId[i] != null)
+                if (_id2AccId[i] != null && _id2AccId[i].Count > 0)
                 {
-                    yield return new SingleKeyGroup<short>(i, _id2AccId[i].AsEnumerable(), _id2AccId[i].Count);
+                    yield return new SingleKeyGroup<short>(i, _id2AccId[i], _id2AccId[i].Count);
                 }
             }
         }
 
         public void Compress()
         {
+            _ids.FilterSort();
+            _ids.TrimExcess();
+            for(int i = 0; i < _id2AccId.Length; i++)
+            {
+                if (_id2AccId[i] != null)
+                {
+                    _id2AccId[i].FilterSort();
+                    _id2AccId[i].TrimExcess();
+                }
+            }
         }
     }
 }

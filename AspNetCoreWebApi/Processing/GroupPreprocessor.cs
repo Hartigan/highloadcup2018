@@ -79,7 +79,6 @@ namespace AspNetCoreWebApi.Processing
                 {
                     UpdateImpl(r.Dto);
                 }
-                _pool.AccountDto.Return(r.Dto);
             }, "Group thread started");
 
             var comparer = new GroupEqualityComparer();
@@ -331,6 +330,7 @@ namespace AspNetCoreWebApi.Processing
             {
                 interestIds.AddRange(dto.Interests.Select(x => _storage.Interests.Get(x)));
             }
+            _pool.AccountDto.Return(dto);
 
             UpdateGroups(id, sex, status, cityId, countryId, interestIds);
 
@@ -410,6 +410,8 @@ namespace AspNetCoreWebApi.Processing
             {
                 list.Remove(id);
             }
+
+            _pool.AccountDto.Return(dto);
 
             UpdateGroups(id, sex, status, cityId, countryId, interestIds);
 

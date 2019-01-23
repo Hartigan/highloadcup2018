@@ -14,23 +14,30 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private CountSet[] _raw = new CountSet[3];
+        private List<int>[] _groups = new List<int>[3];
 
         public StatusContext()
         {
             _raw[(int)Status.Complicated] = new CountSet();
             _raw[(int)Status.Free] = new CountSet();
             _raw[(int)Status.Reserved] = new CountSet();
+
+            _groups[(int)Status.Complicated] = new List<int>();
+            _groups[(int)Status.Free] = new List<int>();
+            _groups[(int)Status.Reserved] = new List<int>();
         }
 
         public void LoadBatch(int id, Status status)
         {
             _raw[(int)status].Add(id);
+            _groups[(int)status].Add(id);
         }
 
         public void Add(int id, Status status)
         {
             _rw.AcquireWriterLock(2000);
             _raw[(int)status].Add(id);
+            _groups[(int)status].SortedInsert(id);
             _rw.ReleaseWriterLock();
         }
 
@@ -41,9 +48,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
             for(int i = 0; i < 3; i++)
             {
                 _raw[i].Remove(id);
+                if (_groups[i].SortedRemove(id))
+                {
+                    break;
+                }
             }
 
             _raw[(int)status].Add(id);
+            _groups[(int)status].SortedInsert(id);
 
             _rw.ReleaseWriterLock();
         }
@@ -64,28 +76,28 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public bool Filter(FilterRequest.StatusRequest status, FilterSet result)
+        public IEnumerable<int> Filter(FilterRequest.StatusRequest status)
         {
             if (status.Eq == status.Neq)
             {
-                return false;
+                return Enumerable.Empty<int>();
             }
 
             if (status.Eq != null)
             {
-                result.Add(_raw[(int)status.Eq.Value]);
-                return true;
+                return _groups[(int)status.Eq.Value];
             }
 
+            List<IEnumerator<int>> enumerators = new List<IEnumerator<int>>(2);
             for(int i = 0; i < 3; i++)
             {
                 if (i == (int)status.Neq)
                 {
                     continue;
                 }
-                result.Add(_raw[i]);
+                enumerators.Add(_groups[i].GetEnumerator());
             }
-            return true;
+            return ListHelper.MergeSort(enumerators);
         }
 
         public IFilterSet Filter(GroupRequest.StatusRequest status)
@@ -100,13 +112,19 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public IEnumerable<SingleKeyGroup<Status>> GetGroups()
         {
-            yield return new SingleKeyGroup<Status>(Status.Complicated, _raw[(int)Status.Complicated].AsEnumerable(), _raw[(int)Status.Complicated].Count);
-            yield return new SingleKeyGroup<Status>(Status.Free, _raw[(int)Status.Free].AsEnumerable(), _raw[(int)Status.Free].Count);
-            yield return new SingleKeyGroup<Status>(Status.Reserved, _raw[(int)Status.Reserved].AsEnumerable(), _raw[(int)Status.Reserved].Count);
+            yield return new SingleKeyGroup<Status>(Status.Complicated, _groups[(int)Status.Complicated], _groups[(int)Status.Complicated].Count);
+            yield return new SingleKeyGroup<Status>(Status.Free, _groups[(int)Status.Free], _groups[(int)Status.Free].Count);
+            yield return new SingleKeyGroup<Status>(Status.Reserved, _groups[(int)Status.Reserved], _groups[(int)Status.Reserved].Count);
         }
 
         public void Compress()
         {
+            _groups[0].FilterSort();
+            _groups[1].FilterSort();
+            _groups[2].FilterSort();
+            _groups[0].TrimExcess();
+            _groups[1].TrimExcess();
+            _groups[2].TrimExcess();
         }
     }
 }

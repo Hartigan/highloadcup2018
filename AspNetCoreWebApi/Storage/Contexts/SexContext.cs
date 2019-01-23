@@ -14,25 +14,31 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private BitArray _raw = new BitArray(DataConfig.MaxId);
-        private CountSet[] _id2AccId = new CountSet[2];
+        private CountSet[] _filter = new CountSet[2];
+        private List<int>[] _groups = new List<int>[2];
 
         public SexContext()
         {
-            _id2AccId[0] = new CountSet();
-            _id2AccId[1] = new CountSet();
+            _filter[0] = new CountSet();
+            _filter[1] = new CountSet();
+            _groups[0] = new List<int>();
+            _groups[1] = new List<int>();
         }
 
         public void LoadBatch(int id, bool sex)
         {
             _raw[id] = sex;
-            _id2AccId[sex ? 1 : 0].Add(id);
+            _filter[sex ? 1 : 0].Add(id);
+            _groups[sex ? 1 : 0].Add(id);
+
         }
 
         public void Add(int id, bool sex)
         {
             _rw.AcquireWriterLock(2000);
             _raw[id] = sex;
-            _id2AccId[sex ? 1 : 0].Add(id);
+            _filter[sex ? 1 : 0].Add(id);
+            _groups[sex ? 1 : 0].SortedInsert(id);
             _rw.ReleaseWriterLock();
         }
 
@@ -40,8 +46,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             _rw.AcquireWriterLock(2000);
             _raw[id] = sex;
-            _id2AccId[sex ? 1 : 0].Add(id);
-            _id2AccId[sex ? 0 : 1].Remove(id);
+            _filter[sex ? 1 : 0].Add(id);
+            _filter[sex ? 0 : 1].Remove(id);
+
+            _groups[sex ? 1 : 0].SortedInsert(id);
+            _groups[sex ? 0 : 1].SortedRemove(id);
+
             _rw.ReleaseWriterLock();
         }
 
@@ -50,20 +60,20 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return _raw[id];
         }
 
-        public IFilterSet Filter(FilterRequest.SexRequest sex)
+        public IEnumerable<int> Filter(FilterRequest.SexRequest sex)
         {
             if (sex.IsFemale && sex.IsMale)
             {
-                return FilterSet.Empty;
+                return Enumerable.Empty<int>();
             }
 
             if (sex.IsMale)
             {
-                return _id2AccId[1];
+                return _groups[1];
             }
             else
             {
-                return _id2AccId[0];
+                return _groups[0];
             }
         }
 
@@ -76,18 +86,18 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (sex.IsMale)
             {
-                return _id2AccId[1];
+                return _filter[1];
             }
             else
             {
-                return _id2AccId[0];
+                return _filter[0];
             }
         }
 
         public IEnumerable<SingleKeyGroup<bool>> GetGroups()
         {
-            yield return new SingleKeyGroup<bool>(false, _id2AccId[0].AsEnumerable(), _id2AccId[0].Count);
-            yield return new SingleKeyGroup<bool>(true, _id2AccId[1].AsEnumerable(), _id2AccId[1].Count);
+            yield return new SingleKeyGroup<bool>(false, _groups[0], _groups[0].Count);
+            yield return new SingleKeyGroup<bool>(true, _groups[1], _groups[1].Count);
         }
 
         public bool Contains(bool sex, int id)
@@ -97,6 +107,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
+            _groups[0].FilterSort();
+            _groups[1].FilterSort();
+            _groups[0].TrimExcess();
+            _groups[1].TrimExcess();
         }
     }
 }

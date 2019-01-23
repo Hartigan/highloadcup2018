@@ -13,11 +13,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class InterestsContext : IBatchLoader<IEnumerable<short>>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private CountSet[] _id2AccId = new CountSet[200];
+        private List<int>[] _id2AccId = new List<int>[200];
         private List<int> _null = new List<int>();
 
-        public InterestsContext()
+        private readonly MainPool _pool;
+
+        public InterestsContext(MainPool pool)
         {
+            _pool = pool;
         }
 
         public void InitNull(IdStorage ids)
@@ -50,9 +53,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _rw.AcquireWriterLock(2000);
             if (_id2AccId[interestId] == null)
             {
-                _id2AccId[interestId] = new CountSet();
+                _id2AccId[interestId] = new List<int>();
             }
-            _id2AccId[interestId].Add(id);
+            _id2AccId[interestId].SortedInsert(id);
             _rw.ReleaseWriterLock();
         }
 
@@ -63,7 +66,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (_id2AccId[i] != null)
                 {
-                    _id2AccId[i].Remove(id);
+                    _id2AccId[i].SortedRemove(id);
                 }
             }
             _rw.ReleaseWriterLock();
@@ -93,7 +96,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     }
                     else
                     {
-                        output.IntersectWith(tmp);
+                        var filterSet = _pool.FilterSet.Get();
+                        filterSet.Add(tmp);
+                        output.IntersectWith(filterSet);
+                        _pool.FilterSet.Return(filterSet);
                     }
                 }
 
@@ -119,12 +125,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public IFilterSet Filter(
+        public IEnumerable<int> Filter(
             GroupRequest.InterestRequest interests,
             InterestStorage interestsStorage)
         {
             short id = interestsStorage.Get(interests.Interest);
-            return (IFilterSet)_id2AccId[id] ?? FilterSet.Empty;
+            return _id2AccId[id] ?? Enumerable.Empty<int>();
         }
 
         public void Recommend(int id, Dictionary<int, int> recomended)
@@ -174,7 +180,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (_id2AccId[interestId] == null)
                 {
-                    _id2AccId[interestId] = new CountSet();
+                    _id2AccId[interestId] = new List<int>();
                 }
                 _id2AccId[interestId].Add(id);
             }
@@ -184,15 +190,23 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             for(short i = 0; i < _id2AccId.Length; i++)
             {
-                if (_id2AccId[i] != null)
+                if (_id2AccId[i] != null && _id2AccId[i].Count > 0)
                 {
-                    yield return new SingleKeyGroup<short>(i, _id2AccId[i].AsEnumerable(), _id2AccId[i].Count);
+                    yield return new SingleKeyGroup<short>(i, _id2AccId[i], _id2AccId[i].Count);
                 }
             }
         }
 
         public void Compress()
         {
+            for(short i = 0; i < _id2AccId.Length; i++)
+            {
+                if (_id2AccId[i] != null)
+                {
+                    _id2AccId[i].FilterSort();
+                    _id2AccId[i].TrimExcess();
+                }
+            }
             _null.TrimExcess();
         }
     }

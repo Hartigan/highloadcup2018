@@ -110,47 +110,16 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
             else if (city.Any.Count > 0)
             {
-                return MergeSort(city.Any.Select(x => cities.Get(x)).Where(x => _id2AccId[x] != null));
+                return ListHelper
+                    .MergeSort(city.Any
+                    .Select(x => cities.Get(x))
+                    .Where(x => _id2AccId[x] != null)
+                    .Select(x => _id2AccId[x].AsEnumerable().GetEnumerator())
+                    .ToList());
             }
             else
             {
                 return _ids;
-            }
-        }
-
-        private IEnumerable<int> MergeSort(IEnumerable<short> cities)
-        {
-            List<IEnumerator<int>> enumerators = cities.Select(x => _id2AccId[x].AsEnumerable().GetEnumerator()).ToList();
-
-            for (int i = 0; i < enumerators.Count;)
-            {
-                if (!enumerators[i].MoveNext())
-                {
-                    enumerators.RemoveAt(i);
-                }
-                else
-                {
-                    i++;
-                }
-            }
-
-            while (enumerators.Count > 0)
-            {
-                int maxIndex = 0;
-                for (int i = 1; i < enumerators.Count; i++)
-                {
-                    if (enumerators[maxIndex].Current < enumerators[i].Current)
-                    {
-                        maxIndex = i;
-                    }
-                }
-
-                yield return enumerators[maxIndex].Current;
-
-                if (!enumerators[maxIndex].MoveNext())
-                {
-                    enumerators.RemoveAt(maxIndex);
-                }
             }
         }
 
@@ -220,7 +189,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             yield return new SingleKeyGroup<short>(0, _null, _null.Count);
             for(short i = 0; i < _id2AccId.Length; i++)
             {
-                if (_id2AccId[i] != null)
+                if (_id2AccId[i] != null && _id2AccId[i].Count > 0)
                 {
                     yield return new SingleKeyGroup<short>(i, _id2AccId[i], _id2AccId[i].Count);
                 }

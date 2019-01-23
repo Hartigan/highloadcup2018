@@ -1,9 +1,15 @@
 using System;
+using AspNetCoreWebApi.Processing.Pooling;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
     public class MainContext
     {
+        public MainContext(MainPool pool)
+        {
+            Interests = new InterestsContext(pool);
+        }
+
         public EmailContext Emails { get; } = new EmailContext();
 
         public FirstNameContext FirstNames { get; } = new FirstNameContext();
@@ -24,7 +30,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public BirthContext Birth { get; } = new BirthContext();
 
-        public InterestsContext Interests { get; } = new InterestsContext();
+        public InterestsContext Interests { get; }
 
         public LikesContext Likes { get; } = new LikesContext();
 

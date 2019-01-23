@@ -27,5 +27,49 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 return false;
             }
         }
+
+        public static void FilterSort(this List<int> list)
+        {
+            list.Sort(ReverseComparer<int>.Default);
+        }
+
+        public static bool FilterSearch(this List<int> list, int id)
+        {
+            return list.BinarySearch(id, ReverseComparer<int>.Default) >= 0;
+        }
+
+        public static IEnumerable<int> MergeSort(List<IEnumerator<int>> enumerators)
+        {
+            for (int i = 0; i < enumerators.Count;)
+            {
+                if (!enumerators[i].MoveNext())
+                {
+                    enumerators.RemoveAt(i);
+                }
+                else
+                {
+                    i++;
+                }
+            }
+
+            while (enumerators.Count > 0)
+            {
+                int maxIndex = 0;
+                for (int i = 1; i < enumerators.Count; i++)
+                {
+                    if (enumerators[maxIndex].Current < enumerators[i].Current)
+                    {
+                        maxIndex = i;
+                    }
+                }
+
+                yield return enumerators[maxIndex].Current;
+
+                if (!enumerators[maxIndex].MoveNext())
+                {
+                    enumerators.RemoveAt(maxIndex);
+                }
+            }
+        }
     }
 }

@@ -207,7 +207,10 @@ namespace AspNetCoreWebApi.Processing
 
             if (request.Country.IsActive)
             {
-                Intersect(result, _context.Countries.Filter(request.Country, _storage.Countries), ref inited);
+                var tmp = _pool.FilterSet.Get();
+                tmp.Add(_context.Countries.Filter(request.Country, _storage.Countries));
+                Intersect(result, tmp, ref inited);
+                _pool.FilterSet.Return(tmp);
             }
 
             if (request.City.IsActive)
@@ -225,7 +228,10 @@ namespace AspNetCoreWebApi.Processing
 
             if (request.Interest.IsActive)
             {
-                Intersect(result, _context.Interests.Filter(request.Interest, _storage.Interests), ref inited);
+                var tmp = _pool.FilterSet.Get();
+                tmp.Add(_context.Interests.Filter(request.Interest, _storage.Interests));
+                Intersect(result, tmp, ref inited);
+                _pool.FilterSet.Return(tmp);
             }
 
             if (request.Like.IsActive)
@@ -265,7 +271,7 @@ namespace AspNetCoreWebApi.Processing
 
             if (request.Sex.IsActive)
             {
-                Intersect(result, _context.Sex.Filter(request.Sex), ref inited);
+                listFilters.Add(_context.Sex.Filter(request.Sex));
             }
 
             if (request.Email.IsActive)
@@ -275,10 +281,7 @@ namespace AspNetCoreWebApi.Processing
 
             if (request.Status.IsActive)
             {
-                var tmp = _pool.FilterSet.Get();
-                _context.Statuses.Filter(request.Status, tmp);
-                Intersect(result, tmp, ref inited);
-                _pool.FilterSet.Return(tmp);
+                listFilters.Add(_context.Statuses.Filter(request.Status));
             }
 
             if (request.Fname.IsActive)
@@ -298,7 +301,7 @@ namespace AspNetCoreWebApi.Processing
 
             if (request.Country.IsActive)
             {
-                Intersect(result, _context.Countries.Filter(request.Country, _storage.Ids, _storage.Countries), ref inited);
+                listFilters.Add(_context.Countries.Filter(request.Country, _storage.Ids, _storage.Countries));
             }
 
             if (request.City.IsActive)
