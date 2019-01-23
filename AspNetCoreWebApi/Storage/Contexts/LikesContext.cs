@@ -56,6 +56,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             _rw.AcquireWriterLock(2000);
 
+            AddImpl(like);
+
+            _rw.ReleaseWriterLock();
+        }
+
+        private void AddImpl(Like like)
+        {
             if (_likee2likers[like.LikeeId] != null)
             {
                 var list = _likee2likers[like.LikeeId];
@@ -88,8 +95,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 likes.Insert(~index, bucket);
             }
-
-            _rw.ReleaseWriterLock();
         }
 
         public IEnumerable<int> Filter(FilterRequest.LikesRequest likes)
@@ -179,7 +184,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             foreach(var like in likes)
             {
-                this.Add(like);
+                AddImpl(like);
             }
         }
 
