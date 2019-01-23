@@ -26,7 +26,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             _rw.AcquireWriterLock(2000);
             _raw[id] = countryId;
-            _ids.Add(id);
+            _ids.SortedInsert(id);
             if (_id2AccId[countryId] == null)
             {
                 _id2AccId[countryId] = new List<int>();
