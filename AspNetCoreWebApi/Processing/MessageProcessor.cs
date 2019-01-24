@@ -20,6 +20,19 @@ namespace AspNetCoreWebApi.Processing
 {
     public class MessageProcessor
     {
+        private struct LoadEvent
+        {
+            public LoadEvent(AccountDto dto)
+            {
+                Dto = dto;
+                ImportEnded = false;
+            }
+
+            public static LoadEvent EndEvent { get; } = new LoadEvent() { Dto = null, ImportEnded = true }; 
+            public AccountDto Dto;
+            public bool ImportEnded;
+        }
+
         private readonly IDisposable _newAccountProcessorSubscription;
         private readonly IDisposable _editAccountProcessorSubscription;
         private readonly IDisposable _newLikesProcessorSubscription;
@@ -31,7 +44,7 @@ namespace AspNetCoreWebApi.Processing
         private readonly MainPool _pool;
         private readonly GroupPreprocessor _groupPreprocessor;
         private readonly IComparer<int> _reverseIntComparer = new ReverseComparer<int>(Comparer<int>.Default);
-        private readonly SingleThreadWorker<AccountDto> _loadWorker;
+        private readonly SingleThreadWorker<LoadEvent> _loadWorker;
         private volatile int _editQuery = 0;
 
         public MessageProcessor(
@@ -63,19 +76,13 @@ namespace AspNetCoreWebApi.Processing
                 .DataReceived
                 .ObserveOn(ThreadPoolScheduler.Instance);
 
-            _loadWorker = new SingleThreadWorker<AccountDto>(LoadAccount, "Import thread started");
+            _loadWorker = new SingleThreadWorker<LoadEvent>(LoadAccount, "Import thread started");
             _dataLoaderSubscription = dataLoader
                 .AccountLoaded
                 .Subscribe(
-                    item => { _loadWorker.Enqueue(item); },
+                    item => { _loadWorker.Enqueue(new LoadEvent(item)); },
                      _ => {},
-                    () => {
-                        _context.Compress();
-                        _context.InitNull(_storage.Ids);
-                        _groupPreprocessor.Compress();
-                        Collect();
-                        Console.WriteLine($"Import end {DateTime.Now}");
-                });
+                    () => { _loadWorker.Enqueue(LoadEvent.EndEvent); });
 
            
 
@@ -617,8 +624,19 @@ namespace AspNetCoreWebApi.Processing
             _groupPreprocessor.Add(dto);
         }
 
-        private void LoadAccount(AccountDto dto)
+        private void LoadAccount(LoadEvent e)
         {
+            if (e.ImportEnded)
+            {
+                _context.Compress();
+                _context.InitNull(_storage.Ids);
+                _groupPreprocessor.Compress();
+                Collect();
+                Console.WriteLine($"Import end {DateTime.Now}");
+                return;
+            }
+
+            var dto = e.Dto;
             int id = dto.Id.Value;
             _storage.Ids.Add(id);
 
