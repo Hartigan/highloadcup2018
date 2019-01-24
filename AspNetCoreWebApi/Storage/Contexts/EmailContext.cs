@@ -105,7 +105,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (!_domain2ids.ContainsKey(email.DomainId))
             {
-                _domain2ids[email.DomainId] = new List<int>();
+                _domain2ids[email.DomainId] = new List<int>(10000);
             }
             _domain2ids[email.DomainId].Add(id);
         }

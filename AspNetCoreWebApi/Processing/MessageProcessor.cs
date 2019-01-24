@@ -440,6 +440,16 @@ namespace AspNetCoreWebApi.Processing
         {
             int id = dto.Id.Value;
 
+            if (dto.Interests != null && dto.Interests.Count > 0)
+            {
+                _context.Interests.RemoveAccount(id);
+                foreach (var interestStr in dto.Interests)
+                {
+                    _context.Interests.Add(id, _storage.Interests.Get(interestStr));
+                }
+                dto.Interests.Clear();
+            }
+
             if (dto.Email != null)
             {
                 Email email = _parser.ParseEmail(dto.Email);
@@ -487,15 +497,6 @@ namespace AspNetCoreWebApi.Processing
                 _context.Statuses.Update(id, StatusHelper.Parse(dto.Status));
             }
 
-            if (dto.Interests != null && dto.Interests.Count > 0)
-            {
-                _context.Interests.RemoveAccount(id);
-                foreach (var interestStr in dto.Interests)
-                {
-                    _context.Interests.Add(id, _storage.Interests.Get(interestStr));
-                }
-            }
-
             if (dto.Sex != null)
             {
                 _context.Sex.Update(id, dto.Sex == "m");
@@ -534,6 +535,24 @@ namespace AspNetCoreWebApi.Processing
         private void AddNewAccount(AccountDto dto)
         {
             int id = dto.Id.Value;
+
+            if (dto.Likes != null)
+            {
+                foreach (var like in dto.Likes)
+                {
+                    _context.Likes.Add(new Like(like.Id, id, new UnixTime(like.Timestamp)));
+                }
+                dto.Likes.Clear();
+            }
+
+            if (dto.Interests != null)
+            {
+                foreach (var interestStr in dto.Interests)
+                {
+                    _context.Interests.Add(id, _storage.Interests.Get(interestStr));
+                }
+                dto.Interests.Clear();
+            }
 
             Email email = _parser.ParseEmail(dto.Email);
             _context.Emails.Add(id, email);
@@ -579,25 +598,9 @@ namespace AspNetCoreWebApi.Processing
                 _context.Statuses.Add(id, StatusHelper.Parse(dto.Status));
             }
 
-            if (dto.Interests != null)
-            {
-                foreach (var interestStr in dto.Interests)
-                {
-                    _context.Interests.Add(id, _storage.Interests.Get(interestStr));
-                }
-            }
-
             if (dto.Sex != null)
             {
                 _context.Sex.Add(id, dto.Sex == "m");
-            }
-
-            if (dto.Likes != null)
-            {
-                foreach (var like in dto.Likes)
-                {
-                    _context.Likes.Add(new Like(like.Id, id, new UnixTime(like.Timestamp)));
-                }
             }
 
             if (dto.Premium != null)
@@ -619,8 +622,20 @@ namespace AspNetCoreWebApi.Processing
             int id = dto.Id.Value;
             _storage.Ids.Add(id);
 
+            if (dto.Likes != null)
+            {
+                _context.Likes.LoadBatch(id, dto.Likes.Select(x => new Like(x.Id, id, new UnixTime(x.Timestamp))));
+                dto.Likes.Clear();
+            }
+
+            if (dto.Interests != null)
+            {
+                _context.Interests.LoadBatch(id, dto.Interests.Select(x => _storage.Interests.Get(x)));
+                dto.Interests.Clear();
+            }
+
             Email email = _parser.ParseEmail(dto.Email);
-            _context.Emails.Add(id, email);
+            _context.Emails.LoadBatch(id, email);
             _storage.EmailHashes.Add(dto.Email, id);
 
             if (dto.FirstName != null)
@@ -665,19 +680,9 @@ namespace AspNetCoreWebApi.Processing
                 _context.Statuses.LoadBatch(id, StatusHelper.Parse(dto.Status));
             }
 
-            if (dto.Interests != null)
-            {
-                _context.Interests.LoadBatch(id, dto.Interests.Select(x => _storage.Interests.Get(x)));
-            }
-
             if (dto.Sex != null)
             {
                 _context.Sex.LoadBatch(id, dto.Sex == "m");
-            }
-
-            if (dto.Likes != null)
-            {
-                _context.Likes.LoadBatch(id, dto.Likes.Select(x => new Like(x.Id, id, new UnixTime(x.Timestamp))));
             }
 
             if (dto.Premium != null)

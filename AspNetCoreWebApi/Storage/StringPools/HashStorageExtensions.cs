@@ -9,17 +9,20 @@ namespace AspNetCoreWebApi.Storage.StringPools
     {
         private static Hash HashCode(string str)
         {
-            const int b1 = 41;
-            const int b2 = 43;
-            const int b3 = 47;
+            const uint b1 = 41;
+            const uint b2 = 43;
+            const uint b3 = 47;
+            const uint b4 = 53;
 
-            int m1 = 1;
-            int m2 = 1;
-            int m3 = 1;
+            uint m1 = 1;
+            uint m2 = 1;
+            uint m3 = 1;
+            uint m4 = 1;
 
-            int result1 = 0;
-            int result2 = 0;
-            int result3 = 0;
+            uint result1 = 0;
+            uint result2 = 0;
+            uint result3 = 0;
+            uint result4 = 0;
 
             foreach(char ch in str)
             {
@@ -31,9 +34,12 @@ namespace AspNetCoreWebApi.Storage.StringPools
 
                 result3 += m3 * ch;
                 m3 *= b3;
+
+                result4 += m4 * ch;
+                m4 *= b4;
             }
 
-            return new Hash() { H41 = result1, H43 = result2, H47 = result3 };
+            return new Hash() { H41 = (ushort)result1, H43 = (ushort)result2, H47 = (ushort)result3, H53 = (ushort)result4 };
         }
 
         public static void Add(this HashStorage hashStorage, string str, int id)

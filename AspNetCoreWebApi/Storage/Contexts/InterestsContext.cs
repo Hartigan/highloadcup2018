@@ -183,7 +183,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (_id2AccId[interestId] == null)
                 {
-                    _id2AccId[interestId] = new List<int>();
+                    _id2AccId[interestId] = new List<int>(10000);
                 }
                 _id2AccId[interestId].Add(id);
             }
