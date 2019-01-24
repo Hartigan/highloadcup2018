@@ -75,7 +75,7 @@ namespace AspNetCoreWebApi.Processing
                     _accountLoaded.OnNext(dto);
                 }
             }
-            Thread.Sleep(500);
+            //Thread.Sleep(500);
             Console.WriteLine(entry.Name);
         }
     }
