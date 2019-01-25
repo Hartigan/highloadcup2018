@@ -11,29 +11,22 @@ namespace AspNetCoreWebApi.Storage
     public class IdStorage
     {
         private bool[] _set = new bool[DataConfig.MaxId];
-        private ReaderWriterLock _rw = new ReaderWriterLock();
-
         public IdStorage()
         {
         }
 
         public void Add(int item)
         {
-            _rw.AcquireWriterLock(2000);
             _set[item] = true;
-            _rw.ReleaseWriterLock();
         }
 
         public bool Contains(int item)
         {
-            _rw.AcquireReaderLock(2000);
             if (item >= DataConfig.MaxId)
             {
                 return false;
             }
-            var result = _set[item];
-            _rw.ReleaseReaderLock();
-            return result;
+            return _set[item];
         }
 
         public IEnumerable<int> AsEnumerable()

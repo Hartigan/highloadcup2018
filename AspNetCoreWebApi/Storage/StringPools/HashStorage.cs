@@ -21,7 +21,6 @@ namespace AspNetCoreWebApi.Storage.StringPools
 
     public class HashStorage
     {
-        private readonly ReaderWriterLock _rw = new ReaderWriterLock();
         private readonly Dictionary<Hash, int> _hash2id = new Dictionary<Hash, int>();
         private readonly Hash[] _id2hash = new Hash[DataConfig.MaxId];
 
@@ -31,27 +30,22 @@ namespace AspNetCoreWebApi.Storage.StringPools
 
         public void Add(Hash item, int id)
         {
-            _rw.AcquireWriterLock(2000);
             _hash2id.Add(item, id);
             _id2hash[id] = item;
-            _rw.ReleaseWriterLock();
         }
 
         public void RemoveByHash(Hash item)
         {
-            _rw.AcquireWriterLock(2000);
             int id = -1;
             if (_hash2id.TryGetValue(item, out id))
             {
                 _hash2id.Remove(item);
                 _id2hash[id] = new Hash();
             }
-            _rw.ReleaseWriterLock();
         }
 
         public void ReplaceById(int id, Hash newHash)
         {
-            _rw.AcquireWriterLock(2000);
             if (_id2hash[id].IsNotEmpty())
             {
                 Hash hash = _id2hash[id];
@@ -59,19 +53,16 @@ namespace AspNetCoreWebApi.Storage.StringPools
                 _hash2id.Remove(hash);
                 _hash2id.Add(newHash, id);
             }
-            _rw.ReleaseWriterLock();
         }
 
         public void RemoveById(int id)
         {
-            _rw.AcquireWriterLock(2000);
             if (_id2hash[id].IsNotEmpty())
             {
                 Hash hash = _id2hash[id];
                 _id2hash[id] = new Hash();
                 _hash2id.Remove(hash);
             }
-            _rw.ReleaseWriterLock();
         }
 
         public bool ContainsHash(Hash item) => _hash2id.ContainsKey(item);
