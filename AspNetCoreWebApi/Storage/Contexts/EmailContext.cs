@@ -44,8 +44,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             
             var old = _emails[id];
             var list = _domain2ids[old.DomainId];
-            list.RemoveAt(list.BinarySearch(id, ReverseComparer<int>.Default));
-
+            list.SortedRemove(id);
             Add(id, updated);
 
             _rw.ReleaseWriterLock();
