@@ -49,7 +49,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
             Joined.Compress();
             Birth.Compress();
             Interests.Compress();
-            Likes.Compress();
             Premiums.Compress();
         }
 

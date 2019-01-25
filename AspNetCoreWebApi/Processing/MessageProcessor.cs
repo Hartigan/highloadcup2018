@@ -33,6 +33,19 @@ namespace AspNetCoreWebApi.Processing
             public bool ImportEnded;
         }
 
+        private struct LikeEvent
+        {
+            public LikeEvent(Like like)
+            {
+                Like = like;
+                ImportEnded = false;
+            }
+
+            public static LikeEvent EndEvent { get; } = new LikeEvent() { Like = new Like(), ImportEnded = true }; 
+            public Like Like;
+            public bool ImportEnded;
+        }
+
         private readonly IDisposable _newAccountProcessorSubscription;
         private readonly IDisposable _editAccountProcessorSubscription;
         private readonly IDisposable _newLikesProcessorSubscription;
@@ -45,6 +58,7 @@ namespace AspNetCoreWebApi.Processing
         private readonly GroupPreprocessor _groupPreprocessor;
         private readonly IComparer<int> _reverseIntComparer = new ReverseComparer<int>(Comparer<int>.Default);
         private readonly SingleThreadWorker<LoadEvent> _loadWorker;
+        private readonly SingleThreadWorker<LikeEvent> _likeWorker;
         private volatile int _editQuery = 0;
 
         public MessageProcessor(
@@ -76,6 +90,8 @@ namespace AspNetCoreWebApi.Processing
                 .DataReceived
                 .ObserveOn(ThreadPoolScheduler.Instance);
 
+
+            _likeWorker = new SingleThreadWorker<LikeEvent>(ProcessLike, "Like thread started");
             _loadWorker = new SingleThreadWorker<LoadEvent>(LoadAccount, "Import thread started");
             _dataLoaderSubscription = dataLoader
                 .AccountLoaded
@@ -102,9 +118,9 @@ namespace AspNetCoreWebApi.Processing
                 .Throttle(TimeSpan.FromMilliseconds(500))
                 .Subscribe(_ =>
                     {
+                        _likeWorker.Enqueue(LikeEvent.EndEvent);
                         _context.Compress();
                         _context.InitNull(_storage.Ids);
-
                         Collect();
                     });
         }
@@ -527,11 +543,13 @@ namespace AspNetCoreWebApi.Processing
         {
             foreach (var likeDto in likeDtos)
             {
-                _context.Likes.Add(
-                    new Like(
-                        likeDto.LikeeId,
-                        likeDto.LikerId,
-                        new UnixTime(likeDto.Timestamp)
+                _likeWorker.Enqueue(
+                    new LikeEvent(
+                        new Like(
+                            likeDto.LikeeId,
+                            likeDto.LikerId,
+                            new UnixTime(likeDto.Timestamp)
+                        )
                     )
                 );
                 _pool.SingleLikeDto.Return(likeDto);
@@ -545,9 +563,9 @@ namespace AspNetCoreWebApi.Processing
 
             if (dto.Likes != null)
             {
-                foreach (var like in dto.Likes)
+                foreach(var like in dto.Likes)
                 {
-                    _context.Likes.Add(new Like(like.Id, id, new UnixTime(like.Timestamp)));
+                    _likeWorker.Enqueue(new LikeEvent(new Like(like.Id, id, new UnixTime(like.Timestamp))));
                 }
                 dto.Likes.Clear();
             }
@@ -624,10 +642,24 @@ namespace AspNetCoreWebApi.Processing
             _groupPreprocessor.Add(dto);
         }
 
+        private void ProcessLike(LikeEvent e)
+        {
+            if (e.ImportEnded)
+            {
+                _context.Likes.Compress();
+                Collect();
+                Console.WriteLine($"Likes import end {DateTime.Now}");
+                return;
+            }
+
+            _context.Likes.Add(e.Like);
+        }
+
         private void LoadAccount(LoadEvent e)
         {
             if (e.ImportEnded)
             {
+                _likeWorker.Enqueue(LikeEvent.EndEvent);
                 _context.Compress();
                 _context.InitNull(_storage.Ids);
                 _groupPreprocessor.Compress();
@@ -642,7 +674,10 @@ namespace AspNetCoreWebApi.Processing
 
             if (dto.Likes != null)
             {
-                _context.Likes.LoadBatch(id, dto.Likes.Select(x => new Like(x.Id, id, new UnixTime(x.Timestamp))));
+                foreach(var like in dto.Likes)
+                {
+                    _likeWorker.Enqueue(new LikeEvent(new Like(like.Id, id, new UnixTime(like.Timestamp))));
+                }
                 dto.Likes.Clear();
             }
 

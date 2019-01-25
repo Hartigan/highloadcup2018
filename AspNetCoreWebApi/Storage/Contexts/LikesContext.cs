@@ -54,11 +54,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Add(Like like)
         {
-            _rw.AcquireWriterLock(2000);
-
             AddImpl(like);
-
-            _rw.ReleaseWriterLock();
         }
 
         private void AddImpl(Like like)
