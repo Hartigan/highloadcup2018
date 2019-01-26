@@ -144,7 +144,7 @@ namespace AspNetCoreWebApi.Processing
         }
 
         public void FillResponse(
-            GroupResponse response,
+            List<GroupEntry> entries,
             FilterSet ids,
             GroupKey keys,
             bool singleKey)
@@ -156,31 +156,31 @@ namespace AspNetCoreWebApi.Processing
                     switch(keys)
                     {
                         case GroupKey.City:
-                            response.Entries.AddRange(
+                            entries.AddRange(
                                 _context.Cities
                                     .GetGroups()
                                     .Select(x => new GroupEntry(new Group(GroupKey.City, cityId: x.Key), x.Count)));
                             return;
                         case GroupKey.Country:
-                            response.Entries.AddRange(
+                            entries.AddRange(
                                 _context.Countries
                                     .GetGroups()
                                     .Select(x => new GroupEntry(new Group(GroupKey.Country, countryId: x.Key), x.Count)));
                             return;
                         case GroupKey.Interest:
-                            response.Entries.AddRange(
+                            entries.AddRange(
                                 _context.Interests
                                     .GetGroups()
                                     .Select(x => new GroupEntry(new Group(GroupKey.Interest, interestId: x.Key), x.Count)));
                             return;
                         case GroupKey.Sex:
-                            response.Entries.AddRange(
+                            entries.AddRange(
                                 _context.Sex
                                     .GetGroups()
                                     .Select(x => new GroupEntry(new Group(GroupKey.Sex, sex: x.Key), x.Count)));
                             return;
                         case GroupKey.Status:
-                            response.Entries.AddRange(
+                            entries.AddRange(
                                 _context.Statuses
                                     .GetGroups()
                                     .Select(x => new GroupEntry(new Group(GroupKey.Status, status: x.Key), x.Count)));
@@ -199,7 +199,7 @@ namespace AspNetCoreWebApi.Processing
                                 int count = item.Ids.Count(x => ids.Contains(x));
                                 if (count > 0)
                                 {
-                                    response.Entries.Add(new GroupEntry(new Group(GroupKey.City, cityId: item.Key), count));
+                                    entries.Add(new GroupEntry(new Group(GroupKey.City, cityId: item.Key), count));
                                 }
                             }
                             return;
@@ -209,7 +209,7 @@ namespace AspNetCoreWebApi.Processing
                                 int count = item.Ids.Count(x => ids.Contains(x));
                                 if (count > 0)
                                 {
-                                    response.Entries.Add(new GroupEntry(new Group(GroupKey.Country, countryId: item.Key), count));
+                                    entries.Add(new GroupEntry(new Group(GroupKey.Country, countryId: item.Key), count));
                                 }
                             }
                             return;
@@ -219,7 +219,7 @@ namespace AspNetCoreWebApi.Processing
                                 int count = item.Ids.Count(x => ids.Contains(x));
                                 if (count > 0)
                                 {
-                                    response.Entries.Add(new GroupEntry(new Group(GroupKey.Interest, interestId: item.Key), count));
+                                    entries.Add(new GroupEntry(new Group(GroupKey.Interest, interestId: item.Key), count));
                                 }
                             }
                             return;
@@ -229,7 +229,7 @@ namespace AspNetCoreWebApi.Processing
                                 int count = item.Ids.Count(x => ids.Contains(x));
                                 if (count > 0)
                                 {
-                                    response.Entries.Add(new GroupEntry(new Group(GroupKey.Sex, sex: item.Key), count));
+                                    entries.Add(new GroupEntry(new Group(GroupKey.Sex, sex: item.Key), count));
                                 }
                             }
                             return;
@@ -239,7 +239,7 @@ namespace AspNetCoreWebApi.Processing
                                 int count = item.Ids.Count(x => ids.Contains(x));
                                 if (count > 0)
                                 {
-                                    response.Entries.Add(new GroupEntry(new Group(GroupKey.Status, status: item.Key), count));
+                                    entries.Add(new GroupEntry(new Group(GroupKey.Status, status: item.Key), count));
                                 }
                             }
                             return;
@@ -257,7 +257,7 @@ namespace AspNetCoreWebApi.Processing
                     int count = group.Ids.Count;
                     if (count > 0)
                     {
-                        response.Entries.Add(new GroupEntry(group.Key, count));
+                        entries.Add(new GroupEntry(group.Key, count));
                     }
                 }
             }
@@ -268,7 +268,7 @@ namespace AspNetCoreWebApi.Processing
                     int count = group.Ids.Count(x => ids.Contains(x));
                     if (count > 0)
                     {
-                        response.Entries.Add(new GroupEntry(group.Key, count));
+                        entries.Add(new GroupEntry(group.Key, count));
                     }
                 }
             }

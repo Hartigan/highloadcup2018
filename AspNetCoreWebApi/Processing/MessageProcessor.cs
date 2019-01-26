@@ -206,25 +206,12 @@ namespace AspNetCoreWebApi.Processing
         public RecommendResponse Recommend(RecommendRequest request)
         {
             Dictionary<int, int> recomended = _pool.DictionaryOfIntByInt.Get();
-            _context.Interests.Recommend(request.Id, recomended);
-
-            IEnumerable<KeyValuePair<int, int>> result = recomended;
-
-            if (request.Country.IsActive)
-            {
-                short countryId = _storage.Countries.Get(request.Country.Country);
-                result = result.Where(x => _context.Countries.Contains(countryId, x.Key));
-            }
-
-            if (request.City.IsActive)
-            {
-                short cityId = _storage.Cities.Get(request.City.City);
-                result = result.Where(x => _context.Cities.Contains(cityId, x.Key));
-            }
-
-
-            bool sex = _context.Sex.Contains(true, request.Id);
-            result = result.Where(x => _context.Sex.Contains(!sex, x.Key));
+            _context.Interests.Recommend(
+                request.Id,
+                recomended,
+                _context,
+                request.Country.IsActive ? _storage.Countries.Get(request.Country.Country) : (short)0,
+                request.City.IsActive ? _storage.Cities.Get(request.City.City) : (short)0);
 
             var comparer = _pool.RecommendComparer.Get();
             comparer.Init(
@@ -234,8 +221,7 @@ namespace AspNetCoreWebApi.Processing
 
             var response = _pool.RecommendResponse.Get();
             response.Limit = request.Limit;
-            response.Ids.AddRange(result.Select(x => x.Key));
-            response.Ids.Sort(comparer);
+            response.Ids.AddRange(recomended.Keys.TakeMax(comparer, request.Limit));
 
             _pool.DictionaryOfIntByInt.Return(recomended);
             _pool.RecommendComparer.Return(comparer);
@@ -304,12 +290,15 @@ namespace AspNetCoreWebApi.Processing
             GroupResponse response = _pool.GroupResponse.Get();
             response.Limit = request.Limit;
 
-            _groupPreprocessor.FillResponse(response, inited ? result : null, request.Keys, request.KeyOrder.Count == 1);
+            var entries = _pool.ListOfGroupEntry.Get();
+
+            _groupPreprocessor.FillResponse(entries, inited ? result : null, request.Keys, request.KeyOrder.Count == 1);
 
             GroupEntryComparer comparer = _pool.GroupEntryComparer.Get();
             comparer.Init(_storage, request.KeyOrder, request.Order);
-            response.Entries.Sort(comparer);
+            response.Entries.AddRange(entries.TakeMax(comparer, request.Limit));
 
+            _pool.ListOfGroupEntry.Return(entries);
             _pool.FilterSet.Return(result);
             _pool.GroupEntryComparer.Return(comparer);
             _pool.ListOfLists.Return(filterList);

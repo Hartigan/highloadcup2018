@@ -71,5 +71,30 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 }
             }
         }
+
+        public static IEnumerable<T> TakeMax<T>(
+            this IEnumerable<T> list,
+            IComparer<T> comparer,
+            int limit)
+        {
+            SortedSet<T> result = new SortedSet<T>(comparer);
+
+            foreach(var id in list)
+            {
+                if (result.Count < limit)
+                {
+                    result.Add(id);
+                    continue;
+                }
+
+                if (comparer.Compare(result.Min, id) > 0)
+                {
+                    result.Remove(result.Min);
+                    result.Add(id);
+                }
+            }
+
+            return result;
+        }
     }
 }

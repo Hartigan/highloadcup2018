@@ -130,8 +130,15 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return _id2AccId[id] ?? Enumerable.Empty<int>();
         }
 
-        public void Recommend(int id, Dictionary<int, int> recomended)
+        public void Recommend(
+            int id,
+            Dictionary<int, int> recomended,
+            MainContext context,
+            short countryId,
+            short cityId)
         {
+            bool curSex = context.Sex.Get(id);
+
             for(int i = 0; i < _id2AccId.Length; i++)
             {
                 if (_id2AccId[i] == null)
@@ -143,6 +150,21 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 {
                     foreach(var acc in _id2AccId[i])
                     {
+                        if (curSex == context.Sex.Get(acc))
+                        {
+                            continue;
+                        }
+
+                        if (countryId > 0 && context.Countries.Get(acc) != countryId)
+                        {
+                            continue;
+                        }
+
+                        if (cityId > 0 && context.Cities.Get(acc) != cityId)
+                        {
+                            continue;
+                        }
+
                         if (recomended.ContainsKey(acc))
                         {
                             recomended[acc]++;
@@ -154,8 +176,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     }
                 }
             }
-
-            recomended.Remove(id);
         }
 
         public IEnumerable<int> GetByInterestId(
