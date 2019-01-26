@@ -13,7 +13,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private Email[] _emails = new Email[DataConfig.MaxId];
-        private Dictionary<short, List<int>> _domain2ids = new Dictionary<short, List<int>>();
+        private Dictionary<short, DelaySortedList> _domain2ids = new Dictionary<short, DelaySortedList>();
 
         public EmailContext()
         {
@@ -25,15 +25,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
             email.Prefix = string.Intern(email.Prefix);
             _emails[id] = email;
 
-            if (_domain2ids.ContainsKey(email.DomainId))
+            if (!_domain2ids.ContainsKey(email.DomainId))
             {
-                var list = _domain2ids[email.DomainId];
-                list.SortedInsert(id);
+                _domain2ids[email.DomainId] = new DelaySortedList();
             }
-            else
-            {
-                _domain2ids[email.DomainId] = new List<int>() { id };
-            }
+
+            _domain2ids[email.DomainId].DelayAdd(id);
 
             _rw.ReleaseWriterLock();
         }
@@ -43,8 +40,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _rw.AcquireWriterLock(2000);
             
             var old = _emails[id];
-            var list = _domain2ids[old.DomainId];
-            list.SortedRemove(id);
+            _domain2ids[old.DomainId].DelayRemove(id);
             Add(id, updated);
 
             _rw.ReleaseWriterLock();
@@ -60,14 +56,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
             DomainStorage domainStorage,
             IdStorage idStorage)
         {
-            List<int> withDomain = null;
+            DelaySortedList withDomain = null;
             if (email.Domain != null)
             {
                 var domainId = domainStorage.Get(email.Domain);
                 withDomain = _domain2ids.GetValueOrDefault(domainId);
             }
 
-            IEnumerable<int> result = withDomain != null ? (IEnumerable<int>)withDomain : idStorage.AsEnumerable();
+            IEnumerable<int> result = withDomain != null ? withDomain.AsEnumerable() : idStorage.AsEnumerable();
 
             if (email.Gt != null && email.Lt != null)
             {
@@ -104,17 +100,26 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (!_domain2ids.ContainsKey(email.DomainId))
             {
-                _domain2ids[email.DomainId] = new List<int>(10000);
+                _domain2ids[email.DomainId] = new DelaySortedList();
             }
-            _domain2ids[email.DomainId].Add(id);
+            _domain2ids[email.DomainId].Load(id);
         }
 
         public void Compress()
         {
+            _rw.AcquireWriterLock(2000);
             foreach(var list in _domain2ids.Values)
             {
-                list.Sort(ReverseComparer<int>.Default);
-                list.Compress();
+                list.Flush();
+            }
+            _rw.ReleaseWriterLock();
+        }
+
+        public void LoadEnded()
+        {
+            foreach(var list in _domain2ids.Values)
+            {
+                list.LoadEnded();
             }
         }
     }

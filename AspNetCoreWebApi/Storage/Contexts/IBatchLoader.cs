@@ -8,5 +8,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public interface IBatchLoader<T>
     {
         void LoadBatch(int id, T item);
+        void LoadEnded();
     }
 }

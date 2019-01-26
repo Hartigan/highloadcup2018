@@ -49,6 +49,7 @@ namespace AspNetCoreWebApi.Processing
         private readonly IDisposable _newAccountProcessorSubscription;
         private readonly IDisposable _editAccountProcessorSubscription;
         private readonly IDisposable _newLikesProcessorSubscription;
+        private readonly IDisposable _setInProgressSubscription;
         private IDisposable _dataLoaderSubscription;
         private readonly IDisposable _secondPhaseEndSubscription;
         private readonly MainStorage _storage;
@@ -111,16 +112,22 @@ namespace AspNetCoreWebApi.Processing
             _newLikesProcessorSubscription = newLikesObservable
                 .Subscribe(NewLikes);
 
-            _secondPhaseEndSubscription = newAccountObservable
+            var updateObservable = newAccountObservable
                 .Select(_ => Interlocked.Increment(ref _editQuery))
                 .Merge(editAccountObservable.Select(_ => Interlocked.Increment(ref _editQuery)))
-                .Merge(newLikesObservable.Select(_ => Interlocked.Increment(ref _editQuery)))
+                .Merge(newLikesObservable.Select(_ => Interlocked.Increment(ref _editQuery)));
+
+            _setInProgressSubscription = updateObservable
+                .Subscribe(_ => { DataConfig.UpdateInProgress = true; });
+
+            _secondPhaseEndSubscription = updateObservable
                 .Throttle(TimeSpan.FromMilliseconds(500))
                 .Subscribe(_ =>
                     {
                         _likeWorker.Enqueue(LikeEvent.EndEvent);
                         _context.Compress();
                         _context.InitNull(_storage.Ids);
+                        DataConfig.UpdateInProgress = false;
                         Collect();
                     });
         }
@@ -660,7 +667,7 @@ namespace AspNetCoreWebApi.Processing
             if (e.ImportEnded)
             {
                 _likeWorker.Enqueue(LikeEvent.EndEvent);
-                _context.Compress();
+                _context.LoadEnded();
                 _context.InitNull(_storage.Ids);
                 _groupPreprocessor.Compress();
                 Collect();

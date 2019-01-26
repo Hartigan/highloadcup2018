@@ -21,7 +21,7 @@ namespace AspNetCoreWebApi.Storage.StringPools
 
     public class HashStorage
     {
-        private readonly Dictionary<Hash, int> _hash2id = new Dictionary<Hash, int>();
+        private readonly Dictionary<Hash, int> _hash2id = new Dictionary<Hash, int>(DataConfig.MaxId);
         private readonly Hash[] _id2hash = new Hash[DataConfig.MaxId];
 
         public HashStorage()

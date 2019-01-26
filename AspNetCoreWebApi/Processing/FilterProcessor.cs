@@ -49,6 +49,11 @@ namespace AspNetCoreWebApi.Processing
 
         public bool Process(HttpResponse httpResponse, IQueryCollection query)
         {
+            if (DataConfig.UpdateInProgress)
+            {
+                return false;
+            }
+
             FilterRequest request = _pool.FilterRequest.Get();
 
             int limit = 0;
@@ -214,7 +219,6 @@ namespace AspNetCoreWebApi.Processing
                     return false;
                 }
             }
-
 
             var response = _processor.Filter(request);
 

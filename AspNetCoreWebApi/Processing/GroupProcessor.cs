@@ -46,6 +46,11 @@ namespace AspNetCoreWebApi.Processing
 
         public bool Process(HttpResponse httpResponse, IQueryCollection query)
         {
+            if (DataConfig.UpdateInProgress)
+            {
+                return false;
+            }
+
             GroupRequest request = _pool.GroupRequest.Get();
 
             foreach (var filter in query)

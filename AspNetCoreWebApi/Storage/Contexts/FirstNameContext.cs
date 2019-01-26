@@ -10,8 +10,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private string[] _names = new string[DataConfig.MaxId];
-        private List<int> _ids = new List<int>();
-        private List<int> _null = new List<int>();
+        private DelaySortedList _ids = new DelaySortedList();
+        private DelaySortedList _null = new DelaySortedList();
 
         public FirstNameContext()
         {
@@ -24,17 +24,16 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (_names[id] == null)
                 {
-                    _null.Add(id);
+                    _null.Load(id);
                 }
             }
-            _null.FilterSort();
-            _null.TrimExcess();
+            _null.LoadEnded();
         }
 
         public void LoadBatch(int id, string name)
         {
             _names[id] = string.Intern(name);
-            _ids.Add(id);
+            _ids.Load(id);
         }
 
         public void AddOrUpdate(int id, string name)
@@ -42,7 +41,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _rw.AcquireWriterLock(2000);
             if (_names[id] == null)
             {
-                _ids.SortedInsert(id);
+                _ids.DelayAdd(id);
             }
             _names[id] = string.Intern(name);
 
@@ -65,7 +64,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 {
                     if (fname.Eq == null && fname.Any.Count == 0)
                     {
-                        return _null;
+                        return _null.AsEnumerable();
                     }
                     else
                     {
@@ -78,7 +77,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (fname.Any.Contains(fname.Eq))
                 {
-                    return _ids.Where(x => _names[x] == fname.Eq);
+                    return _ids.AsEnumerable().Where(x => _names[x] == fname.Eq);
                 }
                 else
                 {
@@ -88,21 +87,26 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (fname.Any.Count > 0)
             {
-                return _ids.Where(x => fname.Any.Contains(_names[x]));
+                return _ids.AsEnumerable().Where(x => fname.Any.Contains(_names[x]));
             }
             else if (fname.Eq != null)
             {
-                return _ids.Where(x => _names[x] == fname.Eq);
+                return _ids.AsEnumerable().Where(x => _names[x] == fname.Eq);
             }
 
-            return _ids;
+            return _ids.AsEnumerable();
         }
 
         public void Compress()
         {
-            _ids.Sort(ReverseComparer<int>.Default);
-            _ids.TrimExcess();
-            _null.TrimExcess();
+            _rw.AcquireWriterLock(2000);
+            _ids.Flush();
+            _rw.ReleaseWriterLock();
+        }
+
+        public void LoadEnded()
+        {
+            _ids.LoadEnded();
         }
     }
 }

@@ -11,6 +11,8 @@ namespace AspNetCoreWebApi.Processing
 
         public static int NowSeconds { get; set; }
 
+        public static bool UpdateInProgress { get; set; }
+
         public static bool IsNow(this Premium p)
         {
             return p.Finish > Now && p.Start < Now;

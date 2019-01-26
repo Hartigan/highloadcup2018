@@ -52,6 +52,22 @@ namespace AspNetCoreWebApi.Storage.Contexts
             Premiums.Compress();
         }
 
+        public void LoadEnded()
+        {
+            Emails.LoadEnded();
+            FirstNames.LoadEnded();
+            LastNames.LoadEnded();
+            Phones.LoadEnded();
+            Sex.LoadEnded();
+            Countries.LoadEnded();
+            Cities.LoadEnded();
+            Statuses.LoadEnded();
+            Joined.LoadEnded();
+            Birth.LoadEnded();
+            Interests.LoadEnded();
+            Premiums.LoadEnded();
+        }
+
         public void InitNull(IdStorage ids)
         {
             Cities.InitNull(ids);

@@ -42,6 +42,11 @@ namespace AspNetCoreWebApi.Processing
 
         public bool Process(int id, HttpResponse httpResponse, IQueryCollection query)
         {
+            if (DataConfig.UpdateInProgress)
+            {
+                return false;
+            }
+
             SuggestRequest request = _pool.SuggestRequest.Get();
             request.Id = id;
 

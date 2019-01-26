@@ -14,9 +14,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private short[] _raw = new short[DataConfig.MaxId];
-        private List<int>[] _id2AccId = new List<int>[200];
-        private List<int> _null = new List<int>();
-        private List<int> _ids = new List<int>();
+        private DelaySortedList[] _id2AccId = new DelaySortedList[200];
+        private DelaySortedList _null = new DelaySortedList();
+        private DelaySortedList _ids = new DelaySortedList();
 
         public CountryContext()
         {
@@ -25,26 +25,26 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void Add(int id, short countryId)
         {
             _rw.AcquireWriterLock(2000);
+            if (_raw[id] == 0)
+            {
+                _ids.DelayAdd(id);
+            }
             _raw[id] = countryId;
-            _ids.SortedInsert(id);
             if (_id2AccId[countryId] == null)
             {
-                _id2AccId[countryId] = new List<int>();
+                _id2AccId[countryId] = new DelaySortedList();
             }
-            _id2AccId[countryId].SortedInsert(id);
+            _id2AccId[countryId].DelayAdd(id);
             _rw.ReleaseWriterLock();
         }
 
         public void AddOrUpdate(int id, short countryId)
         {
             _rw.AcquireWriterLock(2000);
-            for(int i = 0; i < _id2AccId.Length; i++)
+
+            if (_raw[id] > 0)
             {
-                if (_id2AccId[i] == null)
-                {
-                    continue;
-                }
-                _id2AccId[i].SortedRemove(id);
+                _id2AccId[_raw[id]].DelayRemove(id);
             }
 
             Add(id, countryId);
@@ -81,20 +81,20 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 if (country.IsNull.Value)
                 {
                     return country.Eq == null
-                        ? _null
+                        ? _null.AsEnumerable()
                         : Enumerable.Empty<int>();
                 }
             }
 
             if (country.Eq == null)
             {
-                return _ids;
+                return _ids.AsEnumerable();
             }
             short countryId = countries.Get(country.Eq);
 
             if (_id2AccId[countryId] != null)
             {
-                return _id2AccId[countryId];
+                return _id2AccId[countryId].AsEnumerable();
             }
             else
             {
@@ -110,7 +110,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (_id2AccId[countryId] != null)
             {
-                return _id2AccId[countryId];
+                return _id2AccId[countryId].AsEnumerable();
             }
             else
             {
@@ -130,46 +130,57 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (_raw[id] == 0)
                 {
-                    _null.Add(id);
+                    _null.Load(id);
                 }
             }
-            _null.Sort(ReverseComparer<int>.Default);
-            _null.TrimExcess();
+            _null.LoadEnded();
         }
 
         public void LoadBatch(int id, short countryId)
         {
             _raw[id] = countryId;
-            _ids.Add(id);
+            _ids.Load(id);
             if (_id2AccId[countryId] == null)
             {
-                _id2AccId[countryId] = new List<int>();
+                _id2AccId[countryId] = new DelaySortedList();
             }
-            _id2AccId[countryId].Add(id);
+            _id2AccId[countryId].Load(id);
         }
 
         public IEnumerable<SingleKeyGroup<short>> GetGroups()
         {
-            yield return new SingleKeyGroup<short>(0, _null, _null.Count);
+            yield return new SingleKeyGroup<short>(0, _null.AsEnumerable(), _null.Count);
             for(short i = 0; i < _id2AccId.Length; i++)
             {
                 if (_id2AccId[i] != null && _id2AccId[i].Count > 0)
                 {
-                    yield return new SingleKeyGroup<short>(i, _id2AccId[i], _id2AccId[i].Count);
+                    yield return new SingleKeyGroup<short>(i, _id2AccId[i].AsEnumerable(), _id2AccId[i].Count);
                 }
             }
         }
 
         public void Compress()
         {
-            _ids.FilterSort();
-            _ids.TrimExcess();
+            _rw.AcquireWriterLock(2000);
+            _ids.Flush();
             for(int i = 0; i < _id2AccId.Length; i++)
             {
                 if (_id2AccId[i] != null)
                 {
-                    _id2AccId[i].FilterSort();
-                    _id2AccId[i].TrimExcess();
+                    _id2AccId[i].Flush();
+                }
+            }
+            _rw.ReleaseWriterLock();
+        }
+
+        public void LoadEnded()
+        {
+            _ids.LoadEnded();
+            for(int i = 0; i < _id2AccId.Length; i++)
+            {
+                if (_id2AccId[i] != null)
+                {
+                    _id2AccId[i].LoadEnded();
                 }
             }
         }

@@ -15,21 +15,21 @@ namespace AspNetCoreWebApi.Storage.Contexts
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private BitArray _raw = new BitArray(DataConfig.MaxId);
         private CountSet[] _filter = new CountSet[2];
-        private List<int>[] _groups = new List<int>[2];
+        private DelaySortedList[] _groups = new DelaySortedList[2];
 
         public SexContext()
         {
             _filter[0] = new CountSet();
             _filter[1] = new CountSet();
-            _groups[0] = new List<int>();
-            _groups[1] = new List<int>();
+            _groups[0] = new DelaySortedList();
+            _groups[1] = new DelaySortedList();
         }
 
         public void LoadBatch(int id, bool sex)
         {
             _raw[id] = sex;
             _filter[sex ? 1 : 0].Add(id);
-            _groups[sex ? 1 : 0].Add(id);
+            _groups[sex ? 1 : 0].Load(id);
 
         }
 
@@ -38,7 +38,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _rw.AcquireWriterLock(2000);
             _raw[id] = sex;
             _filter[sex ? 1 : 0].Add(id);
-            _groups[sex ? 1 : 0].SortedInsert(id);
+            _groups[sex ? 1 : 0].DelayAdd(id);
             _rw.ReleaseWriterLock();
         }
 
@@ -49,8 +49,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _filter[sex ? 1 : 0].Add(id);
             _filter[sex ? 0 : 1].Remove(id);
 
-            _groups[sex ? 1 : 0].SortedInsert(id);
-            _groups[sex ? 0 : 1].SortedRemove(id);
+            _groups[sex ? 1 : 0].DelayAdd(id);
+            _groups[sex ? 0 : 1].DelayRemove(id);
 
             _rw.ReleaseWriterLock();
         }
@@ -69,11 +69,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (sex.IsMale)
             {
-                return _groups[1];
+                return _groups[1].AsEnumerable();
             }
             else
             {
-                return _groups[0];
+                return _groups[0].AsEnumerable();
             }
         }
 
@@ -96,8 +96,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public IEnumerable<SingleKeyGroup<bool>> GetGroups()
         {
-            yield return new SingleKeyGroup<bool>(false, _groups[0], _groups[0].Count);
-            yield return new SingleKeyGroup<bool>(true, _groups[1], _groups[1].Count);
+            yield return new SingleKeyGroup<bool>(false, _groups[0].AsEnumerable(), _groups[0].Count);
+            yield return new SingleKeyGroup<bool>(true, _groups[1].AsEnumerable(), _groups[1].Count);
         }
 
         public bool Contains(bool sex, int id)
@@ -107,10 +107,16 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
-            _groups[0].FilterSort();
-            _groups[1].FilterSort();
-            _groups[0].TrimExcess();
-            _groups[1].TrimExcess();
+            _rw.AcquireWriterLock(2000);
+            _groups[0].Flush();
+            _groups[1].Flush();
+            _rw.ReleaseWriterLock();
+        }
+
+        public void LoadEnded()
+        {
+            _groups[0].LoadEnded();
+            _groups[1].LoadEnded();
         }
     }
 }

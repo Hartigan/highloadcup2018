@@ -13,8 +13,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class InterestsContext : IBatchLoader<IEnumerable<short>>, ICompresable
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
-        private List<int>[] _id2AccId = new List<int>[200];
-        private List<int> _null = new List<int>();
+        private DelaySortedList[] _id2AccId = new DelaySortedList[200];
+        private DelaySortedList _null = new DelaySortedList();
         private CountSet _ids = new CountSet();
 
         private readonly MainPool _pool;
@@ -31,11 +31,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (!_ids.Contains(id))
                 {
-                    _null.Add(id);
+                    _null.Load(id);
                 }
             }
-            _null.FilterSort();
-            _null.TrimExcess();
+            _null.LoadEnded();
         }
 
         public IEnumerable<short> GetAccountInterests(int id)
@@ -55,9 +54,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _ids.Add(id);
             if (_id2AccId[interestId] == null)
             {
-                _id2AccId[interestId] = new List<int>();
+                _id2AccId[interestId] = new DelaySortedList();
             }
-            _id2AccId[interestId].SortedInsert(id);
+            _id2AccId[interestId].DelayAdd(id);
             _rw.ReleaseWriterLock();
         }
 
@@ -69,7 +68,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (_id2AccId[i] != null)
                 {
-                    _id2AccId[i].SortedRemove(id);
+                    _id2AccId[i].DelayRemove(id);
                 }
             }
             _rw.ReleaseWriterLock();
@@ -94,13 +93,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
                     if (!inited)
                     {
-                        output.Add(tmp);
+                        output.Add(tmp.AsEnumerable());
                         inited = true;
                     }
                     else
                     {
                         var filterSet = _pool.FilterSet.Get();
-                        filterSet.Add(tmp);
+                        filterSet.Add(tmp.AsEnumerable());
                         output.IntersectWith(filterSet);
                         _pool.FilterSet.Return(filterSet);
                     }
@@ -121,7 +120,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                         continue;
                     }
 
-                    output.Add(tmp);
+                    output.Add(tmp.AsEnumerable());
                 }
 
                 return;
@@ -133,7 +132,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             InterestStorage interestsStorage)
         {
             short id = interestsStorage.Get(interests.Interest);
-            return _id2AccId[id] ?? Enumerable.Empty<int>();
+            return _id2AccId[id]?.AsEnumerable() ?? Enumerable.Empty<int>();
         }
 
         public void Recommend(int id, Dictionary<int, int> recomended)
@@ -173,7 +172,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
             else
             {
-                return _null;
+                return _null.AsEnumerable();
             }
         }
 
@@ -183,9 +182,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (_id2AccId[interestId] == null)
                 {
-                    _id2AccId[interestId] = new List<int>(10000);
+                    _id2AccId[interestId] = new DelaySortedList();
                 }
-                _id2AccId[interestId].Add(id);
+                _id2AccId[interestId].Load(id);
             }
         }
 
@@ -195,22 +194,33 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (_id2AccId[i] != null && _id2AccId[i].Count > 0)
                 {
-                    yield return new SingleKeyGroup<short>(i, _id2AccId[i], _id2AccId[i].Count);
+                    yield return new SingleKeyGroup<short>(i, _id2AccId[i].AsEnumerable(), _id2AccId[i].Count);
                 }
             }
         }
 
         public void Compress()
         {
+            _rw.AcquireWriterLock(2000);
             for(short i = 0; i < _id2AccId.Length; i++)
             {
                 if (_id2AccId[i] != null)
                 {
-                    _id2AccId[i].FilterSort();
-                    _id2AccId[i].TrimExcess();
+                    _id2AccId[i].Flush();
                 }
             }
-            _null.TrimExcess();
+            _rw.ReleaseWriterLock();
+        }
+
+        public void LoadEnded()
+        {
+            for(short i = 0; i < _id2AccId.Length; i++)
+            {
+                if (_id2AccId[i] != null)
+                {
+                    _id2AccId[i].LoadEnded();
+                }
+            }
         }
     }
 }

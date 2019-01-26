@@ -89,5 +89,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void Compress()
         {
         }
+
+        public void LoadEnded()
+        {
+        }
     }
 }

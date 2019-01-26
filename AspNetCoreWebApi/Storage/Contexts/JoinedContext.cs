@@ -40,7 +40,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
+            _rw.AcquireWriterLock(2000);
             _years.TrimExcess();
+            _rw.ReleaseWriterLock();
         }
 
         public IFilterSet Filter(GroupRequest.JoinedRequest joined)
@@ -65,6 +67,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             _years[newYear].Add(id);
             _id2time[id] = joined;
+        }
+
+        public void LoadEnded()
+        {
         }
     }
 }

@@ -120,7 +120,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
+            _rw.AcquireWriterLock(2000);
             _code2ids.TrimExcess();
+            _rw.ReleaseWriterLock();
+        }
+
+        public void LoadEnded()
+        {
         }
     }
 }

@@ -202,5 +202,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 }
             }
         }
+
+        public void LoadEnded()
+        {
+        }
     }
 }

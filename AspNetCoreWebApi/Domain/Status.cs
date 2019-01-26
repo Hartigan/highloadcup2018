@@ -74,8 +74,8 @@ namespace AspNetCoreWebApi.Domain
 
     public enum Status : byte
     {
-        Free,
-        Reserved,
-        Complicated
+        Free = 0,
+        Reserved = 1,
+        Complicated = 2
     }
 }

@@ -14,7 +14,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private CountSet[] _raw = new CountSet[3];
-        private List<int>[] _groups = new List<int>[3];
+        private DelaySortedList[] _groups = new DelaySortedList[3];
 
         public StatusContext()
         {
@@ -22,22 +22,22 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _raw[(int)Status.Free] = new CountSet();
             _raw[(int)Status.Reserved] = new CountSet();
 
-            _groups[(int)Status.Complicated] = new List<int>();
-            _groups[(int)Status.Free] = new List<int>();
-            _groups[(int)Status.Reserved] = new List<int>();
+            _groups[(int)Status.Complicated] = new DelaySortedList();
+            _groups[(int)Status.Free] = new DelaySortedList();
+            _groups[(int)Status.Reserved] = new DelaySortedList();
         }
 
         public void LoadBatch(int id, Status status)
         {
             _raw[(int)status].Add(id);
-            _groups[(int)status].Add(id);
+            _groups[(int)status].Load(id);
         }
 
         public void Add(int id, Status status)
         {
             _rw.AcquireWriterLock(2000);
             _raw[(int)status].Add(id);
-            _groups[(int)status].SortedInsert(id);
+            _groups[(int)status].DelayAdd(id);
             _rw.ReleaseWriterLock();
         }
 
@@ -48,14 +48,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
             for(int i = 0; i < 3; i++)
             {
                 _raw[i].Remove(id);
-                if (_groups[i].SortedRemove(id))
+                if (_groups[i].DelayRemove(id))
                 {
                     break;
                 }
             }
 
             _raw[(int)status].Add(id);
-            _groups[(int)status].SortedInsert(id);
+            _groups[(int)status].DelayAdd(id);
 
             _rw.ReleaseWriterLock();
         }
@@ -85,7 +85,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (status.Eq != null)
             {
-                return _groups[(int)status.Eq.Value];
+                return _groups[(int)status.Eq.Value].AsEnumerable();
             }
 
             List<IEnumerator<int>> enumerators = new List<IEnumerator<int>>(2);
@@ -95,7 +95,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 {
                     continue;
                 }
-                enumerators.Add(_groups[i].GetEnumerator());
+                enumerators.Add(_groups[i].AsEnumerable().GetEnumerator());
             }
             return ListHelper.MergeSort(enumerators);
         }
@@ -112,19 +112,25 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public IEnumerable<SingleKeyGroup<Status>> GetGroups()
         {
-            yield return new SingleKeyGroup<Status>(Status.Complicated, _groups[(int)Status.Complicated], _groups[(int)Status.Complicated].Count);
-            yield return new SingleKeyGroup<Status>(Status.Free, _groups[(int)Status.Free], _groups[(int)Status.Free].Count);
-            yield return new SingleKeyGroup<Status>(Status.Reserved, _groups[(int)Status.Reserved], _groups[(int)Status.Reserved].Count);
+            yield return new SingleKeyGroup<Status>(Status.Complicated, _groups[(int)Status.Complicated].AsEnumerable(), _groups[(int)Status.Complicated].Count);
+            yield return new SingleKeyGroup<Status>(Status.Free, _groups[(int)Status.Free].AsEnumerable(), _groups[(int)Status.Free].Count);
+            yield return new SingleKeyGroup<Status>(Status.Reserved, _groups[(int)Status.Reserved].AsEnumerable(), _groups[(int)Status.Reserved].Count);
         }
 
         public void Compress()
         {
-            _groups[0].FilterSort();
-            _groups[1].FilterSort();
-            _groups[2].FilterSort();
-            _groups[0].TrimExcess();
-            _groups[1].TrimExcess();
-            _groups[2].TrimExcess();
+            _rw.AcquireWriterLock(2000);
+            _groups[0].Flush();
+            _groups[1].Flush();
+            _groups[2].Flush();
+            _rw.ReleaseWriterLock();
+        }
+
+        public void LoadEnded()
+        {
+            _groups[0].LoadEnded();
+            _groups[1].LoadEnded();
+            _groups[2].LoadEnded();
         }
     }
 }

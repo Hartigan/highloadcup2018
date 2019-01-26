@@ -10,8 +10,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private string[] _names = new string[DataConfig.MaxId];
-        private List<int> _ids = new List<int>();
-        private List<int> _null = new List<int>();
+        private DelaySortedList _ids = new DelaySortedList();
+        private DelaySortedList _null = new DelaySortedList();
 
         public LastNameContext()
         {
@@ -24,17 +24,16 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (_names[id] == null)
                 {
-                    _null.Add(id);
+                    _null.Load(id);
                 }
             }
-            _null.FilterSort();
-            _null.TrimExcess();
+            _null.LoadEnded();
         }
 
         public void LoadBatch(int id, string lastname)
         {
             _names[id] = string.Intern(lastname);
-            _ids.Add(id);
+            _ids.Load(id);
         }
 
         public void AddOrUpdate(int id, string name)
@@ -43,7 +42,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (_names[id] == null)
             {
-                _ids.SortedInsert(id);
+                _ids.DelayAdd(id);
             }
             _names[id] = string.Intern(name);
 
@@ -64,7 +63,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 {
                     if (sname.Eq == null && sname.Starts == null)
                     {
-                        return _null;
+                        return _null.AsEnumerable();
                     }
                     else
                     {
@@ -77,7 +76,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (sname.Eq.StartsWith(sname.Starts))
                 {
-                    return _ids.Where(x => _names[x] == sname.Eq);
+                    return _ids.AsEnumerable().Where(x => _names[x] == sname.Eq);
                 }
                 else
                 {
@@ -87,21 +86,26 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (sname.Starts != null)
             {
-                return _ids.Where(x => _names[x].StartsWith(sname.Starts));
+                return _ids.AsEnumerable().Where(x => _names[x].StartsWith(sname.Starts));
             }
             else if (sname.Eq != null)
             {
-                return _ids.Where(x => _names[x] == sname.Eq);
+                return _ids.AsEnumerable().Where(x => _names[x] == sname.Eq);
             }
 
-            return _ids;
+            return _ids.AsEnumerable();
         }
 
         public void Compress()
         {
-            _ids.Sort(ReverseComparer<int>.Default);
-            _ids.TrimExcess();
-            _null.TrimExcess();
+            _rw.AcquireWriterLock(2000);
+            _ids.Flush();
+            _rw.ReleaseWriterLock();
+        }
+
+        public void LoadEnded()
+        {
+            _ids.LoadEnded();
         }
     }
 }

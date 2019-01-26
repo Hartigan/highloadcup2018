@@ -14,9 +14,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private ReaderWriterLock _rw = new ReaderWriterLock();
         private short[] _raw = new short[DataConfig.MaxId];
-        private List<int>[] _id2AccId = new List<int>[1000];
-        private List<int> _null = new List<int>();
-        private List<int> _ids = new List<int>();
+        private DelaySortedList[] _id2AccId = new DelaySortedList[1000];
+        private DelaySortedList _null = new DelaySortedList();
+        private DelaySortedList _ids = new DelaySortedList();
 
         public CityContext()
         {
@@ -27,15 +27,15 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _rw.AcquireWriterLock(2000);
             if (_raw[id] == 0)
             {
-                _ids.SortedInsert(id);
+                _ids.DelayAdd(id);
             }
             _raw[id] = cityId;
 
             if (_id2AccId[cityId] == null)
             {
-                _id2AccId[cityId] = new List<int>();
+                _id2AccId[cityId] = new DelaySortedList();
             }
-            _id2AccId[cityId].SortedInsert(id);
+            _id2AccId[cityId].DelayAdd(id);
             _rw.ReleaseWriterLock();
         }
 
@@ -43,12 +43,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             _rw.AcquireWriterLock(2000);
 
-            for(int i = 0; i < _id2AccId.Length; i++)
+            if (_raw[id] > 0)
             {
-                if (_id2AccId[i] != null && _id2AccId[i].SortedRemove(id))
-                {
-                    break;
-                }
+                _id2AccId[_raw[id]].DelayRemove(id);
             }
 
             Add(id, cityId);
@@ -85,7 +82,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 if (city.IsNull.Value)
                 {
                     return (city.Eq == null && city.Any.Count == 0)
-                        ? _null
+                        ? _null.AsEnumerable()
                         : Enumerable.Empty<int>();
                 }
             }
@@ -95,7 +92,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 if (city.Any.Contains(city.Eq))
                 {
                     short cityId = cities.Get(city.Eq);
-                    return _id2AccId[cityId] ?? Enumerable.Empty<int>();
+                    return _id2AccId[cityId]?.AsEnumerable() ?? Enumerable.Empty<int>();
                 }
                 else
                 {
@@ -106,7 +103,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             if (city.Eq != null)
             {
                 short cityId = cities.Get(city.Eq);
-                return _id2AccId[cityId] ?? Enumerable.Empty<int>();
+                return _id2AccId[cityId]?.AsEnumerable() ?? Enumerable.Empty<int>();
             }
             else if (city.Any.Count > 0)
             {
@@ -119,7 +116,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
             else
             {
-                return _ids;
+                return _ids.AsEnumerable();
             }
         }
 
@@ -131,7 +128,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (_id2AccId[cityId] != null)
             {
-                return _id2AccId[cityId];
+                return _id2AccId[cityId].AsEnumerable();
             }
             else
             {
@@ -151,26 +148,27 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (_raw[id] == 0)
                 {
-                    _null.Add(id);
+                    _null.Load(id);
                 }
             }
-            _null.Sort(ReverseComparer<int>.Default);
+            _null.LoadEnded();
         }
 
         public void LoadBatch(int id, short cityId)
         {
             _raw[id] = cityId;
-            _ids.Add(id);
+            _ids.Load(id);
             if (_id2AccId[cityId] == null)
             {
-                _id2AccId[cityId] = new List<int>();
+                _id2AccId[cityId] = new DelaySortedList();
             }
-            _id2AccId[cityId].Add(id);
+            _id2AccId[cityId].Load(id);
         }
 
         public void Compress()
         {
-            _ids.Sort(ReverseComparer<int>.Default);
+            _rw.AcquireWriterLock(2000);
+            _ids.Flush();
 
             for(int i = 0; i < _id2AccId.Length; i++)
             {
@@ -179,20 +177,35 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     continue;
                 }
 
-                _id2AccId[i].Sort(ReverseComparer<int>.Default);
-                _id2AccId[i].TrimExcess();
+                _id2AccId[i].Flush();
             }
+            _rw.ReleaseWriterLock();
         }
 
         public IEnumerable<SingleKeyGroup<short>> GetGroups()
         {
-            yield return new SingleKeyGroup<short>(0, _null, _null.Count);
+            yield return new SingleKeyGroup<short>(0, _null.AsEnumerable(), _null.Count);
             for(short i = 0; i < _id2AccId.Length; i++)
             {
                 if (_id2AccId[i] != null && _id2AccId[i].Count > 0)
                 {
-                    yield return new SingleKeyGroup<short>(i, _id2AccId[i], _id2AccId[i].Count);
+                    yield return new SingleKeyGroup<short>(i, _id2AccId[i].AsEnumerable(), _id2AccId[i].Count);
                 }
+            }
+        }
+
+        public void LoadEnded()
+        {
+            _ids.LoadEnded();
+
+            for(int i = 0; i < _id2AccId.Length; i++)
+            {
+                if (_id2AccId[i] == null)
+                {
+                    continue;
+                }
+
+                _id2AccId[i].LoadEnded();
             }
         }
     }
