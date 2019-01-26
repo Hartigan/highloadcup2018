@@ -12,7 +12,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 {
     public class StatusContext : IBatchLoader<Status>, ICompresable
     {
-        private ReaderWriterLock _rw = new ReaderWriterLock();
         private CountSet[] _raw = new CountSet[3];
         private DelaySortedList[] _groups = new DelaySortedList[3];
 
@@ -35,16 +34,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Add(int id, Status status)
         {
-            _rw.AcquireWriterLock(2000);
             _raw[(int)status].Add(id);
             _groups[(int)status].DelayAdd(id);
-            _rw.ReleaseWriterLock();
         }
 
         public void Update(int id, Status status)
         {
-            _rw.AcquireWriterLock(2000);
-
             for(int i = 0; i < 3; i++)
             {
                 _raw[i].Remove(id);
@@ -56,8 +51,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             _raw[(int)status].Add(id);
             _groups[(int)status].DelayAdd(id);
-
-            _rw.ReleaseWriterLock();
         }
 
         public Status Get(int id)
@@ -119,11 +112,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
-            _rw.AcquireWriterLock(2000);
             _groups[0].Flush();
             _groups[1].Flush();
             _groups[2].Flush();
-            _rw.ReleaseWriterLock();
         }
 
         public void LoadEnded()

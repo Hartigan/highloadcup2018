@@ -8,7 +8,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 {
     public class LastNameContext : IBatchLoader<string>, ICompresable
     {
-        private ReaderWriterLock _rw = new ReaderWriterLock();
         private string[] _names = new string[DataConfig.MaxId];
         private DelaySortedList _ids = new DelaySortedList();
         private DelaySortedList _null = new DelaySortedList();
@@ -38,15 +37,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void AddOrUpdate(int id, string name)
         {
-            _rw.AcquireWriterLock(2000);
-
             if (_names[id] == null)
             {
                 _ids.DelayAdd(id);
             }
             _names[id] = string.Intern(name);
-
-            _rw.ReleaseWriterLock();
         }
 
         public bool TryGet(int id, out string sname)
@@ -98,9 +93,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
-            _rw.AcquireWriterLock(2000);
             _ids.Flush();
-            _rw.ReleaseWriterLock();
         }
 
         public void LoadEnded()

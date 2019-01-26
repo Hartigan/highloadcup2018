@@ -46,10 +46,19 @@ namespace AspNetCoreWebApi.Processing
             public bool ImportEnded;
         }
 
+        private struct PostEvent
+        {
+            public AccountDto Account;
+            public bool IsAdd;
+            public bool Completed;
+            public static PostEvent Add(AccountDto dto) => new PostEvent() { Account = dto, IsAdd = true };
+            public static PostEvent Edit(AccountDto dto) => new PostEvent() { Account = dto };
+            public static PostEvent End() => new PostEvent() { Completed = true };
+        }
+
         private readonly IDisposable _newAccountProcessorSubscription;
         private readonly IDisposable _editAccountProcessorSubscription;
         private readonly IDisposable _newLikesProcessorSubscription;
-        private readonly IDisposable _setInProgressSubscription;
         private IDisposable _dataLoaderSubscription;
         private readonly IDisposable _secondPhaseEndSubscription;
         private readonly MainStorage _storage;
@@ -60,6 +69,7 @@ namespace AspNetCoreWebApi.Processing
         private readonly IComparer<int> _reverseIntComparer = new ReverseComparer<int>(Comparer<int>.Default);
         private readonly SingleThreadWorker<LoadEvent> _loadWorker;
         private readonly SingleThreadWorker<LikeEvent> _likeWorker;
+        private readonly SingleThreadWorker<PostEvent> _postWorker;
         private volatile int _editQuery = 0;
 
         public MessageProcessor(
@@ -80,20 +90,19 @@ namespace AspNetCoreWebApi.Processing
             _groupPreprocessor = groupPreprocessor;
 
             var newAccountObservable = newAccountProcessor
-                .DataReceived
-                .ObserveOn(ThreadPoolScheduler.Instance);
+                .DataReceived;
 
             var editAccountObservable = editAccountProcessor
-                .DataReceived
-                .ObserveOn(ThreadPoolScheduler.Instance);
+                .DataReceived;
 
             var newLikesObservable = newLikesProcessor
-                .DataReceived
-                .ObserveOn(ThreadPoolScheduler.Instance);
+                .DataReceived;
 
 
             _likeWorker = new SingleThreadWorker<LikeEvent>(ProcessLike, "Like thread started");
             _loadWorker = new SingleThreadWorker<LoadEvent>(LoadAccount, "Import thread started");
+            _postWorker = new SingleThreadWorker<PostEvent>(PostProcess, "Post thread started");
+
             _dataLoaderSubscription = dataLoader
                 .AccountLoaded
                 .Subscribe(
@@ -101,13 +110,11 @@ namespace AspNetCoreWebApi.Processing
                      _ => {},
                     () => { _loadWorker.Enqueue(LoadEvent.EndEvent); });
 
-           
-
             _newAccountProcessorSubscription = newAccountObservable
-                .Subscribe(AddNewAccount);
+                .Subscribe(x => { _postWorker.Enqueue(PostEvent.Add(x)); });
 
             _editAccountProcessorSubscription = editAccountObservable
-                .Subscribe(EditAccount);
+                .Subscribe(x => { _postWorker.Enqueue(PostEvent.Edit(x)); });
 
             _newLikesProcessorSubscription = newLikesObservable
                 .Subscribe(NewLikes);
@@ -117,18 +124,12 @@ namespace AspNetCoreWebApi.Processing
                 .Merge(editAccountObservable.Select(_ => Interlocked.Increment(ref _editQuery)))
                 .Merge(newLikesObservable.Select(_ => Interlocked.Increment(ref _editQuery)));
 
-            _setInProgressSubscription = updateObservable
-                .Subscribe(_ => { DataConfig.UpdateInProgress = true; });
-
             _secondPhaseEndSubscription = updateObservable
                 .Throttle(TimeSpan.FromMilliseconds(500))
                 .Subscribe(_ =>
                     {
+                        _postWorker.Enqueue(PostEvent.End());
                         _likeWorker.Enqueue(LikeEvent.EndEvent);
-                        _context.Compress();
-                        _context.InitNull(_storage.Ids);
-                        DataConfig.UpdateInProgress = false;
-                        Collect();
                     });
         }
 
@@ -138,6 +139,28 @@ namespace AspNetCoreWebApi.Processing
             GC.WaitForPendingFinalizers();
             GC.WaitForFullGCComplete();
             GC.Collect();
+        }
+
+        private void PostProcess(PostEvent e)
+        {
+            if (e.Completed)
+            {
+                _context.Compress();
+                _context.InitNull(_storage.Ids);
+                DataConfig.UpdateInProgress = false;
+                Collect();
+                return;
+            }
+            DataConfig.UpdateInProgress = true;
+
+            if (e.IsAdd)
+            {
+                AddNewAccount(e.Account);
+            }
+            else
+            {
+                EditAccount(e.Account);
+            }
         }
 
         public SuggestResponse Suggest(SuggestRequest request)

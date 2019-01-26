@@ -11,7 +11,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 {
     public class PhoneContext : IBatchLoader<Phone>, ICompresable
     {
-        private ReaderWriterLock _rw = new ReaderWriterLock();
         private Phone[] _phones = new Phone[DataConfig.MaxId];
         private CountSet _ids = new CountSet();
         private CountSet _null = new CountSet();
@@ -47,8 +46,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Add(int id, Phone phone)
         {
-            _rw.AcquireWriterLock(2000);
-
             _ids.Add(id);
             _phones[id] = phone;
 
@@ -57,14 +54,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 _code2ids[phone.Code] = new CountSet();
             }
             _code2ids[phone.Code].Add(id);
-
-            _rw.ReleaseWriterLock();
         }
 
         public void Update(int id, Phone phone)
         {
-            _rw.AcquireWriterLock(2000);
-
             var old = _phones[id];
 
             if (_ids.Contains(id))
@@ -73,8 +66,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
 
             Add(id, phone);
-
-            _rw.ReleaseWriterLock();
         }
 
         public bool TryGet(int id, out Phone phone)
@@ -120,9 +111,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
-            _rw.AcquireWriterLock(2000);
             _code2ids.TrimExcess();
-            _rw.ReleaseWriterLock();
         }
 
         public void LoadEnded()

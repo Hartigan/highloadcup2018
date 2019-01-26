@@ -43,8 +43,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
         }
 
         private static BucketIdComparer _bucketKeyComparer = new BucketIdComparer();
-
-        private ReaderWriterLock _rw = new ReaderWriterLock();
         private List<int>[] _likee2likers = new List<int>[DataConfig.MaxId];
         private List<LikeBucket>[] _liker2likes = new List<LikeBucket>[DataConfig.MaxId];
 

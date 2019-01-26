@@ -11,7 +11,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 {
     public class PremiumContext : IBatchLoader<Premium>, ICompresable
     {
-        private ReaderWriterLock _rw = new ReaderWriterLock();
         private Premium[] _premiums = new Premium[DataConfig.MaxId];
         
         private CountSet _ids = new CountSet();
@@ -46,8 +45,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void AddOrUpdate(int id, Premium item)
         {
-            _rw.AcquireWriterLock(2000);
-
             var prev = _premiums[id];
 
             if (_ids.Contains(id))
@@ -74,8 +71,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
 
             _premiums[id] = item;
-
-            _rw.ReleaseWriterLock();
         }
 
         public bool TryGet(int id, out Premium premium)

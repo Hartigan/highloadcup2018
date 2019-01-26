@@ -12,7 +12,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 {
     public class CountryContext : IBatchLoader<short>, ICompresable
     {
-        private ReaderWriterLock _rw = new ReaderWriterLock();
         private short[] _raw = new short[DataConfig.MaxId];
         private DelaySortedList[] _id2AccId = new DelaySortedList[200];
         private DelaySortedList _null = new DelaySortedList();
@@ -24,7 +23,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Add(int id, short countryId)
         {
-            _rw.AcquireWriterLock(2000);
             if (_raw[id] == 0)
             {
                 _ids.DelayAdd(id);
@@ -35,21 +33,16 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 _id2AccId[countryId] = new DelaySortedList();
             }
             _id2AccId[countryId].DelayAdd(id);
-            _rw.ReleaseWriterLock();
         }
 
         public void AddOrUpdate(int id, short countryId)
         {
-            _rw.AcquireWriterLock(2000);
-
             if (_raw[id] > 0)
             {
                 _id2AccId[_raw[id]].DelayRemove(id);
             }
 
             Add(id, countryId);
-
-            _rw.ReleaseWriterLock();
         }
 
         public bool TryGet(int id, out short countryId)
@@ -161,7 +154,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
-            _rw.AcquireWriterLock(2000);
             _ids.Flush();
             for(int i = 0; i < _id2AccId.Length; i++)
             {
@@ -170,7 +162,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     _id2AccId[i].Flush();
                 }
             }
-            _rw.ReleaseWriterLock();
         }
 
         public void LoadEnded()

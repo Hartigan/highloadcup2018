@@ -12,7 +12,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 {
     public class SexContext : IBatchLoader<bool>, ICompresable
     {
-        private ReaderWriterLock _rw = new ReaderWriterLock();
         private BitArray _raw = new BitArray(DataConfig.MaxId);
         private CountSet[] _filter = new CountSet[2];
         private DelaySortedList[] _groups = new DelaySortedList[2];
@@ -35,24 +34,19 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Add(int id, bool sex)
         {
-            _rw.AcquireWriterLock(2000);
             _raw[id] = sex;
             _filter[sex ? 1 : 0].Add(id);
             _groups[sex ? 1 : 0].DelayAdd(id);
-            _rw.ReleaseWriterLock();
         }
 
         public void Update(int id, bool sex)
         {
-            _rw.AcquireWriterLock(2000);
             _raw[id] = sex;
             _filter[sex ? 1 : 0].Add(id);
             _filter[sex ? 0 : 1].Remove(id);
 
             _groups[sex ? 1 : 0].DelayAdd(id);
             _groups[sex ? 0 : 1].DelayRemove(id);
-
-            _rw.ReleaseWriterLock();
         }
 
         public bool Get(int id)
@@ -107,10 +101,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
-            _rw.AcquireWriterLock(2000);
             _groups[0].Flush();
             _groups[1].Flush();
-            _rw.ReleaseWriterLock();
         }
 
         public void LoadEnded()

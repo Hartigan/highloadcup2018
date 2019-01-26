@@ -11,7 +11,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 {
     public class EmailContext : IBatchLoader<Email>, ICompresable
     {
-        private ReaderWriterLock _rw = new ReaderWriterLock();
         private Email[] _emails = new Email[DataConfig.MaxId];
         private Dictionary<short, DelaySortedList> _domain2ids = new Dictionary<short, DelaySortedList>();
 
@@ -21,7 +20,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Add(int id, Email email)
         {
-            _rw.AcquireWriterLock(2000);
             email.Prefix = string.Intern(email.Prefix);
             _emails[id] = email;
 
@@ -31,19 +29,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
 
             _domain2ids[email.DomainId].DelayAdd(id);
-
-            _rw.ReleaseWriterLock();
         }
 
         public void Update(int id, Email updated)
         {
-            _rw.AcquireWriterLock(2000);
-            
             var old = _emails[id];
             _domain2ids[old.DomainId].DelayRemove(id);
             Add(id, updated);
-
-            _rw.ReleaseWriterLock();
         }
 
         public Email Get(int id)
@@ -107,12 +99,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
-            _rw.AcquireWriterLock(2000);
             foreach(var list in _domain2ids.Values)
             {
                 list.Flush();
             }
-            _rw.ReleaseWriterLock();
         }
 
         public void LoadEnded()

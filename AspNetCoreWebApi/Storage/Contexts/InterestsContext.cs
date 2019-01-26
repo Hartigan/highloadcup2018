@@ -12,7 +12,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 {
     public class InterestsContext : IBatchLoader<IEnumerable<short>>, ICompresable
     {
-        private ReaderWriterLock _rw = new ReaderWriterLock();
         private DelaySortedList[] _id2AccId = new DelaySortedList[200];
         private DelaySortedList _null = new DelaySortedList();
         private CountSet _ids = new CountSet();
@@ -50,19 +49,16 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Add(int id, short interestId)
         {
-            _rw.AcquireWriterLock(2000);
             _ids.Add(id);
             if (_id2AccId[interestId] == null)
             {
                 _id2AccId[interestId] = new DelaySortedList();
             }
             _id2AccId[interestId].DelayAdd(id);
-            _rw.ReleaseWriterLock();
         }
 
         public void RemoveAccount(int id)
         {
-            _rw.AcquireWriterLock(2000);
             _ids.Remove(id);
             for(int i = 0; i < _id2AccId.Length; i++)
             {
@@ -71,7 +67,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     _id2AccId[i].DelayRemove(id);
                 }
             }
-            _rw.ReleaseWriterLock();
         }
 
         public void Filter(
@@ -201,7 +196,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
-            _rw.AcquireWriterLock(2000);
             for(short i = 0; i < _id2AccId.Length; i++)
             {
                 if (_id2AccId[i] != null)
@@ -209,7 +203,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     _id2AccId[i].Flush();
                 }
             }
-            _rw.ReleaseWriterLock();
         }
 
         public void LoadEnded()

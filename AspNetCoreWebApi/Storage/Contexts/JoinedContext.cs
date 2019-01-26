@@ -11,7 +11,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 {
     public class JoinedContext : IBatchLoader<UnixTime>, ICompresable
     {
-        private ReaderWriterLock _rw = new ReaderWriterLock();
         private UnixTime[] _id2time = new UnixTime[DataConfig.MaxId];
         private Dictionary<int, CountSet> _years = new Dictionary<int, CountSet>();
 
@@ -40,9 +39,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
-            _rw.AcquireWriterLock(2000);
             _years.TrimExcess();
-            _rw.ReleaseWriterLock();
         }
 
         public IFilterSet Filter(GroupRequest.JoinedRequest joined)
