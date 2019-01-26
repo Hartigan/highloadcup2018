@@ -172,18 +172,18 @@ namespace AspNetCoreWebApi.Processing
             IEnumerable<int> result = suggested.Keys;
 
             bool sex = _context.Sex.Contains(true, request.Id);
-            result = result.Where(x => _context.Sex.Contains(sex, x));
+            result = result.Where(x => _context.Sex.Get(x) == sex);
 
             if (request.Country.IsActive)
             {
                 short countryId = _storage.Countries.Get(request.Country.Country);
-                result = result.Where(x => _context.Countries.Contains(countryId, x));
+                result = result.Where(x => _context.Countries.Get(x) == countryId);
             }
 
             if (request.City.IsActive)
             {
                 short cityId = _storage.Cities.Get(request.City.City);
-                result = result.Where(x => _context.Cities.Contains(cityId, x));
+                result = result.Where(x => _context.Cities.Get(x) == cityId);
             }
 
             var response = _pool.SuggestResponse.Get();
