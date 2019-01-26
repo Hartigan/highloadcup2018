@@ -88,13 +88,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
                     if (!inited)
                     {
-                        output.Add(tmp.AsEnumerable());
+                        output.Add(tmp);
                         inited = true;
                     }
                     else
                     {
                         var filterSet = _pool.FilterSet.Get();
-                        filterSet.Add(tmp.AsEnumerable());
+                        filterSet.Add(tmp);
                         output.IntersectWith(filterSet);
                         _pool.FilterSet.Return(filterSet);
                     }
@@ -115,7 +115,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                         continue;
                     }
 
-                    output.Add(tmp.AsEnumerable());
+                    output.Add(tmp);
                 }
 
                 return;
@@ -127,7 +127,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             InterestStorage interestsStorage)
         {
             short id = interestsStorage.Get(interests.Interest);
-            return _id2AccId[id]?.AsEnumerable() ?? Enumerable.Empty<int>();
+            return _id2AccId[id] ?? Enumerable.Empty<int>();
         }
 
         public void Recommend(int id, Dictionary<int, int> recomended)
@@ -141,7 +141,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
                 if (_id2AccId[i].Contains(id))
                 {
-                    foreach(var acc in _id2AccId[i].AsEnumerable())
+                    foreach(var acc in _id2AccId[i])
                     {
                         if (recomended.ContainsKey(acc))
                         {
@@ -163,11 +163,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             if (interestId.HasValue)
             {
-                return _id2AccId[interestId.Value].AsEnumerable();
+                return _id2AccId[interestId.Value];
             }
             else
             {
-                return _null.AsEnumerable();
+                return _null;
             }
         }
 
@@ -189,7 +189,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (_id2AccId[i] != null && _id2AccId[i].Count > 0)
                 {
-                    yield return new SingleKeyGroup<short>(i, _id2AccId[i].AsEnumerable(), _id2AccId[i].Count);
+                    yield return new SingleKeyGroup<short>(i, _id2AccId[i], _id2AccId[i].Count);
                 }
             }
         }
