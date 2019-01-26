@@ -12,7 +12,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 {
     public class SexContext : IBatchLoader<bool>, ICompresable
     {
-        private BitArray _raw = new BitArray(DataConfig.MaxId);
+        private bool[] _raw = new bool[DataConfig.MaxId];
         private CountSet[] _filter = new CountSet[2];
         private DelaySortedList[] _groups = new DelaySortedList[2];
 
