@@ -6,18 +6,12 @@ namespace AspNetCoreWebApi.Domain
     public struct UnixTime
     {
         public int Seconds;
+        public short Year;
 
         public UnixTime(int ts)
         {
             Seconds = ts;
-        }
-
-        public int Year
-        {
-            get
-            {
-                return DateTimeOffset.FromUnixTimeSeconds(Seconds).Year;
-            }
+            Year = (short)DateTimeOffset.FromUnixTimeSeconds(Seconds).Year;
         }
 
         public static int operator -(UnixTime left, UnixTime right)
