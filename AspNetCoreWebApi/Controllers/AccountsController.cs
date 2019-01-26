@@ -1,12 +1,13 @@
 ﻿using System;
+using System.Threading.Tasks;
 using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Storage;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AspNetCoreWebApi.Controllers
 {
-    [ApiController]
-    public class AccountsController : ControllerBase
+    public class AccountsController
     {
         private readonly NewAccountProcessor _newAccountProcessor;
         private readonly EditAccountProcessor _editAccountProcessor;
@@ -37,120 +38,122 @@ namespace AspNetCoreWebApi.Controllers
             _storage = mainStorage;
         }
 
-        [Route("accounts/new")]
-        [HttpPost]
-        public ActionResult Create()
+        private static byte[] _postOk = new byte[2] { 123, 125 };
+
+        private void WritePostOk(HttpResponse response)
         {
-            if (_newAccountProcessor.Process(Request.Body))
+            response.ContentType = "application/json";
+            response.ContentLength = 2;
+            response.Body.Write(_postOk, 0, 2);
+        }
+
+        public Task Create(HttpRequest request, HttpResponse response)
+        {
+            if (_newAccountProcessor.Process(request.Body))
             {
-                Response.StatusCode = 201;
-                Response.ContentType = "application/json";
-                return Content("{}");
+                response.StatusCode = 201;
+                WritePostOk(response);
             }
             else
             {
-                Response.StatusCode = 400;
-                return Content(String.Empty);
+                response.StatusCode = 400;
             }
+
+            return Task.CompletedTask;
         }
 
-        [Route("accounts/{strId}")]
-        [HttpPost]
-        public ActionResult Edit(string strId)
+        public Task Edit(HttpRequest request, HttpResponse response, string strId)
         {
             int id = 0;
             if (!int.TryParse(strId, out id))
             {
-                Response.StatusCode = 404;
-                return Content(String.Empty);
+                response.StatusCode = 404;
+                return Task.CompletedTask;
             }
 
             if (!_storage.Ids.Contains(id))
             {
-                Response.StatusCode = 404;
-                return Content(String.Empty);
+                response.StatusCode = 404;
+                return Task.CompletedTask;
             }
 
-            if (_editAccountProcessor.Process(Request.Body, id))
+            if (_editAccountProcessor.Process(request.Body, id))
             {
-                Response.StatusCode = 202;
-                Response.ContentType = "application/json";
-                return Content("{}");
+                response.StatusCode = 202;
+                WritePostOk(response);
             }
             else
             {
-                Response.StatusCode = 400;
-                return Content(String.Empty);
+                response.StatusCode = 400;
             }
+
+            return Task.CompletedTask;
         }
 
-        [Route("accounts/likes")]
-        [HttpPost]
-        public ActionResult AddLikes()
+        public Task AddLikes(HttpRequest request, HttpResponse response)
         {
-            if (_newLikesProcessor.Process(Request.Body))
+            if (_newLikesProcessor.Process(request.Body))
             {
-                Response.StatusCode = 202;
-                Response.ContentType = "application/json";
-                return Content("{}");
+                response.StatusCode = 202;
+                WritePostOk(response);
             }
             else
             {
-                Response.StatusCode = 400;
-                return Content(String.Empty);
+                response.StatusCode = 400;
             }
+
+            return Task.CompletedTask;
         }
 
-        [Route("accounts/filter")]
-        [HttpGet]
-        public void Filter()
+        public Task Filter(HttpRequest request, HttpResponse response)
         {
-            if (!_filterProcessor.Process(Response, Request.Query))
+            if (!_filterProcessor.Process(response, request.Query))
             {
-                Response.StatusCode = 400;
+                response.StatusCode = 400;
             }
+
+            return Task.CompletedTask;
         }
 
-        [Route("accounts/group")]
-        [HttpGet]
-        public void Group()
+        public Task Group(HttpRequest request, HttpResponse response)
         {
-            if (!_groupProcessor.Process(Response, Request.Query))
+            if (!_groupProcessor.Process(response, request.Query))
             {
-                Response.StatusCode = 400;
+                response.StatusCode = 400;
             }
+
+            return Task.CompletedTask;
         }
 
-        [Route("accounts/{id}/recommend")]
-        [HttpGet]
-        public void Recommend(int id)
-        {
-            if (!_storage.Ids.Contains(id))
-            {
-                Response.StatusCode = 404;
-                return;
-            }
-
-            if (!_recommendProcessor.Process(id, Response, Request.Query))
-            {
-                Response.StatusCode = 400;
-            }
-        }
-
-        [Route("accounts/{id}/suggest")]
-        [HttpGet]
-        public void Suggest(int id)
+        public Task Recommend(HttpRequest request, HttpResponse response, int id)
         {
             if (!_storage.Ids.Contains(id))
             {
-                Response.StatusCode = 404;
-                return;
+                response.StatusCode = 404;
+                return Task.CompletedTask;
             }
 
-            if (!_suggestProcessor.Process(id, Response, Request.Query))
+            if (!_recommendProcessor.Process(id, response, request.Query))
             {
-                Response.StatusCode = 400;
+                response.StatusCode = 400;
             }
+
+            return Task.CompletedTask;
+        }
+
+        public Task Suggest(HttpRequest request, HttpResponse response, int id)
+        {
+            if (!_storage.Ids.Contains(id))
+            {
+                response.StatusCode = 404;
+                return Task.CompletedTask;
+            }
+
+            if (!_suggestProcessor.Process(id, response, request.Query))
+            {
+                response.StatusCode = 400;
+            }
+            return Task.CompletedTask;
         }
     }
 }

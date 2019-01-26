@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using AspNetCoreWebApi.Controllers;
 using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Processing.Parsers;
 using AspNetCoreWebApi.Processing.Pooling;
@@ -13,6 +14,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -57,11 +59,51 @@ namespace AspNetCoreWebApi
             services.AddSingleton<RecommendPrinter>();
             services.AddSingleton<SuggestPrinter>();
             services.AddSingleton<GroupPreprocessor>();
+            services.AddSingleton<AccountsController>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
+            var controller = app.ApplicationServices.GetRequiredService<AccountsController>();
+
+            app.UseRouter(routeBuilder => {
+                routeBuilder.MapPost(
+                    "accounts/new",
+                    (request, response, routeData) => controller.Create(request, response)
+                );
+
+                routeBuilder.MapPost(
+                    "accounts/likes",
+                    (request, response, routeData) => controller.AddLikes(request, response)
+                );
+
+                routeBuilder.MapPost(
+                    "accounts/{strId}",
+                    (request, response, routeData) => controller.Edit(request, response, routeData.Values["strId"].ToString())
+                );
+
+                routeBuilder.MapGet(
+                    "accounts/filter",
+                    (request, response, routeData) => controller.Filter(request, response)
+                );
+
+                routeBuilder.MapGet(
+                    "accounts/group",
+                    (request, response, routeData) => controller.Group(request, response)
+                );
+
+                routeBuilder.MapGet(
+                    "accounts/{id:int}/recommend",
+                    (request, response, routeData) => controller.Recommend(request, response, Convert.ToInt32(routeData.Values["id"]))
+                );
+
+                routeBuilder.MapGet(
+                    "accounts/{id:int}/suggest",
+                    (request, response, routeData) => controller.Suggest(request, response, Convert.ToInt32(routeData.Values["id"]))
+                );
+            });
+
             app.Use(next => context =>
             {
                 context.Response.OnStarting(() =>
@@ -76,9 +118,6 @@ namespace AspNetCoreWebApi
 
                 return next(context);
             });
-
-            app.UseResponseBuffering();
-            app.UseMvc();
         }
     }
 }

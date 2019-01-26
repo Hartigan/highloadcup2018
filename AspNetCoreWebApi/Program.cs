@@ -43,7 +43,7 @@ namespace AspNetCoreWebApi
                 .UseKestrel(options => {
                     options.Listen(IPAddress.Any, 80);
                 })
-                .UseLinuxTransport()
+                .UseLinuxTransport(config => config.ThreadCount = 4)
                 .UseStartup<Startup>();
     }
 }
