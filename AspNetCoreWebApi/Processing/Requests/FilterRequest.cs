@@ -187,7 +187,7 @@ namespace AspNetCoreWebApi.Processing.Requests
 
         public int Limit { get; set; }
 
-        public HashSet<Field> Fields { get; } = new HashSet<Field>();
+        public List<Field> Fields { get; } = new List<Field>();
 
         public void Clear()
         {

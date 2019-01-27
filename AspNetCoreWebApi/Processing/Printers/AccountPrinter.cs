@@ -21,7 +21,7 @@ namespace AspNetCoreWebApi.Processing.Printers
             _context = mainContext;
         }
 
-        private void Write(int id, Stream sw, IEnumerable<Field> fields)
+        private void Write(int id, Stream sw, List<Field> fields)
         {
             sw.StartObject();
             sw.Property("id", id);
@@ -35,9 +35,9 @@ namespace AspNetCoreWebApi.Processing.Printers
             sw.Write(_storage.Domains.GetString(email.DomainId));
             sw.WriteDoubleQuote();
 
-            foreach (var field in fields)
+            for(int i = 0; i < fields.Count; i++)
             {
-                switch (field)
+                switch (fields[i])
                 {
                     case Field.Sex:
                         sw.Comma();
@@ -116,7 +116,7 @@ namespace AspNetCoreWebApi.Processing.Printers
             sw.EndObject();
         }
 
-        public void Write(FilterResponse response, Stream sw, IEnumerable<Field> fields)
+        public void Write(FilterResponse response, Stream sw, List<Field> fields)
         {
             sw.StartObject();
             sw.PropertyNameWithColon("accounts");

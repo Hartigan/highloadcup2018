@@ -82,7 +82,6 @@ namespace AspNetCoreWebApi.Processing
 
                     case "sex_eq":
                         result = SexEq(request, filter.Value);
-                        request.Fields.Add(Field.Sex);
                         break;
 
                     case "email_domain":
@@ -99,92 +98,74 @@ namespace AspNetCoreWebApi.Processing
 
                     case "status_eq":
                         result = StatusEq(request, filter.Value);
-                        request.Fields.Add(Field.Status);
                         break;
 
                     case "status_neq":
                         result = StatusNeq(request, filter.Value);
-                        request.Fields.Add(Field.Status);
                         break;
 
                     case "fname_eq":
                         result = FnameEq(request, filter.Value);
-                        request.Fields.Add(Field.FName);
                         break;
 
                     case "fname_any":
                         result = FnameAny(request, filter.Value.ToString().Split(','));
-                        request.Fields.Add(Field.FName);
                         break;
 
                     case "fname_null":
                         result = FnameNull(request, filter.Value);
-                        request.Fields.Add(Field.FName);
                         break;
 
                     case "sname_eq":
                         result = SnameEq(request, filter.Value);
-                        request.Fields.Add(Field.SName);
                         break;
 
                     case "sname_starts":
                         result = SnameStarts(request, filter.Value);
-                        request.Fields.Add(Field.SName);
                         break;
 
                     case "sname_null":
                         result = SnameNull(request, filter.Value);
-                        request.Fields.Add(Field.SName);
                         break;
 
                     case "phone_code":
                         result = PhoneCode(request, filter.Value);
-                        request.Fields.Add(Field.Phone);
                         break;
 
                     case "phone_null":
                         result = PhoneNull(request, filter.Value);
-                        request.Fields.Add(Field.Phone);
                         break;
 
                     case "country_eq":
                         result = CountryEq(request, filter.Value);
-                        request.Fields.Add(Field.Country);
                         break;
 
                     case "country_null":
                         result = CountryNull(request, filter.Value);
-                        request.Fields.Add(Field.Country);
                         break;
 
                     case "city_eq":
                         result = CityEq(request, filter.Value);
-                        request.Fields.Add(Field.City);
                         break;
 
                     case "city_any":
                         result = CityAny(request, filter.Value.ToString().Split(','));
-                        request.Fields.Add(Field.City);
                         break;
 
                     case "city_null":
                         result = CityNull(request, filter.Value);
-                        request.Fields.Add(Field.City);
                         break;
 
                     case "birth_lt":
                         result = BirthLt(request, filter.Value);
-                        request.Fields.Add(Field.Birth);
                         break;
 
                     case "birth_gt":
                         result = BirthGt(request, filter.Value);
-                        request.Fields.Add(Field.Birth);
                         break;
 
                     case "birth_year":
                         result = BirthYear(request, filter.Value);
-                        request.Fields.Add(Field.Birth);
                         break;
 
                     case "interests_contains":
@@ -201,12 +182,10 @@ namespace AspNetCoreWebApi.Processing
 
                     case "premium_now":
                         result = PremiumNow(request, filter.Value);
-                        request.Fields.Add(Field.Premium);
                         break;
 
                     case "premium_null":
                         result = PremiumNull(request, filter.Value);
-                        request.Fields.Add(Field.Premium);
                         break;
 
                     default:
@@ -218,6 +197,51 @@ namespace AspNetCoreWebApi.Processing
                     Free(request);
                     return false;
                 }
+            }
+
+            if (request.Sex.IsActive)
+            {
+                request.Fields.Add(Field.Sex);
+            }
+
+            if (request.Status.IsActive)
+            {
+                request.Fields.Add(Field.Status);
+            }
+
+            if (request.Fname.IsActive)
+            {
+                request.Fields.Add(Field.FName);
+            }
+
+            if (request.Sname.IsActive)
+            {
+                request.Fields.Add(Field.SName);
+            }
+
+            if (request.Phone.IsActive)
+            {
+                request.Fields.Add(Field.Phone);
+            }
+
+            if (request.Country.IsActive)
+            {
+                request.Fields.Add(Field.Country);
+            }
+
+            if (request.City.IsActive)
+            {
+                request.Fields.Add(Field.City);
+            }
+
+            if (request.Birth.IsActive)
+            {
+                request.Fields.Add(Field.Birth);
+            }
+
+            if (request.Premium.IsActive)
+            {
+                request.Fields.Add(Field.Premium);
             }
 
             var response = _processor.Filter(request);
