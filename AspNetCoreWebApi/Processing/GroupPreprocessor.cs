@@ -294,7 +294,7 @@ namespace AspNetCoreWebApi.Processing
             {
                 foreach(var group in _data[keys])
                 {
-                    int count = group.Ids.Count(x => ids.Contains(x));
+                    int count = group.Ids.GetList().Count(x => ids.Contains(x));
                     if (count > 0)
                     {
                         entries.Add(new GroupEntry(group.Key, count));
