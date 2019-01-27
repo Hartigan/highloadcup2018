@@ -45,10 +45,6 @@ namespace AspNetCoreWebApi.Processing.Pooling
 
         public bool Contains(int x)
         {
-            if (x >= DataConfig.MaxId)
-            {
-                return false;
-            }
             return _data[x];
         }
 
