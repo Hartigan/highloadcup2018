@@ -51,7 +51,7 @@ namespace AspNetCoreWebApi.Processing.Printers
                     needComma = true;
                 }
 
-                if (entry.Group.Keys.HasFlag(GroupKey.Status))
+                if (((byte)entry.Group.Keys & (byte)GroupKey.Status) > 0)
                 {
                     if (needComma)
                     {
@@ -61,7 +61,7 @@ namespace AspNetCoreWebApi.Processing.Printers
                     needComma = true;
                 }
 
-                if (entry.Group.Keys.HasFlag(GroupKey.Sex))
+                if (((byte)entry.Group.Keys & (byte)GroupKey.Sex) > 0)
                 {
                     if (needComma)
                     {
