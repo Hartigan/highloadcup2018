@@ -15,16 +15,17 @@ namespace AspNetCoreWebApi.Processing
     {
         private struct Request
         {
-            public Request(bool isAdd, AccountDto dto, bool compress)
-            {
-                IsAdd = isAdd;
-                Dto = dto;
-                Compress = compress;
+            public static Request Add(AccountDto dto) => new Request() { IsAdd = true, Dto = dto };
+            public static Request Load(AccountDto dto) => new Request() { IsLoad = true, Dto = dto };
+            public static Request Edit(AccountDto dto) => new Request() { Dto = dto };
+            public static Request ImportCompleted() => new Request() { ImportEnded = true };
+            public static Request PostCompleted() => new Request() { PostEnded = true };
 
-            }
+            public bool IsLoad;
             public bool IsAdd;
             public AccountDto Dto;
-            public bool Compress;
+            public bool PostEnded;
+            public bool ImportEnded;
         }
 
         private struct GroupBucket
@@ -38,11 +39,12 @@ namespace AspNetCoreWebApi.Processing
             public GroupBucket(Group group, int id)
             {
                 Key = group;
-                Ids = new List<int>() { id };
+                Ids = new DelaySortedList();
+                Ids.Load(id);
             }
 
             public Group Key;
-            public List<int> Ids;
+            public DelaySortedList Ids;
         }
 
         private class GroupBucketComparer : IComparer<GroupBucket>
@@ -71,18 +73,27 @@ namespace AspNetCoreWebApi.Processing
             _pool = mainPool;
 
             _worker = new SingleThreadWorker<Request>(r => {
-                if (r.Compress)
+                if (r.PostEnded)
                 {
                     CompressImpl();
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
-                    GC.WaitForFullGCComplete();
-                    GC.Collect();
                     return;
                 }
+
+                if (r.ImportEnded)
+                {
+                    LoadEndedImpl();
+                    return;
+                }
+
+                if (r.IsLoad)
+                {
+                    AddImpl(r.Dto, true);
+                    return;
+                }
+
                 if (r.IsAdd)
                 {
-                    AddImpl(r.Dto);
+                    AddImpl(r.Dto, false);
                 }
                 else
                 {
@@ -126,9 +137,21 @@ namespace AspNetCoreWebApi.Processing
             }
         }
 
+        private void LoadEndedImpl()
+        {
+            _data.TrimExcess();
+            foreach (var buckets in _data.Values)
+            {
+                foreach (var bucket in buckets)
+                {
+                    bucket.Ids.LoadEnded();
+                }
+            }
+        }
+
         public void Compress()
         {
-            _worker.Enqueue(new Request(false, null, true));
+            _worker.Enqueue(Request.PostCompleted());
         }
 
         private void CompressImpl()
@@ -138,9 +161,14 @@ namespace AspNetCoreWebApi.Processing
             {
                 foreach(var bucket in buckets)
                 {
-                    bucket.Ids.TrimExcess();
+                    bucket.Ids.Flush();
                 }
             }
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.WaitForFullGCComplete();
+            GC.Collect();
         }
 
         public void FillResponse(
@@ -276,7 +304,17 @@ namespace AspNetCoreWebApi.Processing
 
         public void Add(AccountDto dto)
         {
-            _worker.Enqueue(new Request(true, dto, false));
+            _worker.Enqueue(Request.Add(dto));
+        }
+
+        public void Load(AccountDto dto)
+        {
+            _worker.Enqueue(Request.Load(dto));
+        }
+
+        public void LoadEnd()
+        {
+            _worker.Enqueue(Request.ImportCompleted());
         }
 
         private void UpdateGroups(
@@ -285,7 +323,8 @@ namespace AspNetCoreWebApi.Processing
             Status status,
             short cityId,
             short countryId,
-            List<short> interestIds)
+            List<short> interestIds,
+            bool isImport)
         {
             foreach(var section in _data)
             {
@@ -306,63 +345,72 @@ namespace AspNetCoreWebApi.Processing
                 Group group = new Group();
                 group.Keys = section.Key;
                 int i = 0;
-                if (section.Key.HasFlag(GroupKey.City))
+                byte key = (byte)section.Key;
+                if (key == (byte)GroupKey.City)
                 {
                     group.CityId = cityId;
                     i++;
                 }
-                if (section.Key.HasFlag(GroupKey.Country))
+                if ((key & (byte)GroupKey.Country) > 0)
                 {
                     group.CountryId = countryId;
                     i++;
                 }
-                if (section.Key.HasFlag(GroupKey.Interest))
+                if ((key & (byte)GroupKey.Interest) > 0)
                 {
                     i++;
                 }
-                if (section.Key.HasFlag(GroupKey.Sex))
+                if ((key & (byte)GroupKey.Sex) > 0)
                 {
                     group.Sex = sex;
                     i++;
                 }
-                if (section.Key.HasFlag(GroupKey.Status))
+                if ((key & (byte)GroupKey.Status) > 0)
                 {
                     group.Status = status;
                     i++;
                 }
 
-                if (section.Key.HasFlag(GroupKey.Interest))
+                if ((key & (byte)GroupKey.Interest) > 0)
                 {
                     for(int index = 0; index < interestIds.Count; index++)
                     {
                         group.InterestId = interestIds[index];
-                        AddAccountToBuckets(section.Value, id, group);
+                        AddAccountToBuckets(section.Value, id, group, isImport);
                     }
                 }
                 else
                 {
-                    AddAccountToBuckets(section.Value, id, group);
+                    AddAccountToBuckets(section.Value, id, group, isImport);
                 }
             }
         }
 
-        private void AddAccountToBuckets(SortedSet<GroupBucket> buckets, int id, Group group)
+        private void AddAccountToBuckets(SortedSet<GroupBucket> buckets, int id, Group group, bool isImport)
         {
             GroupBucket currentBucket = new GroupBucket(group);
 
             if (buckets.TryGetValue(currentBucket, out currentBucket))
             {
-                currentBucket.Ids.Add(id);
+                if (isImport)
+                {
+                    currentBucket.Ids.Load(id);
+                }
+                else
+                {
+                    currentBucket.Ids.DelayAdd(id);
+                }
             }
             else
             {
                 currentBucket.Key = group;
-                currentBucket.Ids = new List<int>() { id };
+                currentBucket.Ids = new DelaySortedList();
+                currentBucket.Ids.Load(id);
                 buckets.Add(currentBucket);
             }
         }
 
-        private void AddImpl(AccountDto dto)
+        private void AddImpl(AccountDto dto, bool isImport)
         {
             var interestIds = _pool.ListOfInt16.Get();
             int id = dto.Id.Value;
@@ -376,7 +424,7 @@ namespace AspNetCoreWebApi.Processing
             }
             _pool.AccountDto.Return(dto);
 
-            UpdateGroups(id, sex, status, cityId, countryId, interestIds);
+            UpdateGroups(id, sex, status, cityId, countryId, interestIds, isImport);
 
             _pool.ListOfInt16.Return(interestIds);
         }
@@ -393,7 +441,7 @@ namespace AspNetCoreWebApi.Processing
                 return;
             }
 
-            _worker.Enqueue(new Request(false, dto, false));
+            _worker.Enqueue(Request.Edit(dto));
         }
 
         private void UpdateImpl(AccountDto dto)
@@ -454,13 +502,13 @@ namespace AspNetCoreWebApi.Processing
             {
                 foreach (var bucket in buckets)
                 {
-                    bucket.Ids.Remove(id);
+                    bucket.Ids.DelayRemove(id);
                 }
             }
 
             _pool.AccountDto.Return(dto);
 
-            UpdateGroups(id, sex, status, cityId, countryId, interestIds);
+            UpdateGroups(id, sex, status, cityId, countryId, interestIds, false);
 
             _pool.ListOfInt16.Return(interestIds);
         }

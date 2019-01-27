@@ -125,7 +125,7 @@ namespace AspNetCoreWebApi.Processing
                 .Merge(newLikesObservable.Select(_ => Interlocked.Increment(ref _editQuery)));
 
             _secondPhaseEndSubscription = updateObservable
-                .Throttle(TimeSpan.FromMilliseconds(500))
+                .Throttle(TimeSpan.FromMilliseconds(1000))
                 .Subscribe(_ =>
                     {
                         _postWorker.Enqueue(PostEvent.End());
@@ -699,7 +699,7 @@ namespace AspNetCoreWebApi.Processing
                 _likeWorker.Enqueue(LikeEvent.EndEvent);
                 _context.LoadEnded();
                 _context.InitNull(_storage.Ids);
-                _groupPreprocessor.Compress();
+                _groupPreprocessor.LoadEnd();
                 Collect();
                 Console.WriteLine($"Import end {DateTime.Now}");
                 return;
@@ -783,7 +783,7 @@ namespace AspNetCoreWebApi.Processing
                     ));
             }
 
-            _groupPreprocessor.Add(dto);
+            _groupPreprocessor.Load(dto);
         }
     }
 }
