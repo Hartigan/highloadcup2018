@@ -10,12 +10,12 @@ namespace AspNetCoreWebApi.Processing.Responses
     public class GroupEntryComparer : IComparer<GroupEntry>, IClearable
     {
         private MainStorage _storage;
-        private IEnumerable<GroupKey> _keys;
+        private List<GroupKey> _keys;
         private bool _order;
 
         public void Init(
             MainStorage mainStorage,
-            IEnumerable<GroupKey> keys,
+            List<GroupKey> keys,
             bool order)
         {
             _storage = mainStorage;
@@ -49,9 +49,9 @@ namespace AspNetCoreWebApi.Processing.Responses
                 return x.Count - y.Count;
             }
 
-            foreach (var key in _keys)
+            for (int i = 0; i < _keys.Count; i++)
             {
-                switch (key)
+                switch (_keys[i])
                 {
                     case GroupKey.City:
                         if (x.Group.CityId != y.Group.CityId)
