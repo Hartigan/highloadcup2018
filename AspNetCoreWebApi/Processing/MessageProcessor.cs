@@ -168,31 +168,20 @@ namespace AspNetCoreWebApi.Processing
             Dictionary<int, float> similarity = _pool.DictionaryOfFloatByInt.Get();
             var selfIds = _pool.HashSetOfInts.Get();
             Dictionary<int, IEnumerable<int>> suggested = _pool.DictionaryOfIntsByInt.Get();
-            _context.Likes.Suggest(request.Id, similarity, suggested, selfIds);
-            
-
-            IEnumerable<int> result = suggested.Keys;
-
-            bool sex = _context.Sex.Contains(true, request.Id);
-            result = result.Where(x => _context.Sex.Get(x) == sex);
-
-            if (request.Country.IsActive)
-            {
-                short countryId = _storage.Countries.Get(request.Country.Country);
-                result = result.Where(x => _context.Countries.Get(x) == countryId);
-            }
-
-            if (request.City.IsActive)
-            {
-                short cityId = _storage.Cities.Get(request.City.City);
-                result = result.Where(x => _context.Cities.Get(x) == cityId);
-            }
+            _context.Likes.Suggest(
+                request.Id,
+                similarity,
+                suggested,
+                selfIds,
+                _context,
+                request.City.IsActive ? _storage.Cities.Get(request.City.City) : (short)0,
+                request.Country.IsActive ? _storage.Countries.Get(request.Country.Country) : (short)0);
 
             var response = _pool.SuggestResponse.Get();
             var list = _pool.ListOfIntegers.Get();
             var comparer = _pool.SuggestComparer.Get();
             comparer.Init(similarity);
-            list.AddRange(result);
+            list.AddRange(suggested.Keys);
             list.Sort(comparer);
             response.Ids.AddRange(list.SelectMany(x => suggested[x]).Take(request.Limit));
             response.Limit = request.Limit;

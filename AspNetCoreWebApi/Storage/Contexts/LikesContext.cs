@@ -125,8 +125,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
             int id,
             Dictionary<int, float> similarity,
             Dictionary<int, IEnumerable<int>> suggested,
-            HashSet<int> selfIds)
+            HashSet<int> selfIds,
+            MainContext context,
+            short cityId,
+            short countryId)
         {
+            bool curSex = context.Sex.Get(id);
+
             List<LikeBucket> buckets = _liker2likes[id];
             if (buckets == null)
             {
@@ -143,6 +148,21 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
                 foreach (var liker in likers)
                 {
+                    if (curSex != context.Sex.Get(liker))
+                    {
+                        continue;
+                    }
+
+                    if (cityId > 0 && cityId != context.Cities.Get(liker))
+                    {
+                        continue;
+                    }
+
+                    if (countryId > 0 && countryId != context.Countries.Get(liker))
+                    {
+                        continue;
+                    }
+
                     float current = 0;
                     if (!similarity.TryGetValue(liker, out current))
                     {
