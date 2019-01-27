@@ -23,74 +23,70 @@ namespace AspNetCoreWebApi.Processing.Printers
 
         private void Write(int id, Stream sw)
         {
-            using (new JsObject(sw))
+            sw.StartObject();
+            sw.Property("id", id);
+            sw.Comma();
+
+            Email email = _context.Emails.Get(id);
+            sw.PropertyNameWithColon("email");
+            sw.WriteDoubleQuote();
+            sw.Write(email.Prefix);
+            sw.WriteA();
+            sw.Write(_storage.Domains.GetString(email.DomainId));
+            sw.WriteDoubleQuote();
+
+
+            sw.Comma();
+            sw.Property("status", _context.Statuses.Get(id).ToStr());
+
+            string fname;
+            if (_context.FirstNames.TryGet(id, out fname))
             {
-                sw.Property("id", id);
                 sw.Comma();
-
-                Email email = _context.Emails.Get(id);
-                sw.PropertyNameWithColon("email");
-                sw.WriteDoubleQuote();
-                sw.Write(email.Prefix);
-                sw.WriteA();
-                sw.Write(_storage.Domains.GetString(email.DomainId));
-                sw.WriteDoubleQuote();
-
-
-                sw.Comma();
-                sw.Property("status", _context.Statuses.Get(id).ToStr());
-
-                string fname;
-                if (_context.FirstNames.TryGet(id, out fname))
-                {
-                    sw.Comma();
-                    sw.Property("fname", fname);
-                }
-
-                string sname;
-                if (_context.LastNames.TryGet(id, out sname))
-                {
-                    sw.Comma();
-                    sw.Property("sname", sname);
-                }
-
-                sw.Comma();
-                sw.Property("birth", _context.Birth.Get(id).Seconds);
-
-                Premium premium;
-                if (_context.Premiums.TryGet(id, out premium))
-                {
-                    sw.Comma();
-                    sw.PropertyNameWithColon("premium");
-                    using (new JsObject(sw))
-                    {
-                        sw.Property("start", premium.Start.Seconds);
-                        sw.Comma();
-                        sw.Property("finish", premium.Finish.Seconds);
-                    }
-                }
+                sw.Property("fname", fname);
             }
+
+            string sname;
+            if (_context.LastNames.TryGet(id, out sname))
+            {
+                sw.Comma();
+                sw.Property("sname", sname);
+            }
+
+            sw.Comma();
+            sw.Property("birth", _context.Birth.Get(id).Seconds);
+
+            Premium premium;
+            if (_context.Premiums.TryGet(id, out premium))
+            {
+                sw.Comma();
+                sw.PropertyNameWithColon("premium");
+                sw.StartObject();
+                sw.Property("start", premium.Start.Seconds);
+                sw.Comma();
+                sw.Property("finish", premium.Finish.Seconds);
+                sw.EndObject();
+            }
+            sw.EndObject();
         }
 
         public void Write(RecommendResponse response, Stream sw)
         {
-            using (new JsObject(sw))
+            sw.StartObject();
+            sw.PropertyNameWithColon("accounts");
+            sw.StartArray();
+            var accounts = response.Ids;
+            var limit = Math.Min(accounts.Count, response.Limit);
+            for (int i = 0; i < limit; i++)
             {
-                sw.PropertyNameWithColon("accounts");
-                using (new JsArray(sw))
+                Write(accounts[i], sw);
+                if (i < limit - 1)
                 {
-                    var accounts = response.Ids;
-                    var limit = Math.Min(accounts.Count, response.Limit);
-                    for (int i = 0; i < limit; i++)
-                    {
-                        Write(accounts[i], sw);
-                        if (i < limit - 1)
-                        {
-                            sw.Comma();
-                        }
-                    }
+                    sw.Comma();
                 }
             }
+            sw.EndArray();
+            sw.EndObject();
         }
     }
 }

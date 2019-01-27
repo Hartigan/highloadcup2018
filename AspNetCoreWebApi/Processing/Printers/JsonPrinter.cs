@@ -26,6 +26,26 @@ namespace AspNetCoreWebApi.Processing.Printers
             stream.WriteByte(41);
         }
 
+        public static void StartObject(this Stream stream)
+        {
+            stream.WriteByte(123);
+        }
+
+        public static void EndObject(this Stream stream)
+        {
+            stream.WriteByte(125);
+        }
+
+        public static void StartArray(this Stream stream)
+        {
+            stream.WriteByte(91);
+        }
+
+        public static void EndArray(this Stream stream)
+        {
+            stream.WriteByte(93);
+        }
+
         public static void Write(this Stream stream, string str)
         {
             unsafe
@@ -99,54 +119,6 @@ namespace AspNetCoreWebApi.Processing.Printers
         public static void Comma(this Stream sw)
         {
             sw.WriteByte(44);
-        }
-    }
-
-    public class Quotes : IDisposable
-    {
-        private Stream _sw;
-
-        public Quotes(Stream sw)
-        {
-            _sw = sw;
-            _sw.WriteByte(34);
-        }
-
-        public void Dispose()
-        {
-            _sw.WriteByte(34);
-        }
-    }
-
-    public class JsObject : IDisposable
-    {
-        private Stream _sw;
-
-        public JsObject(Stream sw)
-        {
-            _sw = sw;
-            _sw.WriteByte(123);
-        }
-
-        public void Dispose()
-        {
-            _sw.WriteByte(125);
-        }
-    }
-
-    public class JsArray : IDisposable
-    {
-        private Stream _sw;
-
-        public JsArray(Stream sw)
-        {
-            _sw = sw;
-            _sw.WriteByte(91);
-        }
-
-        public void Dispose()
-        {
-            _sw.WriteByte(93);
         }
     }
 }
