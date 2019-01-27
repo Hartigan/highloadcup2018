@@ -25,7 +25,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _null.Clear();
             foreach (var id in ids.AsEnumerable())
             {
-                if (!_ids.Contains(id))
+                if (!_phones[id].IsNotEmpty())
                 {
                     _null.Load(id);
                 }
@@ -65,7 +65,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             var old = _phones[id];
 
-            if (_ids.Contains(id))
+            if (_phones[id].IsNotEmpty())
             {
                 _code2ids[old.Code].DelayRemove(id);
             }
