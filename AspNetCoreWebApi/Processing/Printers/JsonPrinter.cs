@@ -6,6 +6,26 @@ namespace AspNetCoreWebApi.Processing.Printers
 {
     public static class StreamWriterExtensions
     {
+        public static void WriteDoubleQuote(this Stream stream)
+        {
+            stream.WriteByte(34);
+        }
+
+        public static void WriteA(this Stream stream)
+        {
+            stream.WriteByte(64);
+        }
+
+        public static void WriteOpenRoundBracket(this Stream stream)
+        {
+            stream.WriteByte(40);
+        }
+
+        public static void WriteCloseRoundBracket(this Stream stream)
+        {
+            stream.WriteByte(41);
+        }
+
         public static void Write(this Stream stream, string str)
         {
             unsafe

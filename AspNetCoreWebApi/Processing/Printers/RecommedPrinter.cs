@@ -30,11 +30,11 @@ namespace AspNetCoreWebApi.Processing.Printers
 
                 Email email = _context.Emails.Get(id);
                 sw.PropertyNameWithColon("email");
-                sw.Write('\"');
+                sw.WriteDoubleQuote();
                 sw.Write(email.Prefix);
-                sw.Write('@');
+                sw.WriteA();
                 sw.Write(_storage.Domains.GetString(email.DomainId));
-                sw.Write('\"');
+                sw.WriteDoubleQuote();
 
 
                 sw.Comma();

@@ -30,11 +30,11 @@ namespace AspNetCoreWebApi.Processing.Printers
 
                 Email email = _context.Emails.Get(id);
                 sw.PropertyNameWithColon("email");
-                sw.Write('\"');
+                sw.WriteDoubleQuote();
                 sw.Write(email.Prefix);
-                sw.Write('@');
+                sw.WriteA();
                 sw.Write(_storage.Domains.GetString(email.DomainId));
-                sw.Write('\"');
+                sw.WriteDoubleQuote();
 
                 foreach (var field in fields)
                 {
@@ -70,13 +70,13 @@ namespace AspNetCoreWebApi.Processing.Printers
                             {
                                 sw.Comma();
                                 sw.PropertyNameWithColon("phone");
-                                sw.Write('\"');
+                                sw.WriteDoubleQuote();
                                 sw.Write(phone.Prefix);
-                                sw.Write('(');
+                                sw.WriteOpenRoundBracket();
                                 sw.Write(phone.Code);
-                                sw.Write(')');
+                                sw.WriteCloseRoundBracket();
                                 sw.Write(phone.Suffix.ToString("D7"));
-                                sw.Write('\"');
+                                sw.WriteDoubleQuote();
                             }
                             break;
                         case Field.Country:
