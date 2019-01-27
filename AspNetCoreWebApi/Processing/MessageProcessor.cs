@@ -339,7 +339,7 @@ namespace AspNetCoreWebApi.Processing
 
             if (request.Phone.IsActive)
             {
-                Intersect(result, _context.Phones.Filter(request.Phone, _storage.Ids), ref inited);
+                listFilters.Add(_context.Phones.Filter(request.Phone, _storage.Ids));
             }
 
             if (request.Country.IsActive)

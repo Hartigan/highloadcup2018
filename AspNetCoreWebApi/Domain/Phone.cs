@@ -16,5 +16,7 @@ namespace AspNetCoreWebApi.Domain
         public short Code;
 
         public int Suffix;
+
+        public bool IsNotEmpty() => Suffix != 0 || Prefix != 0 || Code != 0;
     }
 }

@@ -12,9 +12,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class PhoneContext : IBatchLoader<Phone>, ICompresable
     {
         private Phone[] _phones = new Phone[DataConfig.MaxId];
-        private CountSet _ids = new CountSet();
-        private CountSet _null = new CountSet();
-        private Dictionary<short, CountSet> _code2ids = new Dictionary<short, CountSet>();
+        private DelaySortedList _ids = new DelaySortedList();
+        private DelaySortedList _null = new DelaySortedList();
+        private Dictionary<short, DelaySortedList> _code2ids = new Dictionary<short, DelaySortedList>();
 
         public PhoneContext()
         {
@@ -27,9 +27,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (!_ids.Contains(id))
                 {
-                    _null.Add(id);
+                    _null.Load(id);
                 }
             }
+            _null.LoadEnded();
         }
 
         public void LoadBatch(int id, Phone phone)
@@ -38,22 +39,26 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (!_code2ids.ContainsKey(phone.Code))
             {
-                _code2ids[phone.Code] = new CountSet();
+                _code2ids[phone.Code] = new DelaySortedList();
             }
-            _code2ids[phone.Code].Add(id);
-            _ids.Add(id);
+            _code2ids[phone.Code].Load(id);
+            _ids.Load(id);
         }
 
         public void Add(int id, Phone phone)
         {
-            _ids.Add(id);
+            if (!_phones[id].IsNotEmpty())
+            {
+                _ids.DelayAdd(id);
+            }
+            
             _phones[id] = phone;
 
             if (!_code2ids.ContainsKey(phone.Code))
             {
-                _code2ids[phone.Code] = new CountSet();
+                _code2ids[phone.Code] = new DelaySortedList();
             }
-            _code2ids[phone.Code].Add(id);
+            _code2ids[phone.Code].DelayAdd(id);
         }
 
         public void Update(int id, Phone phone)
@@ -62,7 +67,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (_ids.Contains(id))
             {
-                _code2ids[old.Code].Remove(id);
+                _code2ids[old.Code].DelayRemove(id);
             }
 
             Add(id, phone);
@@ -70,7 +75,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public bool TryGet(int id, out Phone phone)
         {
-            if (_ids.Contains(id))
+            if (_phones[id].IsNotEmpty())
             {
                 phone = _phones[id];
                 return true;
@@ -82,13 +87,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public IFilterSet Filter(FilterRequest.PhoneRequest phone, IdStorage idStorage)
+        public IEnumerable<int> Filter(FilterRequest.PhoneRequest phone, IdStorage idStorage)
         {
             if (phone.IsNull.HasValue)
             {
                 if (phone.IsNull.Value)
                 {
-                    return phone.Code.HasValue ? (IFilterSet)FilterSet.Empty : _null;
+                    return phone.Code.HasValue ? Enumerable.Empty<int>() : _null;
                 }
             }
 
@@ -100,7 +105,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 }
                 else
                 {
-                    return FilterSet.Empty;
+                    return Enumerable.Empty<int>();
                 }
             }
             else
@@ -111,11 +116,20 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Compress()
         {
-            _code2ids.TrimExcess();
+            _ids.Flush();
+            foreach(var list in _code2ids.Values)
+            {
+                list.Flush();
+            }
         }
 
         public void LoadEnded()
         {
+            _ids.LoadEnded();
+            foreach (var list in _code2ids.Values)
+            {
+                list.LoadEnded();
+            }
         }
     }
 }
