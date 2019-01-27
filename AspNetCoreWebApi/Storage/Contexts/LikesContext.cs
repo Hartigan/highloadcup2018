@@ -124,7 +124,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void Suggest(
             int id,
             Dictionary<int, float> similarity,
-            Dictionary<int, IEnumerable<int>> suggested)
+            Dictionary<int, IEnumerable<int>> suggested,
+            HashSet<int> selfIds)
         {
             List<LikeBucket> buckets = _liker2likes[id];
             if (buckets == null)
@@ -166,11 +167,25 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 }
             }
 
-            HashSet<int> selfIds = new HashSet<int>(buckets.Select(x => x.LikeeId));
+            for(int i = 0; i < buckets.Count; i++)
+            {
+                selfIds.Add(buckets[i].LikeeId);
+            }
 
             foreach(var liker in similarity.Keys)
             {
-                suggested.Add(liker, _liker2likes[liker].Where(x => !selfIds.Contains(x.LikeeId)).Select(x => x.LikeeId));
+                suggested.Add(liker, GetSuggestedLikes(_liker2likes[liker], selfIds));
+            }
+        }
+
+        private IEnumerable<int> GetSuggestedLikes(List<LikeBucket> buckets, HashSet<int> selfIds)
+        {
+            for(int i = 0; i < buckets.Count; i++)
+            {
+                if (!selfIds.Contains(buckets[i].LikeeId))
+                {
+                    yield return buckets[i].LikeeId;
+                }
             }
         }
 

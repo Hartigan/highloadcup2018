@@ -166,8 +166,10 @@ namespace AspNetCoreWebApi.Processing
         public SuggestResponse Suggest(SuggestRequest request)
         {
             Dictionary<int, float> similarity = _pool.DictionaryOfFloatByInt.Get();
+            var selfIds = _pool.HashSetOfInts.Get();
             Dictionary<int, IEnumerable<int>> suggested = _pool.DictionaryOfIntsByInt.Get();
-            _context.Likes.Suggest(request.Id, similarity, suggested);
+            _context.Likes.Suggest(request.Id, similarity, suggested, selfIds);
+            
 
             IEnumerable<int> result = suggested.Keys;
 
@@ -192,13 +194,14 @@ namespace AspNetCoreWebApi.Processing
             comparer.Init(similarity);
             list.AddRange(result);
             list.Sort(comparer);
-            response.Ids.AddRange(list.SelectMany(x => suggested[x]));
+            response.Ids.AddRange(list.SelectMany(x => suggested[x]).Take(request.Limit));
             response.Limit = request.Limit;
 
             _pool.DictionaryOfFloatByInt.Return(similarity);
             _pool.DictionaryOfIntsByInt.Return(suggested);
             _pool.ListOfIntegers.Return(list);
             _pool.SuggestComparer.Return(comparer);
+            _pool.HashSetOfInts.Return(selfIds);
 
             return response;
         }

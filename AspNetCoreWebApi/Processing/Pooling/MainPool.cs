@@ -58,5 +58,7 @@ namespace AspNetCoreWebApi.Processing.Pooling
         public DefaultObjectPool<List<GroupEntry>> ListOfGroupEntry { get; } = new DefaultObjectPool<List<GroupEntry>>(new ListPolicy<GroupEntry>());
 
         public DefaultObjectPool<List<IEnumerator<int>>> ListOfEnumerators { get; } = new DefaultObjectPool<List<IEnumerator<int>>>(new ListPolicy<IEnumerator<int>>());
+
+        public DefaultObjectPool<HashSet<int>> HashSetOfInts { get; } = new DefaultObjectPool<HashSet<int>>(new HashSetPolicy<int>());
     }
 }
