@@ -21,7 +21,7 @@ namespace AspNetCoreWebApi.Processing.Printers
             _context = mainContext;
         }
 
-        private void Write(int id, StreamWriter sw, IEnumerable<Field> fields)
+        private void Write(int id, Stream sw, IEnumerable<Field> fields)
         {
             using (new JsObject(sw))
             {
@@ -118,7 +118,7 @@ namespace AspNetCoreWebApi.Processing.Printers
             }
         }
 
-        public void Write(FilterResponse response, StreamWriter sw, IEnumerable<Field> fields)
+        public void Write(FilterResponse response, Stream sw, IEnumerable<Field> fields)
         {
             using (new JsObject(sw))
             {

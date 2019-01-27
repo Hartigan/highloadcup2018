@@ -20,7 +20,7 @@ namespace AspNetCoreWebApi.Processing.Printers
             _context = context;
         }
 
-        private void Write(GroupEntry entry, StreamWriter sw)
+        private void Write(GroupEntry entry, Stream sw)
         {
             using (new JsObject(sw))
             {
@@ -79,7 +79,7 @@ namespace AspNetCoreWebApi.Processing.Printers
             }
         }
 
-        public void Write(GroupResponse response, StreamWriter sw)
+        public void Write(GroupResponse response, Stream sw)
         {
             using (new JsObject(sw))
             {

@@ -21,7 +21,7 @@ namespace AspNetCoreWebApi.Processing.Printers
             _context = mainContext;
         }
 
-        private void Write(int id, StreamWriter sw)
+        private void Write(int id, Stream sw)
         {
             using (new JsObject(sw))
             {
@@ -56,7 +56,7 @@ namespace AspNetCoreWebApi.Processing.Printers
             }
         }
 
-        public void Write(SuggestResponse response, StreamWriter sw)
+        public void Write(SuggestResponse response, Stream sw)
         {
             using (new JsObject(sw))
             {

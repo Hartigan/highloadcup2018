@@ -102,10 +102,8 @@ namespace AspNetCoreWebApi.Processing
             var buffer = _pool.WriteBuffer.Get();
             int contentLength = 0;
             using(var bufferStream = new MemoryStream(buffer))
-            using(var sw = new StreamWriter(bufferStream))
             {
-                _printer.Write(result, sw);
-                sw.Flush();
+                _printer.Write(result, bufferStream);
                 httpResponse.ContentLength = contentLength = (int)bufferStream.Position;
             }
 
