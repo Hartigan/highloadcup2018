@@ -87,9 +87,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     continue;
                 }
 
-                if (comparer.Compare(result.Min, id) > 0)
+                if (comparer.Compare(result.Max, id) > 0)
                 {
-                    result.Remove(result.Min);
+                    result.Remove(result.Max);
                     result.Add(id);
                 }
             }
