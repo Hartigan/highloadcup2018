@@ -145,9 +145,9 @@ namespace AspNetCoreWebApi.Processing
         {
             if (e.Completed)
             {
+                _groupPreprocessor.Compress();
                 _context.Compress();
                 _context.InitNull(_storage.Ids);
-                DataConfig.UpdateInProgress = false;
                 Collect();
                 return;
             }

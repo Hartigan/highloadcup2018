@@ -76,6 +76,7 @@ namespace AspNetCoreWebApi.Processing
                 if (r.PostEnded)
                 {
                     CompressImpl();
+                    DataConfig.UpdateInProgress = false;
                     return;
                 }
 
@@ -346,7 +347,7 @@ namespace AspNetCoreWebApi.Processing
                 group.Keys = section.Key;
                 int i = 0;
                 byte key = (byte)section.Key;
-                if (key == (byte)GroupKey.City)
+                if ((key & (byte)GroupKey.City) > 0)
                 {
                     group.CityId = cityId;
                     i++;
