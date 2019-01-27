@@ -6,7 +6,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         public SingleKeyGroup(
             T key,
-            IEnumerable<int> ids,
+            List<int> ids,
             int count)
         {
             Key = key;
@@ -15,7 +15,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         }
 
         public T Key;
-        public IEnumerable<int> Ids;
+        public List<int> Ids;
         public int Count;
     }
 }

@@ -1,4 +1,5 @@
 ﻿using AspNetCoreWebApi.Processing;
+using System;
 using System.Collections.Generic;
 
 namespace AspNetCoreWebApi.Storage.Contexts
@@ -95,6 +96,19 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
 
             return result;
+        }
+
+        public static int Count<T>(this List<T> list, Func<T, bool> predicate)
+        {
+            int count = 0;
+            for(int i = 0; i < list.Count; i++)
+            {
+                if (predicate(list[i]))
+                {
+                    count++;
+                }
+            }
+            return count;
         }
     }
 }

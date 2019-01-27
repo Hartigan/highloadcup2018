@@ -22,6 +22,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public bool IsReadOnly => false;
 
+        public List<int> GetList() => _data;
+
         public void Clear()
         {
             _data.Clear();

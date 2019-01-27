@@ -142,12 +142,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public IEnumerable<SingleKeyGroup<short>> GetGroups()
         {
-            yield return new SingleKeyGroup<short>(0, _null.AsEnumerable(), _null.Count);
+            yield return new SingleKeyGroup<short>(0, _null.GetList(), _null.Count);
             for(short i = 0; i < _id2AccId.Length; i++)
             {
                 if (_id2AccId[i] != null && _id2AccId[i].Count > 0)
                 {
-                    yield return new SingleKeyGroup<short>(i, _id2AccId[i].AsEnumerable(), _id2AccId[i].Count);
+                    yield return new SingleKeyGroup<short>(i, _id2AccId[i].GetList(), _id2AccId[i].Count);
                 }
             }
         }

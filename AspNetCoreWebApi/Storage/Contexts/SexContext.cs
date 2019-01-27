@@ -90,8 +90,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public IEnumerable<SingleKeyGroup<bool>> GetGroups()
         {
-            yield return new SingleKeyGroup<bool>(false, _groups[0].AsEnumerable(), _groups[0].Count);
-            yield return new SingleKeyGroup<bool>(true, _groups[1].AsEnumerable(), _groups[1].Count);
+            yield return new SingleKeyGroup<bool>(false, _groups[0].GetList(), _groups[0].Count);
+            yield return new SingleKeyGroup<bool>(true, _groups[1].GetList(), _groups[1].Count);
         }
 
         public bool Contains(bool sex, int id)

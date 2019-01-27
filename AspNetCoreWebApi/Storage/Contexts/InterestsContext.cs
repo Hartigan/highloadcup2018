@@ -209,7 +209,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (_id2AccId[i] != null && _id2AccId[i].Count > 0)
                 {
-                    yield return new SingleKeyGroup<short>(i, _id2AccId[i], _id2AccId[i].Count);
+                    yield return new SingleKeyGroup<short>(i, _id2AccId[i].GetList(), _id2AccId[i].Count);
                 }
             }
         }

@@ -105,9 +105,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public IEnumerable<SingleKeyGroup<Status>> GetGroups()
         {
-            yield return new SingleKeyGroup<Status>(Status.Complicated, _groups[(int)Status.Complicated].AsEnumerable(), _groups[(int)Status.Complicated].Count);
-            yield return new SingleKeyGroup<Status>(Status.Free, _groups[(int)Status.Free].AsEnumerable(), _groups[(int)Status.Free].Count);
-            yield return new SingleKeyGroup<Status>(Status.Reserved, _groups[(int)Status.Reserved].AsEnumerable(), _groups[(int)Status.Reserved].Count);
+            yield return new SingleKeyGroup<Status>(Status.Complicated, _groups[(int)Status.Complicated].GetList(), _groups[(int)Status.Complicated].Count);
+            yield return new SingleKeyGroup<Status>(Status.Free, _groups[(int)Status.Free].GetList(), _groups[(int)Status.Free].Count);
+            yield return new SingleKeyGroup<Status>(Status.Reserved, _groups[(int)Status.Reserved].GetList(), _groups[(int)Status.Reserved].Count);
         }
 
         public void Compress()
