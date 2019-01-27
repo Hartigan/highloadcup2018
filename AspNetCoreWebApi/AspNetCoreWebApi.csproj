@@ -5,9 +5,6 @@
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <ThreadPoolMinThreads>4</ThreadPoolMinThreads>
     <ThreadPoolMaxThreads>4</ThreadPoolMaxThreads>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
