@@ -8,6 +8,8 @@ namespace AspNetCoreWebApi.Domain
         public int Seconds;
         public short Year;
 
+        public bool IsEmpty() => Seconds == 0;
+
         public UnixTime(int ts)
         {
             Seconds = ts;

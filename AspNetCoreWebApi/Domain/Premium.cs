@@ -12,5 +12,7 @@ namespace AspNetCoreWebApi.Domain
 
         public UnixTime Start;
         public UnixTime Finish;
+
+        public bool IsNotEmpty() => !Start.IsEmpty() || !Finish.IsEmpty();
     }
 }

@@ -372,7 +372,7 @@ namespace AspNetCoreWebApi.Processing
 
             if (request.Premium.IsActive)
             {
-                Intersect(result, _context.Premiums.Filter(request.Premium, _storage.Ids), ref inited);
+                listFilters.Add(_context.Premiums.Filter(request.Premium, _storage.Ids));
             }
 
             bool noFiltres = !inited && listFilters.Count == 0;
