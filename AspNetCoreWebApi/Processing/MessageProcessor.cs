@@ -403,30 +403,43 @@ namespace AspNetCoreWebApi.Processing
                 }
                 else
                 {
-                    List<IEnumerator<int>> enumerators = listFilters.Select(x => x.GetEnumerator()).ToList();
+                    var enumerators = _pool.ListOfEnumerators.Get();
+                    enumerators.AddRange(listFilters.Select(x => x.GetEnumerator()));
                     int min = DataConfig.MaxId;
-                    foreach (var enumerator in enumerators)
+
+                    for(int i = 0; i < enumerators.Count; i++)
                     {
-                        if (!enumerator.MoveNext())
+                        if (!enumerators[i].MoveNext())
                         {
+                            _pool.ListOfEnumerators.Return(enumerators);
                             goto Finish;
                         }
-                        min = Math.Min(min, enumerator.Current);
+                        min = Math.Min(min, enumerators[i].Current);
                     }
+
                     do
                     {
-                        foreach (var enumerator in enumerators)
+                        for (int i = 0; i < enumerators.Count; i++)
                         {
-                            while (enumerator.Current > min)
+                            while (enumerators[i].Current > min)
                             {
-                                if (!enumerator.MoveNext())
+                                if (!enumerators[i].MoveNext())
                                 {
+                                    _pool.ListOfEnumerators.Return(enumerators);
                                     goto Finish;
                                 }
                             }
                         }
 
-                        var currentMin = enumerators.Min(x => x.Current);
+                        int currentMin = int.MaxValue;
+                        for (int i = 0; i < enumerators.Count; i++)
+                        {
+                            if (enumerators[i].Current < currentMin)
+                            {
+                                currentMin = enumerators[i].Current;
+                            }
+                        }
+
                         if (currentMin == min)
                         {
                             if ((inited && result.Contains(min)) || !inited)
@@ -434,6 +447,7 @@ namespace AspNetCoreWebApi.Processing
                                 response.Ids.Add(min);
                                 if (response.Ids.Count == request.Limit)
                                 {
+                                    _pool.ListOfEnumerators.Return(enumerators);
                                     goto Finish;
                                 }
                             }
@@ -444,6 +458,7 @@ namespace AspNetCoreWebApi.Processing
                             }
                             else
                             {
+                                _pool.ListOfEnumerators.Return(enumerators);
                                 goto Finish;
                             }
                         }

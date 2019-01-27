@@ -56,5 +56,7 @@ namespace AspNetCoreWebApi.Processing.Pooling
         public DefaultObjectPool<List<short>> ListOfInt16 { get; } = new DefaultObjectPool<List<short>>(new ListPolicy<short>());
 
         public DefaultObjectPool<List<GroupEntry>> ListOfGroupEntry { get; } = new DefaultObjectPool<List<GroupEntry>>(new ListPolicy<GroupEntry>());
+
+        public DefaultObjectPool<List<IEnumerator<int>>> ListOfEnumerators { get; } = new DefaultObjectPool<List<IEnumerator<int>>>(new ListPolicy<IEnumerator<int>>());
     }
 }
