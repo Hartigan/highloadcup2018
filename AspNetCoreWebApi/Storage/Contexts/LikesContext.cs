@@ -43,7 +43,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         }
 
         private static BucketIdComparer _bucketKeyComparer = new BucketIdComparer();
-        private List<int>[] _likee2likers = new List<int>[DataConfig.MaxId];
+        private DelaySortedList[] _likee2likers = new DelaySortedList[DataConfig.MaxId];
         private List<LikeBucket>[] _liker2likes = new List<LikeBucket>[DataConfig.MaxId];
 
         public LikesContext()
@@ -60,15 +60,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
             if (_likee2likers[like.LikeeId] != null)
             {
                 var list = _likee2likers[like.LikeeId];
-                int likerIndex = list.BinarySearch(like.LikerId, ReverseComparer<int>.Default);
-                if (likerIndex < 0)
                 {
-                    list.Insert(~likerIndex, like.LikerId);
+                    list.DelayAdd(like.LikerId);
                 }
             }
             else
             {
-                _likee2likers[like.LikeeId] = new List<int>() { like.LikerId };
+                _likee2likers[like.LikeeId] = new DelaySortedList();
+                _likee2likers[like.LikeeId].Load(like.LikerId);
             }
 
             List<LikeBucket> likes;
@@ -140,7 +139,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             foreach(var likeePair in buckets)
             {
-                List<int> likers = _likee2likers[likeePair.LikeeId];
+                var likers = _likee2likers[likeePair.LikeeId];
                 if (likers == null)
                 {
                     continue;
@@ -212,7 +211,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (list != null)
                 {
-                    list.Compress();
+                    list.Flush();
                 }
             }
 
