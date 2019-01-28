@@ -15,6 +15,7 @@ using AspNetCoreWebApi.Storage;
 using AspNetCoreWebApi.Storage.Contexts;
 using AspNetCoreWebApi.Storage.StringPools;
 using Microsoft.Extensions.DependencyInjection;
+using static AspNetCoreWebApi.Storage.Contexts.LikesContext;
 
 namespace AspNetCoreWebApi.Processing
 {
@@ -167,7 +168,7 @@ namespace AspNetCoreWebApi.Processing
         {
             Dictionary<int, float> similarity = _pool.DictionaryOfFloatByInt.Get();
             var selfIds = _pool.HashSetOfInts.Get();
-            Dictionary<int, IEnumerable<int>> suggested = _pool.DictionaryOfIntsByInt.Get();
+            Dictionary<int, List<LikeBucket>> suggested = _pool.DictionaryOfLikeBucketsByInt.Get();
             _context.Likes.Suggest(
                 request.Id,
                 similarity,
@@ -183,11 +184,29 @@ namespace AspNetCoreWebApi.Processing
             comparer.Init(similarity);
             list.AddRange(suggested.Keys);
             list.Sort(comparer);
-            response.Ids.AddRange(list.SelectMany(x => suggested[x]).Take(request.Limit));
+
+            int count = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var buckets = suggested[list[i]];
+                for(int bucketIndex = 0; bucketIndex < buckets.Count; bucketIndex++)
+                {
+                    if (!selfIds.Contains(buckets[bucketIndex].LikeeId))
+                    {
+                        response.Ids.Add(buckets[bucketIndex].LikeeId);
+                        count++;
+                        if (count == request.Limit)
+                        {
+                            goto Finish;
+                        }
+                    }
+                }
+            }
+        Finish:
             response.Limit = request.Limit;
 
             _pool.DictionaryOfFloatByInt.Return(similarity);
-            _pool.DictionaryOfIntsByInt.Return(suggested);
+            _pool.DictionaryOfLikeBucketsByInt.Return(suggested);
             _pool.ListOfIntegers.Return(list);
             _pool.SuggestComparer.Return(comparer);
             _pool.HashSetOfInts.Return(selfIds);

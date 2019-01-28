@@ -18,7 +18,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        private struct LikeBucket
+        public struct LikeBucket
         {
             public LikeBucket(int likeeId, int tsSum, int count)
             {
@@ -124,7 +124,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void Suggest(
             int id,
             Dictionary<int, float> similarity,
-            Dictionary<int, IEnumerable<int>> suggested,
+            Dictionary<int, List<LikeBucket>> suggested,
             HashSet<int> selfIds,
             MainContext context,
             short cityId,
@@ -194,18 +194,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             foreach(var liker in similarity.Keys)
             {
-                suggested.Add(liker, GetSuggestedLikes(_liker2likes[liker], selfIds));
-            }
-        }
-
-        private IEnumerable<int> GetSuggestedLikes(List<LikeBucket> buckets, HashSet<int> selfIds)
-        {
-            for(int i = 0; i < buckets.Count; i++)
-            {
-                if (!selfIds.Contains(buckets[i].LikeeId))
-                {
-                    yield return buckets[i].LikeeId;
-                }
+                suggested.Add(liker, _liker2likes[liker]);
             }
         }
 

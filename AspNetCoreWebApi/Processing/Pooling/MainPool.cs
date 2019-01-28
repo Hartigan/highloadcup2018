@@ -4,6 +4,7 @@ using AspNetCoreWebApi.Domain.Dto;
 using AspNetCoreWebApi.Processing.Requests;
 using AspNetCoreWebApi.Processing.Responses;
 using Microsoft.Extensions.ObjectPool;
+using static AspNetCoreWebApi.Storage.Contexts.LikesContext;
 
 namespace AspNetCoreWebApi.Processing.Pooling
 {
@@ -41,7 +42,7 @@ namespace AspNetCoreWebApi.Processing.Pooling
 
         public DefaultObjectPool<Dictionary<int, float>> DictionaryOfFloatByInt { get; } = new DefaultObjectPool<Dictionary<int, float>>(new DictionaryPolicy<int, float>());
 
-        public DefaultObjectPool<Dictionary<int, IEnumerable<int>>> DictionaryOfIntsByInt { get; } = new DefaultObjectPool<Dictionary<int, IEnumerable<int>>>(new DictionaryPolicy<int, IEnumerable<int>>());
+        public DefaultObjectPool<Dictionary<int, List<LikeBucket>>> DictionaryOfLikeBucketsByInt { get; } = new DefaultObjectPool<Dictionary<int, List<LikeBucket>>>(new DictionaryPolicy<int, List<LikeBucket>>());
 
         public DefaultObjectPool<List<Group>> ListOfGroup { get; } = new DefaultObjectPool<List<Group>>(new ListPolicy<Group>());
 
