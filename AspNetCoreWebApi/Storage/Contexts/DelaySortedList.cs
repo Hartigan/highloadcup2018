@@ -143,7 +143,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             if (_data.Count == _data.Capacity)
             {
-                _data.Capacity = _data.Count * 4 / 3;
+                if (_data.Count < 10)
+                {
+                    _data.Capacity += 1;
+                }
+                else
+                {
+                    _data.Capacity = _data.Count * 4 / 3;
+                }
             }
             _data.Add(item);
         }

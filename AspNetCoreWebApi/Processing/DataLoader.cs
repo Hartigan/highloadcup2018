@@ -54,14 +54,20 @@ namespace AspNetCoreWebApi.Processing
             Console.WriteLine($"Import started {DateTime.Now}");
             using (ZipArchive archive = ZipFile.OpenRead(path))
             {
+                int fileCount = 0;
                 foreach (ZipArchiveEntry entry in archive.Entries)
                 {
                     if (entry.FullName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                     {
                         ParseEntry(entry);
                     }
+                    fileCount++;
 
                     if (GC.GetTotalMemory(false) > 1620000000)
+                    {
+                        Console.WriteLine($"Heap total bytes used: {GC.GetTotalMemory(true)}");
+                        _gc.OnNext(Unit.Default);
+                    } else if (fileCount % 10 == 0)
                     {
                         _gc.OnNext(Unit.Default);
                     }
