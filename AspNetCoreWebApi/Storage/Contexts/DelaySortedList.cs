@@ -85,6 +85,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
             if ((_toAdd?.Count ?? 0) == 0 &&
                 (_toRemove?.Count ?? 0) == 0)
             {
+                if (_data.Capacity > _data.Count)
+                {
+                    _data.TrimExcess();
+                }
                 return;
             }
 

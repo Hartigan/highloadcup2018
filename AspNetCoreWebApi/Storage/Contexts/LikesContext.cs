@@ -53,18 +53,30 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void Add(Like like)
         {
-            AddImpl(like);
+            AddImpl(like, false);
         }
 
-        private void AddImpl(Like like)
+        private void AddImpl(Like like, bool import)
         {
             if (_likee2likers[like.LikeeId] != null)
             {
                 var list = _likee2likers[like.LikeeId];
                 {
-                    if (!list.FullContains(like.LikerId))
+                    if (import)
                     {
-                        list.DelayAdd(like.LikerId);
+                        var rawList = list.GetList();
+                        int index = rawList.BinarySearch(like.LikerId, ReverseComparer<int>.Default);
+                        if (index < 0)
+                        {
+                            rawList.Insert(~index, like.LikerId);
+                        }
+                    }
+                    else
+                    {
+                        if (!list.FullContains(like.LikerId))
+                        {
+                            list.DelayAdd(like.LikerId);
+                        }
                     }
                 }
             }
@@ -83,7 +95,24 @@ namespace AspNetCoreWebApi.Storage.Contexts
             likes = _liker2likes[like.LikerId];
 
             LikeBucket bucket = new LikeBucket(like.LikeeId, like.Timestamp.Seconds, 1);
-            likes.UpdateOrAdd(bucket, x => x + bucket);
+
+            if (import)
+            {
+                var rawList = likes.GetList();
+                int index = rawList.BinarySearch(bucket, BucketIdComparer.Default);
+                if (index >= 0)
+                {
+                    rawList[index] += bucket;
+                }
+                else
+                {
+                    rawList.Insert(~index, bucket);
+                }
+            }
+            else
+            {
+                likes.UpdateOrAdd(bucket, x => x + bucket);
+            }
         }
 
         public IEnumerable<int> Filter(FilterRequest.LikesRequest likes)
@@ -197,13 +226,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void LoadBatch(int id, Like like)
         {
-            AddImpl(like);
-            _loadedLikes++;
-            if (_loadedLikes > 2000000)
-            {
-                _loadedLikes = 0;
-                Compress();
-            }
+            AddImpl(like, true);
         }
 
         public void Compress()
