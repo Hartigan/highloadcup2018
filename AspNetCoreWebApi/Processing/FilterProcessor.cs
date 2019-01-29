@@ -425,7 +425,7 @@ namespace AspNetCoreWebApi.Processing
         private bool CityAny(FilterRequest request, StringValues value)
         {
             request.City.IsActive = true;
-            request.City.Any.UnionWith(value);
+            request.City.Any.AddRange(value);
             return true;
         }
 
