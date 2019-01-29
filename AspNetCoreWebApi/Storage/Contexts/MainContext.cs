@@ -9,13 +9,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             Interests = new InterestsContext(pool);
             FirstNames = new FirstNameContext(storage);
+            LastNames = new LastNameContext(storage);
         }
 
         public EmailContext Emails { get; } = new EmailContext();
 
         public FirstNameContext FirstNames { get; }
 
-        public LastNameContext LastNames { get; } = new LastNameContext();
+        public LastNameContext LastNames { get; }
 
         public PhoneContext Phones { get; } = new PhoneContext();
 

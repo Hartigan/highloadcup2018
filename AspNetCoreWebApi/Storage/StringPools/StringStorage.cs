@@ -40,5 +40,16 @@ namespace AspNetCoreWebApi.Storage.StringPools
         {
             return _str2id.TryGetValue(str, out id);
         }
+
+        public IEnumerable<short> StartWith(string starts)
+        {
+            foreach(var pair in _id2str)
+            {
+                if (pair.Value.StartsWith(starts))
+                {
+                    yield return pair.Key;
+                }
+            }
+        }
     }
 }

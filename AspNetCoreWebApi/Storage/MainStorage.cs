@@ -21,6 +21,8 @@ namespace AspNetCoreWebApi.Storage
 
         public NameStorage Names { get; } = new NameStorage();
 
+        public LastNameStorage LastNames { get; } = new LastNameStorage();
+
         public MainStorage()
         {
         }

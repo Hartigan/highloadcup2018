@@ -3,17 +3,22 @@ using System.Linq;
 using System.Threading;
 using AspNetCoreWebApi.Processing;
 using AspNetCoreWebApi.Processing.Requests;
+using AspNetCoreWebApi.Storage.StringPools;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
     public class LastNameContext : IBatchLoader<string>, ICompresable
     {
-        private string[] _names = new string[DataConfig.MaxId];
+        private short[] _names = new short[DataConfig.MaxId];
+        private Dictionary<short, DelaySortedList<int>> _byName = new Dictionary<short, DelaySortedList<int>>(2000);
         private DelaySortedList<int> _ids = DelaySortedList<int>.CreateDefault();
         private DelaySortedList<int> _null = DelaySortedList<int>.CreateDefault();
 
-        public LastNameContext()
+        private readonly LastNameStorage _storage;
+
+        public LastNameContext(MainStorage storage)
         {
+            _storage = storage.LastNames;
         }
 
         public void InitNull(IdStorage ids)
@@ -21,7 +26,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _null.Clear();
             foreach(var id in ids.AsEnumerable())
             {
-                if (_names[id] == null)
+                if (_names[id] == 0)
                 {
                     _null.Load(id);
                 }
@@ -31,23 +36,64 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public void LoadBatch(int id, string lastname)
         {
-            _names[id] = string.Intern(lastname);
+            short nameId = _storage.Get(lastname);
+
+            _names[id] = nameId;
+
+            DelaySortedList<int> nameGroup;
+            if (!_byName.TryGetValue(nameId, out nameGroup))
+            {
+                nameGroup = DelaySortedList<int>.CreateDefault();
+                _byName.Add(nameId, nameGroup);
+            }
+
+            nameGroup.Load(id);
+
             _ids.Load(id);
         }
 
         public void AddOrUpdate(int id, string name)
         {
-            if (_names[id] == null)
+            short nameId = _storage.Get(name);
+
+            if (_names[id] == 0)
             {
                 _ids.DelayAdd(id);
             }
-            _names[id] = string.Intern(name);
+            else
+            {
+                _byName[nameId].DelayRemove(id);
+            }
+
+            _names[id] = nameId;
+
+            DelaySortedList<int> nameGroup;
+            if (!_byName.TryGetValue(nameId, out nameGroup))
+            {
+                nameGroup = DelaySortedList<int>.CreateDefault();
+                _byName.Add(nameId, nameGroup);
+                nameGroup.Load(id);
+            }
+            else
+            {
+                nameGroup.DelayAdd(id);
+            }
         }
 
         public bool TryGet(int id, out string sname)
         {
-            sname = _names[id];
-            return sname != null;
+            short nameId = _names[id];
+
+            if (nameId > 0)
+            {
+                sname = _storage.GetString(nameId);
+            }
+            else
+            {
+                sname = null;
+            }
+
+            return nameId > 0;
         }
 
         public IEnumerable<int> Filter(FilterRequest.SnameRequest sname, IdStorage idStorage)
@@ -71,7 +117,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (sname.Eq.StartsWith(sname.Starts))
                 {
-                    return _ids.Where(x => _names[x] == sname.Eq);
+                    return _byName.GetValueOrDefault(_storage.Get(sname.Eq)) ?? Enumerable.Empty<int>();
                 }
                 else
                 {
@@ -81,11 +127,22 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (sname.Starts != null)
             {
-                return _ids.Where(x => _names[x].StartsWith(sname.Starts));
+                List<IEnumerator<int>> enumerators = new List<IEnumerator<int>>();
+
+                foreach(var nameId in _storage.StartWith(sname.Starts))
+                {
+                    var list = _byName.GetValueOrDefault(nameId);
+                    if (list != null)
+                    {
+                        enumerators.Add(list.GetEnumerator());
+                    }
+                }
+
+                return ListHelper.MergeSort(enumerators, ReverseComparer<int>.Default);
             }
             else if (sname.Eq != null)
             {
-                return _ids.Where(x => _names[x] == sname.Eq);
+                return _byName.GetValueOrDefault(_storage.Get(sname.Eq)) ?? Enumerable.Empty<int>();
             }
 
             return _ids;
@@ -94,11 +151,21 @@ namespace AspNetCoreWebApi.Storage.Contexts
         public void Compress()
         {
             _ids.Flush();
+
+            foreach(var list in _byName.Values)
+            {
+                list.Flush();
+            }
         }
 
         public void LoadEnded()
         {
             _ids.LoadEnded();
+
+            foreach (var list in _byName.Values)
+            {
+                list.LoadEnded();
+            }
         }
     }
 }
