@@ -60,7 +60,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 {
                     if (fname.Eq == null && fname.Any.Count == 0)
                     {
-                        return _null.AsEnumerable();
+                        return _null;
                     }
                     else
                     {
@@ -73,7 +73,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (fname.Any.Contains(fname.Eq))
                 {
-                    return _ids.AsEnumerable().Where(x => _names[x] == fname.Eq);
+                    return _ids.Where(x => _names[x] == fname.Eq);
                 }
                 else
                 {
@@ -83,14 +83,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (fname.Any.Count > 0)
             {
-                return _ids.AsEnumerable().Where(x => fname.Any.Contains(_names[x]));
+                return _ids.Where(x => fname.Any.Contains(_names[x]));
             }
             else if (fname.Eq != null)
             {
-                return _ids.AsEnumerable().Where(x => _names[x] == fname.Eq);
+                return _ids.Where(x => _names[x] == fname.Eq);
             }
 
-            return _ids.AsEnumerable();
+            return _ids;
         }
 
         public void Compress()

@@ -63,11 +63,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (sex.IsMale)
             {
-                return _groups[1].AsEnumerable();
+                return _groups[1];
             }
             else
             {
-                return _groups[0].AsEnumerable();
+                return _groups[0];
             }
         }
 

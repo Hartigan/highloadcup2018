@@ -75,7 +75,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 if (city.IsNull.Value)
                 {
                     return (city.Eq == null && city.Any.Count == 0)
-                        ? _null.AsEnumerable()
+                        ? _null
                         : Enumerable.Empty<int>();
                 }
             }
@@ -85,7 +85,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 if (city.Any.Contains(city.Eq))
                 {
                     short cityId = cities.Get(city.Eq);
-                    return _id2AccId[cityId]?.AsEnumerable() ?? Enumerable.Empty<int>();
+                    return _id2AccId[cityId] ?? Enumerable.Empty<int>();
                 }
                 else
                 {
@@ -96,7 +96,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             if (city.Eq != null)
             {
                 short cityId = cities.Get(city.Eq);
-                return _id2AccId[cityId]?.AsEnumerable() ?? Enumerable.Empty<int>();
+                return _id2AccId[cityId] ?? Enumerable.Empty<int>();
             }
             else if (city.Any.Count > 0)
             {
@@ -105,13 +105,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
                         city.Any
                             .Select(x => cities.Get(x))
                             .Where(x => _id2AccId[x] != null)
-                            .Select(x => _id2AccId[x].AsEnumerable().GetEnumerator())
+                            .Select(x => _id2AccId[x].GetEnumerator())
                             .ToList(),
                         ReverseComparer<int>.Default);
             }
             else
             {
-                return _ids.AsEnumerable();
+                return _ids;
             }
         }
 
@@ -123,7 +123,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (_id2AccId[cityId] != null)
             {
-                return _id2AccId[cityId].AsEnumerable();
+                return _id2AccId[cityId];
             }
             else
             {

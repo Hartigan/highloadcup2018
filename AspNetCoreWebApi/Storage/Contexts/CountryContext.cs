@@ -74,20 +74,20 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 if (country.IsNull.Value)
                 {
                     return country.Eq == null
-                        ? _null.AsEnumerable()
+                        ? _null
                         : Enumerable.Empty<int>();
                 }
             }
 
             if (country.Eq == null)
             {
-                return _ids.AsEnumerable();
+                return _ids;
             }
             short countryId = countries.Get(country.Eq);
 
             if (_id2AccId[countryId] != null)
             {
-                return _id2AccId[countryId].AsEnumerable();
+                return _id2AccId[countryId];
             }
             else
             {
@@ -103,7 +103,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (_id2AccId[countryId] != null)
             {
-                return _id2AccId[countryId].AsEnumerable();
+                return _id2AccId[countryId];
             }
             else
             {

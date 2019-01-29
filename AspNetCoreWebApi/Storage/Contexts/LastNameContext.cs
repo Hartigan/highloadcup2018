@@ -58,7 +58,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 {
                     if (sname.Eq == null && sname.Starts == null)
                     {
-                        return _null.AsEnumerable();
+                        return _null;
                     }
                     else
                     {
@@ -71,7 +71,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (sname.Eq.StartsWith(sname.Starts))
                 {
-                    return _ids.AsEnumerable().Where(x => _names[x] == sname.Eq);
+                    return _ids.Where(x => _names[x] == sname.Eq);
                 }
                 else
                 {
@@ -81,14 +81,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (sname.Starts != null)
             {
-                return _ids.AsEnumerable().Where(x => _names[x].StartsWith(sname.Starts));
+                return _ids.Where(x => _names[x].StartsWith(sname.Starts));
             }
             else if (sname.Eq != null)
             {
-                return _ids.AsEnumerable().Where(x => _names[x] == sname.Eq);
+                return _ids.Where(x => _names[x] == sname.Eq);
             }
 
-            return _ids.AsEnumerable();
+            return _ids;
         }
 
         public void Compress()

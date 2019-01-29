@@ -55,7 +55,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 withDomain = _domain2ids.GetValueOrDefault(domainId);
             }
 
-            IEnumerable<int> result = withDomain != null ? withDomain.AsEnumerable() : idStorage.AsEnumerable();
+            IEnumerable<int> result = withDomain != null ? withDomain : idStorage.AsEnumerable();
 
             if (email.Gt != null && email.Lt != null)
             {

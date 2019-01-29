@@ -78,7 +78,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (status.Eq != null)
             {
-                return _groups[(int)status.Eq.Value].AsEnumerable();
+                return _groups[(int)status.Eq.Value];
             }
 
             List<IEnumerator<int>> enumerators = new List<IEnumerator<int>>(2);
@@ -88,7 +88,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 {
                     continue;
                 }
-                enumerators.Add(_groups[i].AsEnumerable().GetEnumerator());
+                enumerators.Add(_groups[i].GetEnumerator());
             }
             return ListHelper.MergeSort(enumerators, ReverseComparer<int>.Default);
         }
