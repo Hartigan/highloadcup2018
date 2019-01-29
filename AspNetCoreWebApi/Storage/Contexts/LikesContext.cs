@@ -115,29 +115,21 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public IEnumerable<int> Filter(FilterRequest.LikesRequest likes)
+        public IEnumerable<IEnumerable<int>> Filter(FilterRequest.LikesRequest likes)
         {
-            HashSet<int> result = null;
-
             foreach(var likee in likes.Contains)
             {
                 var tmp = _likee2likers[likee];
                 if (tmp == null)
                 {
-                    return Enumerable.Empty<int>();
-                }
-
-                if (result == null)
-                {
-                    result = new HashSet<int>(tmp);
+                    yield return Enumerable.Empty<int>();
+                    break;
                 }
                 else
                 {
-                    result.IntersectWith(tmp);
+                    yield return tmp;
                 }
             }
-
-            return result ?? Enumerable.Empty<int>();;
         }
 
         public IEnumerable<int> Filter(GroupRequest.LikeRequest like)

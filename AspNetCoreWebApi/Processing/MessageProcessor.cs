@@ -402,7 +402,7 @@ namespace AspNetCoreWebApi.Processing
 
             if (request.Likes.IsActive)
             {
-                listFilters.Add(_context.Likes.Filter(request.Likes));
+                listFilters.AddRange(_context.Likes.Filter(request.Likes));
             }
 
             if (request.Premium.IsActive)
