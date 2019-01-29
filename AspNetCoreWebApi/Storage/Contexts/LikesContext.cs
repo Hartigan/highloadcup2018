@@ -222,8 +222,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        private int _loadedLikes = 0;
-
         public void LoadBatch(int id, Like like)
         {
             AddImpl(like, true);
