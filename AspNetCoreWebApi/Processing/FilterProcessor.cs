@@ -331,14 +331,14 @@ namespace AspNetCoreWebApi.Processing
         private bool InterestsAny(FilterRequest request, StringValues value)
         {
             request.Interests.IsActive = true;
-            request.Interests.Any.UnionWith(value);
+            request.Interests.Any.AddRange(value);
             return true;
         }
 
         private bool InterestsContains(FilterRequest request, StringValues value)
         {
             request.Interests.IsActive = true;
-            request.Interests.Contains.UnionWith(value);
+            request.Interests.Contains.AddRange(value);
             return true;
         }
 

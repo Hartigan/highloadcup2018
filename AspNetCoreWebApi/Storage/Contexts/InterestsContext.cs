@@ -17,10 +17,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
         private CountSet _ids = new CountSet();
 
         private readonly MainPool _pool;
+        private readonly InterestStorage _storage;
 
-        public InterestsContext(MainPool pool)
+        public InterestsContext(
+            MainPool pool,
+            MainStorage storage)
         {
             _pool = pool;
+            _storage = storage.Interests;
         }
 
         public void InitNull(IdStorage ids)
@@ -69,56 +73,28 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public void Filter(
-            FilterRequest.InterestsRequest interests,
-            InterestStorage interestsStorage,
-            FilterSet output)
+        public IEnumerable<int> FilterAny(List<string> any)
         {
-            if (interests.Contains.Count > 0)
+            List<IEnumerator<int>> enumerators = new List<IEnumerator<int>>(any.Count);
+
+            for(int i = 0; i < any.Count; i++)
             {
-                var ids = interests.Contains.Select(x => interestsStorage.Get(x));
-                bool inited = false;
-                foreach(var interest in ids)
+                var interestId = _storage.Get(any[i]);
+                if (_id2AccId[interestId] != null)
                 {
-                    var tmp = _id2AccId[interest];
-                    if (tmp == null)
-                    {
-                        return;
-                    }
-
-                    if (!inited)
-                    {
-                        output.Add(tmp);
-                        inited = true;
-                    }
-                    else
-                    {
-                        var filterSet = _pool.FilterSet.Get();
-                        filterSet.Add(tmp);
-                        output.IntersectWith(filterSet);
-                        _pool.FilterSet.Return(filterSet);
-                    }
+                    enumerators.Add(_id2AccId[interestId].GetEnumerator());
                 }
-
-                return;
             }
 
-            if (interests.Any.Count > 0)
+            return ListHelper.MergeSort(enumerators, ReverseComparer<int>.Default).SortedDistinct();
+        }
+
+        public IEnumerable<IEnumerable<int>> FilterContains(List<string> contains)
+        {
+            for(int i = 0; i < contains.Count; i++)
             {
-                var ids = interests.Any.Select(x => interestsStorage.Get(x));
-
-                foreach(var interest in ids)
-                {
-                    var tmp = _id2AccId[interest];
-                    if (tmp == null)
-                    {
-                        continue;
-                    }
-
-                    output.Add(tmp);
-                }
-
-                return;
+                var interestId = _storage.Get(contains[i]);
+                yield return _id2AccId[interestId] ?? Enumerable.Empty<int>();
             }
         }
 

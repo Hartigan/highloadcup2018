@@ -110,5 +110,18 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
             return count;
         }
+
+        public static IEnumerable<int> SortedDistinct(this IEnumerable<int> list)
+        {
+            int last = -1;
+            foreach(var id in list)
+            {
+                if (last != id)
+                {
+                    yield return id;
+                    last = id;
+                }
+            }
+        }
     }
 }

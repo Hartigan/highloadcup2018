@@ -7,7 +7,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         public MainContext(MainPool pool, MainStorage storage)
         {
-            Interests = new InterestsContext(pool);
+            Interests = new InterestsContext(pool, storage);
             FirstNames = new FirstNameContext(storage);
             LastNames = new LastNameContext(storage);
         }

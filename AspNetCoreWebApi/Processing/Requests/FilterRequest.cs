@@ -148,8 +148,8 @@ namespace AspNetCoreWebApi.Processing.Requests
         public class InterestsRequest
         {
             public bool IsActive;
-            public HashSet<string> Contains = new HashSet<string>();
-            public HashSet<string> Any = new HashSet<string>();
+            public List<string> Contains = new List<string>();
+            public List<string> Any = new List<string>();
             public void Clear()
             {
                 IsActive = false;

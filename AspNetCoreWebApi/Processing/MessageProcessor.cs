@@ -322,9 +322,7 @@ namespace AspNetCoreWebApi.Processing
 
         public FilterResponse Filter(FilterRequest request)
         {
-            FilterSet result = _pool.FilterSet.Get();
             var listFilters = _pool.ListOfLists.Get();
-            bool inited = false;
 
             if (request.Sex.IsActive)
             {
@@ -373,10 +371,15 @@ namespace AspNetCoreWebApi.Processing
 
             if (request.Interests.IsActive)
             {
-                var tmp = _pool.FilterSet.Get();
-                _context.Interests.Filter(request.Interests, _storage.Interests, tmp);
-                Intersect(result, tmp, ref inited);
-                _pool.FilterSet.Return(tmp);
+                if (request.Interests.Contains.Count > 0)
+                {
+                    listFilters.AddRange(_context.Interests.FilterContains(request.Interests.Contains));
+                }
+
+                if (request.Interests.Any.Count > 0)
+                {
+                    listFilters.Add(_context.Interests.FilterAny(request.Interests.Any));
+                }
             }
 
             if (request.Likes.IsActive)
@@ -389,7 +392,7 @@ namespace AspNetCoreWebApi.Processing
                 listFilters.Add(_context.Premiums.Filter(request.Premium, _storage.Ids));
             }
 
-            bool noFiltres = !inited && listFilters.Count == 0;
+            bool noFiltres = listFilters.Count == 0;
             bool noLists = listFilters.Count == 0;
             var response = _pool.FilterResponse.Get();
 
@@ -399,95 +402,71 @@ namespace AspNetCoreWebApi.Processing
             }
             else
             {
-                if (noLists)
+                var enumerators = _pool.ListOfEnumerators.Get();
+                enumerators.AddRange(listFilters.Select(x => x.GetEnumerator()));
+                int min = DataConfig.MaxId;
+
+                for(int i = 0; i < enumerators.Count; i++)
                 {
-                    int count = 0;
-                    foreach(var id in _storage.Ids.AsEnumerable())
+                    if (!enumerators[i].MoveNext())
                     {
-                        if (count == request.Limit)
-                        {
-                            break;
-                        }
-                        if (result.Contains(id))
-                        {
-                            response.Ids.Add(id);
-                            count++;
-                        }
+                        _pool.ListOfEnumerators.Return(enumerators);
+                        goto Finish;
                     }
+                    min = Math.Min(min, enumerators[i].Current);
                 }
-                else
+
+                do
                 {
-                    var enumerators = _pool.ListOfEnumerators.Get();
-                    enumerators.AddRange(listFilters.Select(x => x.GetEnumerator()));
-                    int min = DataConfig.MaxId;
-
-                    for(int i = 0; i < enumerators.Count; i++)
+                    for (int i = 0; i < enumerators.Count; i++)
                     {
-                        if (!enumerators[i].MoveNext())
+                        while (enumerators[i].Current > min)
                         {
-                            _pool.ListOfEnumerators.Return(enumerators);
-                            goto Finish;
-                        }
-                        min = Math.Min(min, enumerators[i].Current);
-                    }
-
-                    do
-                    {
-                        for (int i = 0; i < enumerators.Count; i++)
-                        {
-                            while (enumerators[i].Current > min)
-                            {
-                                if (!enumerators[i].MoveNext())
-                                {
-                                    _pool.ListOfEnumerators.Return(enumerators);
-                                    goto Finish;
-                                }
-                            }
-                        }
-
-                        int currentMin = int.MaxValue;
-                        for (int i = 0; i < enumerators.Count; i++)
-                        {
-                            if (enumerators[i].Current < currentMin)
-                            {
-                                currentMin = enumerators[i].Current;
-                            }
-                        }
-
-                        if (currentMin == min)
-                        {
-                            if ((inited && result.Contains(min)) || !inited)
-                            {
-                                response.Ids.Add(min);
-                                if (response.Ids.Count == request.Limit)
-                                {
-                                    _pool.ListOfEnumerators.Return(enumerators);
-                                    goto Finish;
-                                }
-                            }
-
-                            if (enumerators[0].MoveNext())
-                            {
-                                min = enumerators[0].Current;
-                            }
-                            else
+                            if (!enumerators[i].MoveNext())
                             {
                                 _pool.ListOfEnumerators.Return(enumerators);
                                 goto Finish;
                             }
                         }
-                        else
+                    }
+
+                    int currentMin = int.MaxValue;
+                    for (int i = 0; i < enumerators.Count; i++)
+                    {
+                        if (enumerators[i].Current < currentMin)
                         {
-                            min = currentMin;
+                            currentMin = enumerators[i].Current;
                         }
                     }
-                    while (true);
+
+                    if (currentMin == min)
+                    {
+                        response.Ids.Add(min);
+                        if (response.Ids.Count == request.Limit)
+                        {
+                            _pool.ListOfEnumerators.Return(enumerators);
+                            goto Finish;
+                        }
+
+                        if (enumerators[0].MoveNext())
+                        {
+                            min = enumerators[0].Current;
+                        }
+                        else
+                        {
+                            _pool.ListOfEnumerators.Return(enumerators);
+                            goto Finish;
+                        }
+                    }
+                    else
+                    {
+                        min = currentMin;
+                    }
                 }
+                while (true);
             }
         Finish:
             response.Limit = request.Limit;
-
-            _pool.FilterSet.Return(result);
             _pool.ListOfLists.Return(listFilters);
 
             return response;
