@@ -12,9 +12,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class PhoneContext : IBatchLoader<Phone>, ICompresable
     {
         private Phone[] _phones = new Phone[DataConfig.MaxId];
-        private DelaySortedList _ids = new DelaySortedList();
-        private DelaySortedList _null = new DelaySortedList();
-        private Dictionary<short, DelaySortedList> _code2ids = new Dictionary<short, DelaySortedList>();
+        private DelaySortedList<int> _ids = DelaySortedList<int>.CreateDefault();
+        private DelaySortedList<int> _null = DelaySortedList<int>.CreateDefault();
+        private Dictionary<short, DelaySortedList<int>> _code2ids = new Dictionary<short, DelaySortedList<int>>();
 
         public PhoneContext()
         {
@@ -39,7 +39,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (!_code2ids.ContainsKey(phone.Code))
             {
-                _code2ids[phone.Code] = new DelaySortedList();
+                _code2ids[phone.Code] = DelaySortedList<int>.CreateDefault();
             }
             _code2ids[phone.Code].Load(id);
             _ids.Load(id);
@@ -56,7 +56,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (!_code2ids.ContainsKey(phone.Code))
             {
-                _code2ids[phone.Code] = new DelaySortedList();
+                _code2ids[phone.Code] = DelaySortedList<int>.CreateDefault();
             }
             _code2ids[phone.Code].DelayAdd(id);
         }

@@ -13,9 +13,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private Premium[] _premiums = new Premium[DataConfig.MaxId];
         
-        private DelaySortedList _ids = new DelaySortedList();
-        private DelaySortedList _null = new DelaySortedList();
-        private DelaySortedList _now = new DelaySortedList();
+        private DelaySortedList<int> _ids = DelaySortedList<int>.CreateDefault();
+        private DelaySortedList<int> _null = DelaySortedList<int>.CreateDefault();
+        private DelaySortedList<int> _now = DelaySortedList<int>.CreateDefault();
 
         public PremiumContext()
         {

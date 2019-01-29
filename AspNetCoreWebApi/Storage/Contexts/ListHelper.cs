@@ -39,7 +39,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return list.BinarySearch(id, ReverseComparer<int>.Default) >= 0;
         }
 
-        public static IEnumerable<int> MergeSort(List<IEnumerator<int>> enumerators)
+        public static IEnumerable<T> MergeSort<T>(List<IEnumerator<T>> enumerators, IComparer<T> comparer)
         {
             for (int i = 0; i < enumerators.Count;)
             {
@@ -58,7 +58,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 int maxIndex = 0;
                 for (int i = 1; i < enumerators.Count; i++)
                 {
-                    if (enumerators[maxIndex].Current < enumerators[i].Current)
+                    if (comparer.Compare(enumerators[maxIndex].Current, enumerators[i].Current) > 0)
                     {
                         maxIndex = i;
                     }

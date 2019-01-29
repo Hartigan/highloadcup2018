@@ -12,8 +12,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
 {
     public class InterestsContext : IBatchLoader<IEnumerable<short>>, ICompresable
     {
-        private DelaySortedList[] _id2AccId = new DelaySortedList[200];
-        private DelaySortedList _null = new DelaySortedList();
+        private DelaySortedList<int>[] _id2AccId = new DelaySortedList<int>[200];
+        private DelaySortedList<int> _null = DelaySortedList<int>.CreateDefault();
         private CountSet _ids = new CountSet();
 
         private readonly MainPool _pool;
@@ -52,7 +52,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _ids.Add(id);
             if (_id2AccId[interestId] == null)
             {
-                _id2AccId[interestId] = new DelaySortedList();
+                _id2AccId[interestId] = DelaySortedList<int>.CreateDefault();
             }
             _id2AccId[interestId].DelayAdd(id);
         }
@@ -197,7 +197,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (_id2AccId[interestId] == null)
                 {
-                    _id2AccId[interestId] = new DelaySortedList();
+                    _id2AccId[interestId] = DelaySortedList<int>.CreateDefault();
                 }
                 _id2AccId[interestId].Load(id);
             }

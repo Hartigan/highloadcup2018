@@ -14,14 +14,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
     {
         private bool[] _raw = new bool[DataConfig.MaxId];
         private CountSet[] _filter = new CountSet[2];
-        private DelaySortedList[] _groups = new DelaySortedList[2];
+        private DelaySortedList<int>[] _groups = new DelaySortedList<int>[2];
 
         public SexContext()
         {
             _filter[0] = new CountSet();
             _filter[1] = new CountSet();
-            _groups[0] = new DelaySortedList();
-            _groups[1] = new DelaySortedList();
+            _groups[0] = DelaySortedList<int>.CreateDefault();
+            _groups[1] = DelaySortedList<int>.CreateDefault();
         }
 
         public void LoadBatch(int id, bool sex)

@@ -9,8 +9,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class LastNameContext : IBatchLoader<string>, ICompresable
     {
         private string[] _names = new string[DataConfig.MaxId];
-        private DelaySortedList _ids = new DelaySortedList();
-        private DelaySortedList _null = new DelaySortedList();
+        private DelaySortedList<int> _ids = DelaySortedList<int>.CreateDefault();
+        private DelaySortedList<int> _null = DelaySortedList<int>.CreateDefault();
 
         public LastNameContext()
         {

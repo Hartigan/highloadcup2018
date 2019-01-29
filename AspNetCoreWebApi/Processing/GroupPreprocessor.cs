@@ -39,12 +39,12 @@ namespace AspNetCoreWebApi.Processing
             public GroupBucket(Group group, int id)
             {
                 Key = group;
-                Ids = new DelaySortedList();
+                Ids = DelaySortedList<int>.CreateDefault();
                 Ids.Load(id);
             }
 
             public Group Key;
-            public DelaySortedList Ids;
+            public DelaySortedList<int> Ids;
         }
 
         private class GroupBucketComparer : IComparer<GroupBucket>
@@ -405,7 +405,7 @@ namespace AspNetCoreWebApi.Processing
             else
             {
                 currentBucket.Key = group;
-                currentBucket.Ids = new DelaySortedList();
+                currentBucket.Ids = DelaySortedList<int>.CreateDefault();
                 currentBucket.Ids.Load(id);
                 buckets.Add(currentBucket);
             }

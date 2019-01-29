@@ -13,9 +13,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class CountryContext : IBatchLoader<short>, ICompresable
     {
         private short[] _raw = new short[DataConfig.MaxId];
-        private DelaySortedList[] _id2AccId = new DelaySortedList[200];
-        private DelaySortedList _null = new DelaySortedList();
-        private DelaySortedList _ids = new DelaySortedList();
+        private DelaySortedList<int>[] _id2AccId = new DelaySortedList<int>[200];
+        private DelaySortedList<int> _null = DelaySortedList<int>.CreateDefault();
+        private DelaySortedList<int> _ids = DelaySortedList<int>.CreateDefault();
 
         public CountryContext()
         {
@@ -30,7 +30,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _raw[id] = countryId;
             if (_id2AccId[countryId] == null)
             {
-                _id2AccId[countryId] = new DelaySortedList();
+                _id2AccId[countryId] = DelaySortedList<int>.CreateDefault();
             }
             _id2AccId[countryId].DelayAdd(id);
         }
@@ -135,7 +135,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _ids.Load(id);
             if (_id2AccId[countryId] == null)
             {
-                _id2AccId[countryId] = new DelaySortedList();
+                _id2AccId[countryId] = DelaySortedList<int>.CreateDefault();
             }
             _id2AccId[countryId].Load(id);
         }

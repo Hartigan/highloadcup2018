@@ -12,7 +12,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class EmailContext : IBatchLoader<Email>, ICompresable
     {
         private Email[] _emails = new Email[DataConfig.MaxId];
-        private Dictionary<short, DelaySortedList> _domain2ids = new Dictionary<short, DelaySortedList>();
+        private Dictionary<short, DelaySortedList<int>> _domain2ids = new Dictionary<short, DelaySortedList<int>>();
 
         public EmailContext()
         {
@@ -25,7 +25,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (!_domain2ids.ContainsKey(email.DomainId))
             {
-                _domain2ids[email.DomainId] = new DelaySortedList();
+                _domain2ids[email.DomainId] = DelaySortedList<int>.CreateDefault();
             }
 
             _domain2ids[email.DomainId].DelayAdd(id);
@@ -48,7 +48,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             DomainStorage domainStorage,
             IdStorage idStorage)
         {
-            DelaySortedList withDomain = null;
+            DelaySortedList<int> withDomain = null;
             if (email.Domain != null)
             {
                 var domainId = domainStorage.Get(email.Domain);
@@ -92,7 +92,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (!_domain2ids.ContainsKey(email.DomainId))
             {
-                _domain2ids[email.DomainId] = new DelaySortedList();
+                _domain2ids[email.DomainId] = DelaySortedList<int>.CreateDefault();
             }
             _domain2ids[email.DomainId].Load(id);
         }

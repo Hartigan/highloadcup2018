@@ -13,7 +13,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class StatusContext : IBatchLoader<Status>, ICompresable
     {
         private CountSet[] _raw = new CountSet[3];
-        private DelaySortedList[] _groups = new DelaySortedList[3];
+        private DelaySortedList<int>[] _groups = new DelaySortedList<int>[3];
 
         public StatusContext()
         {
@@ -21,9 +21,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _raw[(int)Status.Free] = new CountSet();
             _raw[(int)Status.Reserved] = new CountSet();
 
-            _groups[(int)Status.Complicated] = new DelaySortedList();
-            _groups[(int)Status.Free] = new DelaySortedList();
-            _groups[(int)Status.Reserved] = new DelaySortedList();
+            _groups[(int)Status.Complicated] = DelaySortedList<int>.CreateDefault();
+            _groups[(int)Status.Free] = DelaySortedList<int>.CreateDefault();
+            _groups[(int)Status.Reserved] = DelaySortedList<int>.CreateDefault();
         }
 
         public void LoadBatch(int id, Status status)
@@ -90,7 +90,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 }
                 enumerators.Add(_groups[i].AsEnumerable().GetEnumerator());
             }
-            return ListHelper.MergeSort(enumerators);
+            return ListHelper.MergeSort(enumerators, ReverseComparer<int>.Default);
         }
 
         public IFilterSet Filter(GroupRequest.StatusRequest status)

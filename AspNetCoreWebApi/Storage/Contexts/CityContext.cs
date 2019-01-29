@@ -13,9 +13,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class CityContext : IBatchLoader<short>, ICompresable
     {
         private short[] _raw = new short[DataConfig.MaxId];
-        private DelaySortedList[] _id2AccId = new DelaySortedList[1000];
-        private DelaySortedList _null = new DelaySortedList();
-        private DelaySortedList _ids = new DelaySortedList();
+        private DelaySortedList<int>[] _id2AccId = new DelaySortedList<int>[1000];
+        private DelaySortedList<int> _null = DelaySortedList<int>.CreateDefault();
+        private DelaySortedList<int> _ids = DelaySortedList<int>.CreateDefault();
 
         public CityContext()
         {
@@ -31,7 +31,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (_id2AccId[cityId] == null)
             {
-                _id2AccId[cityId] = new DelaySortedList();
+                _id2AccId[cityId] = DelaySortedList<int>.CreateDefault();
             }
             _id2AccId[cityId].DelayAdd(id);
         }
@@ -101,11 +101,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
             else if (city.Any.Count > 0)
             {
                 return ListHelper
-                    .MergeSort(city.Any
-                    .Select(x => cities.Get(x))
-                    .Where(x => _id2AccId[x] != null)
-                    .Select(x => _id2AccId[x].AsEnumerable().GetEnumerator())
-                    .ToList());
+                    .MergeSort(
+                        city.Any
+                            .Select(x => cities.Get(x))
+                            .Where(x => _id2AccId[x] != null)
+                            .Select(x => _id2AccId[x].AsEnumerable().GetEnumerator())
+                            .ToList(),
+                        ReverseComparer<int>.Default);
             }
             else
             {
@@ -153,7 +155,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _ids.Load(id);
             if (_id2AccId[cityId] == null)
             {
-                _id2AccId[cityId] = new DelaySortedList();
+                _id2AccId[cityId] = DelaySortedList<int>.CreateDefault();
             }
             _id2AccId[cityId].Load(id);
         }
