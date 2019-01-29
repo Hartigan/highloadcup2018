@@ -27,9 +27,11 @@ namespace AspNetCoreWebApi.Processing
             {
                 Dto = dto;
                 ImportEnded = false;
+                Gc = false;
             }
-
+            public bool Gc;
             public static LoadEvent EndEvent { get; } = new LoadEvent() { Dto = null, ImportEnded = true }; 
+            public static LoadEvent GC { get; } = new LoadEvent() { Gc = true };
             public AccountDto Dto;
             public bool ImportEnded;
         }
@@ -63,7 +65,9 @@ namespace AspNetCoreWebApi.Processing
         private readonly IDisposable _editAccountProcessorSubscription;
         private readonly IDisposable _newLikesProcessorSubscription;
         private IDisposable _dataLoaderSubscription;
+        private IDisposable _likeLoadedSubscription;
         private readonly IDisposable _secondPhaseEndSubscription;
+        private readonly IDisposable _importGcSubscription;
         private readonly MainStorage _storage;
         private readonly DomainParser _parser;
         private readonly MainContext _context;
@@ -105,6 +109,20 @@ namespace AspNetCoreWebApi.Processing
             _likeWorker = new SingleThreadWorker<LikeEvent>(ProcessLike, "Like thread started");
             _loadWorker = new SingleThreadWorker<LoadEvent>(LoadAccount, "Import thread started");
             _postWorker = new SingleThreadWorker<PostEvent>(PostProcess, "Post thread started");
+
+            _importGcSubscription = dataLoader
+                .CallGc
+                .Subscribe(_ => {
+                    _loadWorker.Enqueue(LoadEvent.GC);
+                });
+
+            _likeLoadedSubscription = dataLoader
+                .LikeLoaded
+                .Subscribe(
+                    x => _likeWorker.Enqueue(new LikeEvent(x, true)),
+                    _ => {},
+                    () => _likeWorker.Enqueue(LikeEvent.EndEvent)
+                );
 
             _dataLoaderSubscription = dataLoader
                 .AccountLoaded
@@ -704,38 +722,26 @@ namespace AspNetCoreWebApi.Processing
 
         private void LoadAccount(LoadEvent e)
         {
+            if (e.Gc)
+            {
+                Console.WriteLine($"Heap total bytes used: {GC.GetTotalMemory(true)}");
+                return;
+            }
+
             if (e.ImportEnded)
             {
-                _likeWorker.Enqueue(LikeEvent.EndEvent);
                 _context.LoadEnded();
                 _context.InitNull(_storage.Ids);
                 _groupPreprocessor.LoadEnd();
                 Collect();
                 Console.WriteLine($"Import end {DateTime.Now}");
+                Console.WriteLine($"Heap total bytes used: {GC.GetTotalMemory(false)}");
                 return;
             }
 
             var dto = e.Dto;
             int id = dto.Id.Value;
             _storage.Ids.Add(id);
-
-            if (dto.Likes != null)
-            {
-                foreach(var like in dto.Likes)
-                {
-                    _likeWorker.Enqueue(
-                        new LikeEvent(
-                            new Like(
-                                like.Id,
-                                id,
-                                new UnixTime(like.Timestamp)
-                            ),
-                            true
-                        )
-                    );
-                }
-                dto.Likes.Clear();
-            }
 
             if (dto.Interests != null)
             {

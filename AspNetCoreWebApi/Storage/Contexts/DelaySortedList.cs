@@ -11,7 +11,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public static DelaySortedList<int> CreateDefault() => new DelaySortedList<int>(ReverseComparer<int>.Default);
 
-        private List<T> _data = new List<T>();
+        private List<T> _data = new List<T>(1);
         private HashSet<T> _toRemove;
         private SortedSet<T> _toAdd;
         private readonly IComparer<T> _comparer;
@@ -122,8 +122,29 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _toRemove = null;
         }
 
+        public void Insert(int index, T item)
+        {
+            if (_data.Count == _data.Capacity)
+            {
+                if (_data.Count < 10)
+                {
+                    _data.Capacity += 1;
+                }
+                else
+                {
+                    _data.Capacity += 2;
+                }
+            }
+
+            _data.Insert(index, item);
+        }
+
         public void Load(T item)
         {
+            if (_data.Count == _data.Capacity)
+            {
+                _data.Capacity = _data.Count * 4 / 3;
+            }
             _data.Add(item);
         }
 

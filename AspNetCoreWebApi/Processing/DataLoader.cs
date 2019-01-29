@@ -14,6 +14,7 @@ using AspNetCoreWebApi.Storage.Contexts;
 using Microsoft.Extensions.ObjectPool;
 using AspNetCoreWebApi.Processing.Pooling;
 using System.Threading;
+using System.Reactive;
 
 namespace AspNetCoreWebApi.Processing
 {
@@ -23,6 +24,8 @@ namespace AspNetCoreWebApi.Processing
         private readonly MainPool _pool;
 
         private Subject<AccountDto> _accountLoaded = new Subject<AccountDto>();
+        private Subject<Unit> _gc = new Subject<Unit>();
+        private Subject<Like> _like = new Subject<Like>(); 
 
         public DataLoader(
             MainContext context,
@@ -31,6 +34,8 @@ namespace AspNetCoreWebApi.Processing
             _pool = pool;
             _context = context;
         }
+
+        public IObservable<Unit> CallGc => _gc;
 
         public void Config(string path)
         {
@@ -42,6 +47,7 @@ namespace AspNetCoreWebApi.Processing
         }
 
         public IObservable<AccountDto> AccountLoaded => _accountLoaded;
+        public IObservable<Like> LikeLoaded => _like;
 
         public void Run(string path)
         {
@@ -54,7 +60,13 @@ namespace AspNetCoreWebApi.Processing
                     {
                         ParseEntry(entry);
                     }
+
+                    if (GC.GetTotalMemory(false) > 1620000000)
+                    {
+                        _gc.OnNext(Unit.Default);
+                    }
                 }
+                _like.OnCompleted();
                 _accountLoaded.OnCompleted();
             }
         }
@@ -72,10 +84,26 @@ namespace AspNetCoreWebApi.Processing
                 {
                     AccountDto dto = _pool.AccountDto.Get();
                     ser.Populate(jsonReader, dto);
+
+                    if (dto.Likes != null && dto.Likes.Count > 0)
+                    {
+                        for(int i = 0; i < dto.Likes.Count; i++)
+                        {
+                            _like.OnNext(
+                                new Like(
+                                    dto.Likes[i].Id,
+                                    dto.Id.Value,
+                                    new UnixTime(
+                                        dto.Likes[i].Timestamp
+                                    )
+                                )
+                            );
+                        }
+                        dto.Likes.Clear();
+                    }
                     _accountLoaded.OnNext(dto);
                 }
             }
-            //Thread.Sleep(500);
             Console.WriteLine(entry.Name);
         }
     }

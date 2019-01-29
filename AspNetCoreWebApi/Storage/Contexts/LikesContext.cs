@@ -68,7 +68,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                         int index = rawList.BinarySearch(like.LikerId, ReverseComparer<int>.Default);
                         if (index < 0)
                         {
-                            rawList.Insert(~index, like.LikerId);
+                            list.Insert(~index, like.LikerId);
                         }
                     }
                     else
@@ -106,7 +106,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 }
                 else
                 {
-                    rawList.Insert(~index, bucket);
+                    likes.Insert(~index, bucket);
                 }
             }
             else
