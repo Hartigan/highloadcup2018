@@ -62,7 +62,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
             else
             {
-                _byName[nameId].DelayRemove(id);
+                _byName[_names[id]].DelayRemove(id);
             }
 
             _names[id] = nameId;
