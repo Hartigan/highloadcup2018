@@ -42,7 +42,7 @@ namespace AspNetCoreWebApi.Processing
 
         public bool Process(int id, HttpResponse httpResponse, IQueryCollection query)
         {
-            if (DataConfig.UpdateInProgress)
+            if (DataConfig.DataUpdates || DataConfig.LikesUpdates)
             {
                 return false;
             }

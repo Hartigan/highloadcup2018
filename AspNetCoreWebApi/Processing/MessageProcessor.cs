@@ -152,9 +152,10 @@ namespace AspNetCoreWebApi.Processing
                 _context.Compress();
                 _context.InitNull(_storage.Ids);
                 Collect();
+                DataConfig.DataUpdates = false;
                 return;
             }
-            DataConfig.UpdateInProgress = true;
+            DataConfig.DataUpdates = true;
 
             if (e.IsAdd)
             {
@@ -706,8 +707,11 @@ namespace AspNetCoreWebApi.Processing
                 _context.Likes.Compress();
                 Collect();
                 Console.WriteLine($"Likes import end {DateTime.Now}");
+                DataConfig.LikesUpdates = false;
                 return;
             }
+
+            DataConfig.LikesUpdates = true;
 
             if (e.IsImport)
             {

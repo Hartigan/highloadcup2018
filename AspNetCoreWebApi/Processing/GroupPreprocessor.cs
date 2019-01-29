@@ -76,7 +76,7 @@ namespace AspNetCoreWebApi.Processing
                 if (r.PostEnded)
                 {
                     CompressImpl();
-                    DataConfig.UpdateInProgress = false;
+                    DataConfig.GroupUpdates = false;
                     return;
                 }
 
@@ -91,6 +91,8 @@ namespace AspNetCoreWebApi.Processing
                     AddImpl(r.Dto, true);
                     return;
                 }
+
+                DataConfig.GroupUpdates = true;
 
                 if (r.IsAdd)
                 {

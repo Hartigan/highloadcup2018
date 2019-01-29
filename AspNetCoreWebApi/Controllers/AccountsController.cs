@@ -65,17 +65,18 @@ namespace AspNetCoreWebApi.Controllers
 
         public Task Create(HttpRequest request, HttpResponse response)
         {
-            if (_newAccountProcessor.Process(request.Body))
-            {
-                response.StatusCode = 201;
-                WritePostOk(response);
-            }
-            else
-            {
-                response.StatusCode = 400;
-            }
+            return Task.Run(() => {
 
-            return Task.CompletedTask;
+                if (_newAccountProcessor.Process(request.Body))
+                {
+                    response.StatusCode = 201;
+                    WritePostOk(response);
+                }
+                else
+                {
+                    response.StatusCode = 400;
+                }
+            });
         }
 
         public Task Edit(HttpRequest request, HttpResponse response, string strId)
@@ -87,38 +88,39 @@ namespace AspNetCoreWebApi.Controllers
                 return Task.CompletedTask;
             }
 
-            if (!_storage.Ids.Contains(id))
-            {
-                response.StatusCode = 404;
-                return Task.CompletedTask;
-            }
+            return Task.Run(() => {
+                if (!_storage.Ids.Contains(id))
+                {
+                    response.StatusCode = 404;
+                    return;
+                }
 
-            if (_editAccountProcessor.Process(request.Body, id))
-            {
-                response.StatusCode = 202;
-                WritePostOk(response);
-            }
-            else
-            {
-                response.StatusCode = 400;
-            }
-
-            return Task.CompletedTask;
+                if (_editAccountProcessor.Process(request.Body, id))
+                {
+                    response.StatusCode = 202;
+                    WritePostOk(response);
+                }
+                else
+                {
+                    response.StatusCode = 400;
+                }
+            });
         }
 
         public Task AddLikes(HttpRequest request, HttpResponse response)
         {
-            if (_newLikesProcessor.Process(request.Body))
-            {
-                response.StatusCode = 202;
-                WritePostOk(response);
-            }
-            else
-            {
-                response.StatusCode = 400;
-            }
+            return Task.Run(() => {
 
-            return Task.CompletedTask;
+                if (_newLikesProcessor.Process(request.Body))
+                {
+                    response.StatusCode = 202;
+                    WritePostOk(response);
+                }
+                else
+                {
+                    response.StatusCode = 400;
+                }
+            });
         }
 
         public Task Filter(HttpRequest request, HttpResponse response)

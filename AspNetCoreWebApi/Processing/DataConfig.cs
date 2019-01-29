@@ -11,7 +11,11 @@ namespace AspNetCoreWebApi.Processing
 
         public static int NowSeconds { get; set; }
 
-        public static bool UpdateInProgress { get; set; }
+        public static bool DataUpdates { get; set; }
+
+        public static bool LikesUpdates { get; set; }
+
+        public static bool GroupUpdates { get; set; }
 
         public static bool IsNow(this Premium p)
         {

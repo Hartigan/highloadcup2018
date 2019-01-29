@@ -49,7 +49,7 @@ namespace AspNetCoreWebApi.Processing
 
         public bool Process(HttpResponse httpResponse, IQueryCollection query)
         {
-            if (DataConfig.UpdateInProgress)
+            if (DataConfig.DataUpdates)
             {
                 return false;
             }
@@ -197,6 +197,12 @@ namespace AspNetCoreWebApi.Processing
                     Free(request);
                     return false;
                 }
+            }
+
+            if (request.Likes.IsActive && DataConfig.LikesUpdates)
+            {
+                Free(request);
+                return false;
             }
 
             if (request.Sex.IsActive)

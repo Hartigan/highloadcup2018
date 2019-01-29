@@ -46,7 +46,7 @@ namespace AspNetCoreWebApi.Processing
 
         public bool Process(HttpResponse httpResponse, IQueryCollection query)
         {
-            if (DataConfig.UpdateInProgress)
+            if (DataConfig.GroupUpdates)
             {
                 return false;
             }
@@ -143,6 +143,12 @@ namespace AspNetCoreWebApi.Processing
             }
 
             if (request.Keys == GroupKey.Empty)
+            {
+                Free(request);
+                return false;
+            }
+
+            if (request.Like.IsActive && DataConfig.LikesUpdates)
             {
                 Free(request);
                 return false;
