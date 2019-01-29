@@ -11,7 +11,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
     public class BirthContext : IBatchLoader<UnixTime>, ICompresable
     {
         private UnixTime[] _id2time = new UnixTime[DataConfig.MaxId];
-        private Dictionary<int, CountSet> _years = new Dictionary<int, CountSet>(); 
+        private Dictionary<int, CountSet> _years = new Dictionary<int, CountSet>(100);
+        private Dictionary<int, DelaySortedList<int>> _byYear = new Dictionary<int, DelaySortedList<int>>(100);
 
         public BirthContext()
         {
@@ -25,41 +26,141 @@ namespace AspNetCoreWebApi.Storage.Contexts
             if (_years.ContainsKey(oldYear))
             {
                 _years[oldYear].Remove(id);
+                _byYear[oldYear].DelayRemove(id);
             }
 
             var newYear = time.Year;
             if (!_years.ContainsKey(newYear))
             {
                 _years[newYear] = new CountSet();
-            }
+                var list = _byYear[newYear] = DelaySortedList<int>.CreateDefault();
 
-            _years[newYear].Add(id);
+                _years[newYear].Add(id);
+                list.Load(id);
+            }
+            else
+            {
+                _years[newYear].Add(id);
+                _byYear[newYear].DelayAdd(id);
+            }
         }
 
         public UnixTime Get(int id) => _id2time[id];
 
         public IEnumerable<int> Filter(FilterRequest.BirthRequest birth, IdStorage idStorage)
         {
-            return idStorage.AsEnumerable().Where(x =>
+            if (birth.Year.HasValue)
             {
-                UnixTime b = _id2time[x];
-                if (birth.Gt.HasValue && b <= birth.Gt.Value)
+                IEnumerable<int> result = _byYear.GetValueOrDefault(birth.Year.Value);
+                if (result == null)
                 {
-                    return false;
+                    return Enumerable.Empty<int>();
                 }
 
-                if (birth.Lt.HasValue && b >= birth.Lt.Value)
+                if (birth.Gt.HasValue)
                 {
-                    return false;
+                    if (birth.Gt.Value.Year < birth.Year.Value)
+                    {
+                        return Enumerable.Empty<int>();
+                    }
+
+                    result = result.Where(x => _id2time[x] > birth.Gt.Value);
                 }
 
-                if (birth.Year.HasValue && b.Year != birth.Year.Value)
+                if (birth.Lt.HasValue)
                 {
-                    return false;
+                    if (birth.Lt.Value.Year > birth.Year.Value)
+                    {
+                        return Enumerable.Empty<int>();
+                    }
+
+                    result = result.Where(x => _id2time[x] < birth.Lt.Value);
                 }
 
-                return true;
-            });
+                return result;
+            }
+            else
+            {
+                List<IEnumerator<int>> enumerators = new List<IEnumerator<int>>();
+
+                if (birth.Lt.HasValue && birth.Gt.HasValue)
+                {
+                    if (birth.Lt <= birth.Gt)
+                    {
+                        return Enumerable.Empty<int>();
+                    }
+
+                    foreach (var pair in _byYear)
+                    {
+                        if (pair.Key > birth.Gt.Value.Year && pair.Key < birth.Lt.Value.Year)
+                        {
+                            enumerators.Add(pair.Value.GetEnumerator());
+                        }
+                        else if (pair.Key == birth.Gt.Value.Year && pair.Key == birth.Lt.Value.Year)
+                        {
+                            enumerators.Add(
+                                pair.Value
+                                    .Where(x => _id2time[x] > birth.Gt.Value && _id2time[x] < birth.Lt.Value)
+                                    .GetEnumerator()
+                            );
+                        }
+                        else if (pair.Key == birth.Gt.Value.Year)
+                        {
+                            enumerators.Add(
+                                pair.Value
+                                    .Where(x => _id2time[x] > birth.Gt.Value)
+                                    .GetEnumerator()
+                            );
+                        }
+                        else if (pair.Key == birth.Lt.Value.Year)
+                        {
+                            enumerators.Add(
+                                pair.Value
+                                    .Where(x => _id2time[x] < birth.Lt.Value)
+                                    .GetEnumerator()
+                            );
+                        }
+                    }
+                }
+                else if (birth.Lt.HasValue)
+                {
+                    foreach (var pair in _byYear)
+                    {
+                        if (pair.Key < birth.Lt.Value.Year)
+                        {
+                            enumerators.Add(pair.Value.GetEnumerator());
+                        }
+                        else if (pair.Key == birth.Lt.Value.Year)
+                        {
+                            enumerators.Add(
+                                pair.Value
+                                    .Where(x => _id2time[x] < birth.Lt.Value)
+                                    .GetEnumerator()
+                            );
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (var pair in _byYear)
+                    {
+                        if (pair.Key > birth.Gt.Value.Year)
+                        {
+                            enumerators.Add(pair.Value.GetEnumerator());
+                        }
+                        else if (pair.Key == birth.Gt.Value.Year)
+                        {
+                            enumerators.Add(
+                                pair.Value
+                                    .Where(x => _id2time[x] > birth.Gt.Value)
+                                    .GetEnumerator()
+                            );
+                        }
+                    }
+                }
+
+                return ListHelper.MergeSort(enumerators, ReverseComparer<int>.Default);
+            }
         }
 
         public IFilterSet Filter(GroupRequest.BirthRequest birth)
@@ -80,18 +181,28 @@ namespace AspNetCoreWebApi.Storage.Contexts
             if (!_years.ContainsKey(newYear))
             {
                 _years[newYear] = new CountSet();
+                _byYear[newYear] = DelaySortedList<int>.CreateDefault();
             }
 
             _years[newYear].Add(id);
+            _byYear[newYear].Load(id);
             _id2time[id] = item;
         }
 
         public void Compress()
         {
+            foreach(var list in _byYear.Values)
+            {
+                list.Flush();
+            }
         }
 
         public void LoadEnded()
         {
+            foreach (var list in _byYear.Values)
+            {
+                list.LoadEnded();
+            }
         }
     }
 }
