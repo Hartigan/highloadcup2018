@@ -32,11 +32,9 @@ namespace AspNetCoreWebApi
             loader.Config("/tmp/data/options.txt");
             loader.Run("/tmp/data/data.zip");
 
-
             var context = host.Services.GetRequiredService<MainContext>();
             var storage = host.Services.GetRequiredService<MainStorage>();
 
-            var res = GC.TryStartNoGCRegion(100 * 1024 * 1024);
             host.Run();
         }
 
@@ -47,12 +45,7 @@ namespace AspNetCoreWebApi
                     options.Listen(IPAddress.Any, 80);
                     options.ApplicationSchedulingMode = SchedulingMode.Inline;
                 })
-                .UseLinuxTransport(options => {
-                    options.ThreadCount = 1;
-                    options.DeferSend = false;
-                    options.AioSend = false;
-                    options.AioReceive = false;
-                })
+                .UseLibuv(options => options.ThreadCount = 1)
                 .UseStartup<Startup>();
     }
 }
