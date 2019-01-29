@@ -19,6 +19,8 @@ namespace AspNetCoreWebApi.Storage
 
         public PhoneHashStorage PhoneHashes { get; } = new PhoneHashStorage();
 
+        public NameStorage Names { get; } = new NameStorage();
+
         public MainStorage()
         {
         }

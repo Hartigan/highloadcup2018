@@ -57,7 +57,7 @@ namespace AspNetCoreWebApi.Processing.Requests
         {
             public bool IsActive;
             public string Eq;
-            public HashSet<string> Any = new HashSet<string>();
+            public List<string> Any = new List<string>();
             public bool? IsNull;
             public void Clear()
             {

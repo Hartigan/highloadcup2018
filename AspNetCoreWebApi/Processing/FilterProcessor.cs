@@ -551,7 +551,7 @@ namespace AspNetCoreWebApi.Processing
         private bool FnameAny(FilterRequest request, StringValues value)
         {
             request.Fname.IsActive = true;
-            request.Fname.Any.UnionWith(value);
+            request.Fname.Any.AddRange(value);
             return true;
         }
 
