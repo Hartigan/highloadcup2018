@@ -8,7 +8,7 @@ using AspNetCoreWebApi.Processing.Requests;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class LikesContext : IBatchLoader<IEnumerable<Like>>, ICompresable
+    public class LikesContext : IBatchLoader<Like>, ICompresable
     {
         private class BucketIdComparer : IComparer<LikeBucket>
         {
@@ -62,7 +62,10 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 var list = _likee2likers[like.LikeeId];
                 {
-                    list.DelayAdd(like.LikerId);
+                    if (!list.FullContains(like.LikerId))
+                    {
+                        list.DelayAdd(like.LikerId);
+                    }
                 }
             }
             else
@@ -190,11 +193,16 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public void LoadBatch(int id, IEnumerable<Like> likes)
+        private int _loadedLikes = 0;
+
+        public void LoadBatch(int id, Like like)
         {
-            foreach(var like in likes)
+            AddImpl(like);
+            _loadedLikes++;
+            if (_loadedLikes > 1000000)
             {
-                AddImpl(like);
+                _loadedLikes = 0;
+                Compress();
             }
         }
 

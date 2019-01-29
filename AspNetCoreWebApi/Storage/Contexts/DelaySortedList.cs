@@ -36,6 +36,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
             _toAdd = null;
         }
 
+        public bool FullContains(T item) => Contains(item) || (_toAdd != null && _toAdd.Contains(item));
+
         public bool Contains(T item) => _data.BinarySearch(item, _comparer) >= 0;
 
         public IEnumerator<T> GetEnumerator() => _data.GetEnumerator();

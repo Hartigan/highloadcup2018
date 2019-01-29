@@ -36,14 +36,16 @@ namespace AspNetCoreWebApi.Processing
 
         private struct LikeEvent
         {
-            public LikeEvent(Like like)
+            public LikeEvent(Like like, bool isImport)
             {
                 Like = like;
+                IsImport = isImport;
                 ImportEnded = false;
             }
 
             public static LikeEvent EndEvent { get; } = new LikeEvent() { Like = new Like(), ImportEnded = true }; 
             public Like Like;
+            public bool IsImport;
             public bool ImportEnded;
         }
 
@@ -594,7 +596,8 @@ namespace AspNetCoreWebApi.Processing
                             likeDto.LikeeId,
                             likeDto.LikerId,
                             new UnixTime(likeDto.Timestamp)
-                        )
+                        ),
+                        false
                     )
                 );
                 _pool.SingleLikeDto.Return(likeDto);
@@ -610,7 +613,16 @@ namespace AspNetCoreWebApi.Processing
             {
                 foreach(var like in dto.Likes)
                 {
-                    _likeWorker.Enqueue(new LikeEvent(new Like(like.Id, id, new UnixTime(like.Timestamp))));
+                    _likeWorker.Enqueue(
+                        new LikeEvent(
+                            new Like(
+                                like.Id,
+                                id,
+                                new UnixTime(like.Timestamp)
+                            ),
+                            false
+                        )
+                    );
                 }
                 dto.Likes.Clear();
             }
@@ -697,7 +709,14 @@ namespace AspNetCoreWebApi.Processing
                 return;
             }
 
-            _context.Likes.Add(e.Like);
+            if (e.IsImport)
+            {
+                _context.Likes.LoadBatch(0, e.Like);
+            }
+            else
+            {
+                _context.Likes.Add(e.Like);
+            }
         }
 
         private void LoadAccount(LoadEvent e)
@@ -721,7 +740,16 @@ namespace AspNetCoreWebApi.Processing
             {
                 foreach(var like in dto.Likes)
                 {
-                    _likeWorker.Enqueue(new LikeEvent(new Like(like.Id, id, new UnixTime(like.Timestamp))));
+                    _likeWorker.Enqueue(
+                        new LikeEvent(
+                            new Like(
+                                like.Id,
+                                id,
+                                new UnixTime(like.Timestamp)
+                            ),
+                            true
+                        )
+                    );
                 }
                 dto.Likes.Clear();
             }
