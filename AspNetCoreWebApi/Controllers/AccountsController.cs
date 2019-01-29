@@ -47,6 +47,22 @@ namespace AspNetCoreWebApi.Controllers
             response.Body.Write(_postOk, 0, 2);
         }
 
+        private Task SkipFailed(Action work, HttpResponse response)
+        {
+            long start = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+
+            return Task.Run(() => {
+
+                if (DateTimeOffset.Now.ToUnixTimeMilliseconds() - start > 1500)
+                {
+                    response.StatusCode = 400;
+                    return;
+                }
+
+                work();
+            });
+        }
+
         public Task Create(HttpRequest request, HttpResponse response)
         {
             if (_newAccountProcessor.Process(request.Body))
@@ -107,22 +123,22 @@ namespace AspNetCoreWebApi.Controllers
 
         public Task Filter(HttpRequest request, HttpResponse response)
         {
-            if (!_filterProcessor.Process(response, request.Query))
-            {
-                response.StatusCode = 400;
-            }
-
-            return Task.CompletedTask;
+            return SkipFailed(() => {
+                if (!_filterProcessor.Process(response, request.Query))
+                {
+                    response.StatusCode = 400;
+                }
+            }, response);
         }
 
         public Task Group(HttpRequest request, HttpResponse response)
         {
-            if (!_groupProcessor.Process(response, request.Query))
-            {
-                response.StatusCode = 400;
-            }
-
-            return Task.CompletedTask;
+            return SkipFailed(() => {
+                if (!_groupProcessor.Process(response, request.Query))
+                {
+                    response.StatusCode = 400;
+                }
+            }, response);
         }
 
         public Task Recommend(HttpRequest request, HttpResponse response, int id)
@@ -133,12 +149,12 @@ namespace AspNetCoreWebApi.Controllers
                 return Task.CompletedTask;
             }
 
-            if (!_recommendProcessor.Process(id, response, request.Query))
-            {
-                response.StatusCode = 400;
-            }
-
-            return Task.CompletedTask;
+            return SkipFailed(() => {
+                if (!_recommendProcessor.Process(id, response, request.Query))
+                {
+                    response.StatusCode = 400;
+                }
+            }, response);
         }
 
         public Task Suggest(HttpRequest request, HttpResponse response, int id)
@@ -149,11 +165,12 @@ namespace AspNetCoreWebApi.Controllers
                 return Task.CompletedTask;
             }
 
-            if (!_suggestProcessor.Process(id, response, request.Query))
-            {
-                response.StatusCode = 400;
-            }
-            return Task.CompletedTask;
+            return SkipFailed(() => {
+                if (!_suggestProcessor.Process(id, response, request.Query))
+                {
+                    response.StatusCode = 400;
+                }
+            }, response);
         }
     }
 }

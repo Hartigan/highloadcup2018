@@ -199,7 +199,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
         {
             AddImpl(like);
             _loadedLikes++;
-            if (_loadedLikes > 1000000)
+            if (_loadedLikes > 2000000)
             {
                 _loadedLikes = 0;
                 Compress();

@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using AspNetCoreWebApi.Storage.Contexts;
 using AspNetCoreWebApi.Storage;
+using Microsoft.AspNetCore.Server.Kestrel.Transport.Abstractions.Internal;
 
 namespace AspNetCoreWebApi
 {
@@ -28,22 +29,30 @@ namespace AspNetCoreWebApi
             //loader.Config("../../highloadcup2018_data/data/options.txt");
             //loader.Run("../../highloadcup2018_data/data/data.zip");
 
-            var res = GC.TryStartNoGCRegion(50 * 1024 * 1024);
             loader.Config("/tmp/data/options.txt");
             loader.Run("/tmp/data/data.zip");
+
 
             var context = host.Services.GetRequiredService<MainContext>();
             var storage = host.Services.GetRequiredService<MainStorage>();
 
+            var res = GC.TryStartNoGCRegion(100 * 1024 * 1024);
             host.Run();
         }
 
         public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
             WebHost.CreateDefaultBuilder(args)
                 .UseKestrel(options => {
+                    options.Limits.MaxResponseBufferSize = 10 * 1024 * 1024;
                     options.Listen(IPAddress.Any, 80);
+                    options.ApplicationSchedulingMode = SchedulingMode.Inline;
                 })
-                .UseLinuxTransport(config => config.ThreadCount = 4)
+                .UseLinuxTransport(options => {
+                    options.ThreadCount = 1;
+                    options.DeferSend = false;
+                    options.AioSend = false;
+                    options.AioReceive = false;
+                })
                 .UseStartup<Startup>();
     }
 }
