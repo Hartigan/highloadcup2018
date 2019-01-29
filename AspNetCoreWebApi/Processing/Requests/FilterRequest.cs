@@ -162,7 +162,7 @@ namespace AspNetCoreWebApi.Processing.Requests
         public class LikesRequest
         {
             public bool IsActive;
-            public HashSet<int> Contains = new HashSet<int>();
+            public List<int> Contains = new List<int>();
             public void Clear()
             {
                 IsActive = false;
