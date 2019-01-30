@@ -64,7 +64,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return _raw[id];
         }
 
-        public IEnumerable<int> Filter(
+        public IIterator<int> Filter(
             FilterRequest.CountryRequest country,
             IdStorage ids,
             CountryStorage countries)
@@ -74,24 +74,24 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 if (country.IsNull.Value)
                 {
                     return country.Eq == null
-                        ? _null
-                        : Enumerable.Empty<int>();
+                        ? _null.GetIterator()
+                        : ListHelper.EmptyInt;
                 }
             }
 
             if (country.Eq == null)
             {
-                return _ids;
+                return _ids.GetIterator();
             }
             short countryId = countries.Get(country.Eq);
 
             if (_id2AccId[countryId] != null)
             {
-                return _id2AccId[countryId];
+                return _id2AccId[countryId].GetIterator();
             }
             else
             {
-                return Enumerable.Empty<int>();
+                return ListHelper.EmptyInt;
             }
         }
 

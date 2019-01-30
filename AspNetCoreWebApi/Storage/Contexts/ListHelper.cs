@@ -39,6 +39,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return list.BinarySearch(id, ReverseComparer<int>.Default) >= 0;
         }
 
+        public static IIterator<int> Distinct(this IIterator<int> iterator)
+        {
+            return new DistinctIterator(iterator);
+        }
+
         public static IEnumerable<T> MergeSort<T>(List<IEnumerator<T>> enumerators, IComparer<T> comparer)
         {
             for (int i = 0; i < enumerators.Count;)
@@ -71,6 +76,22 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     enumerators.RemoveAt(maxIndex);
                 }
             }
+        }
+
+        public static IIterator<T> MergeSort<T>(this List<IIterator<T>> iterators)
+        {
+            if (iterators.Count == 1)
+            {
+                return iterators[0];
+            }
+
+            IIterator<T> current = new MergeSortIterator<T>(iterators[0], iterators[1]);
+            for(int i = 2; i < iterators.Count; i++)
+            {
+                current = new MergeSortIterator<T>(current, iterators[i]);
+            }
+
+            return current;
         }
 
         public static IEnumerable<T> TakeMax<T>(
@@ -123,5 +144,43 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 }
             }
         }
+
+        public static int BinarySearch<T>(
+            this List<T> list,
+            int index,
+            int length,
+            T value,
+            IComparer<T> comparer
+        )
+        {
+            int lower = index;
+            int upper = (index + length) - 1;
+
+            while (lower <= upper)
+            {
+                int adjustedIndex = lower + ((upper - lower) >> 1);
+                int comparison = comparer.Compare(list[adjustedIndex], value);
+                if (comparison == 0)
+                    return adjustedIndex;
+                else if (comparison < 0)
+                    lower = adjustedIndex + 1;
+                else
+                    upper = adjustedIndex - 1;
+            }
+
+            return ~lower;
+        }
+
+        public static IIterator<T> GetIterator<T>(this DelaySortedList<T> list)
+        {
+            return new SortedListIterator<T>(list.GetList(), list.Comparer);
+        }
+
+        public static IIterator<T> GetIterator<T>(this IEnumerable<T> list, IComparer<T> comparer)
+        {
+            return new SortedEnumerableIterator<T>(list, comparer);
+        }
+
+        public static IIterator<int> EmptyInt { get; } = new EmptyIterator<int>(ReverseComparer<int>.Default); 
     }
 }

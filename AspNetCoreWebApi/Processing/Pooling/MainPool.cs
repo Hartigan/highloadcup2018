@@ -3,6 +3,7 @@ using AspNetCoreWebApi.Domain;
 using AspNetCoreWebApi.Domain.Dto;
 using AspNetCoreWebApi.Processing.Requests;
 using AspNetCoreWebApi.Processing.Responses;
+using AspNetCoreWebApi.Storage.Contexts;
 using Microsoft.Extensions.ObjectPool;
 using static AspNetCoreWebApi.Storage.Contexts.LikesContext;
 
@@ -51,14 +52,14 @@ namespace AspNetCoreWebApi.Processing.Pooling
         public DefaultObjectPool<FilterSet> FilterSet { get; } = new DefaultObjectPool<FilterSet>(new GenericPolicy<FilterSet>());
 
         public DefaultObjectPool<List<IEnumerable<int>>> ListOfLists { get; } = new DefaultObjectPool<List<IEnumerable<int>>>(new ListPolicy<IEnumerable<int>>());
-
+        
         public DefaultObjectPool<byte[]> WriteBuffer { get; } = new DefaultObjectPool<byte[]>(new BufferPolicy());
 
         public DefaultObjectPool<List<short>> ListOfInt16 { get; } = new DefaultObjectPool<List<short>>(new ListPolicy<short>());
 
         public DefaultObjectPool<List<GroupEntry>> ListOfGroupEntry { get; } = new DefaultObjectPool<List<GroupEntry>>(new ListPolicy<GroupEntry>());
 
-        public DefaultObjectPool<List<IEnumerator<int>>> ListOfEnumerators { get; } = new DefaultObjectPool<List<IEnumerator<int>>>(new ListPolicy<IEnumerator<int>>());
+        public DefaultObjectPool<List<IIterator<int>>> ListOfEnumerators { get; } = new DefaultObjectPool<List<IIterator<int>>>(new ListPolicy<IIterator<int>>());
 
         public DefaultObjectPool<HashSet<int>> HashSetOfInts { get; } = new DefaultObjectPool<HashSet<int>>(new HashSetPolicy<int>());
     }

@@ -29,6 +29,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public List<T> GetList() => _data;
 
+        public IComparer<T> Comparer => _comparer;
+
         public void Clear()
         {
             _data.Clear();

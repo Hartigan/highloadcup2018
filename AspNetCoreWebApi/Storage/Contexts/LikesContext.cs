@@ -115,19 +115,19 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public IEnumerable<IEnumerable<int>> Filter(FilterRequest.LikesRequest likes)
+        public IEnumerable<IIterator<int>> Filter(FilterRequest.LikesRequest likes)
         {
             foreach(var likee in likes.Contains)
             {
                 var tmp = _likee2likers[likee];
                 if (tmp == null)
                 {
-                    yield return Enumerable.Empty<int>();
+                    yield return ListHelper.EmptyInt;
                     break;
                 }
                 else
                 {
-                    yield return tmp;
+                    yield return tmp.GetIterator();
                 }
             }
         }

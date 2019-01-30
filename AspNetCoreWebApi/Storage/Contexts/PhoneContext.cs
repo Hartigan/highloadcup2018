@@ -87,13 +87,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public IEnumerable<int> Filter(FilterRequest.PhoneRequest phone, IdStorage idStorage)
+        public IIterator<int> Filter(FilterRequest.PhoneRequest phone, IdStorage idStorage)
         {
             if (phone.IsNull.HasValue)
             {
                 if (phone.IsNull.Value)
                 {
-                    return phone.Code.HasValue ? Enumerable.Empty<int>() : _null;
+                    return phone.Code.HasValue ? ListHelper.EmptyInt : _null.GetIterator();
                 }
             }
 
@@ -101,16 +101,16 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (_code2ids.ContainsKey(phone.Code.Value))
                 {
-                    return _code2ids[phone.Code.Value];
+                    return _code2ids[phone.Code.Value].GetIterator();
                 }
                 else
                 {
-                    return Enumerable.Empty<int>();
+                    return ListHelper.EmptyInt;
                 }
             }
             else
             {
-                return _ids;
+                return _ids.GetIterator();
             }
         }
 

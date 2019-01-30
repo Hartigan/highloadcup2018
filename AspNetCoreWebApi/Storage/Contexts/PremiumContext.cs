@@ -88,7 +88,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public IEnumerable<int> Filter(
+        public IIterator<int> Filter(
             FilterRequest.PremiumRequest premium,
             IdStorage ids)
         {
@@ -96,17 +96,17 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (premium.IsNull.Value)
                 {
-                    return premium.Now ? Enumerable.Empty<int>() : _null;
+                    return premium.Now ? ListHelper.EmptyInt : _null.GetIterator();
                 }
             }
 
             if (premium.Now)
             {
-                return _now;
+                return _now.GetIterator();
             }
             else
             {
-                return _ids;
+                return _ids.GetIterator();
             }
         }
 

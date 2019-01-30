@@ -73,28 +73,28 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public IEnumerable<int> FilterAny(List<string> any)
+        public IIterator<int> FilterAny(List<string> any)
         {
-            List<IEnumerator<int>> enumerators = new List<IEnumerator<int>>(any.Count);
+            List<IIterator<int>> enumerators = new List<IIterator<int>>(any.Count);
 
             for(int i = 0; i < any.Count; i++)
             {
                 var interestId = _storage.Get(any[i]);
                 if (_id2AccId[interestId] != null)
                 {
-                    enumerators.Add(_id2AccId[interestId].GetEnumerator());
+                    enumerators.Add(_id2AccId[interestId].GetIterator());
                 }
             }
 
-            return ListHelper.MergeSort(enumerators, ReverseComparer<int>.Default).SortedDistinct();
+            return enumerators.MergeSort().Distinct();
         }
 
-        public IEnumerable<IEnumerable<int>> FilterContains(List<string> contains)
+        public IEnumerable<IIterator<int>> FilterContains(List<string> contains)
         {
             for(int i = 0; i < contains.Count; i++)
             {
                 var interestId = _storage.Get(contains[i]);
-                yield return _id2AccId[interestId] ?? Enumerable.Empty<int>();
+                yield return _id2AccId[interestId]?.GetIterator() ?? ListHelper.EmptyInt;
             }
         }
 

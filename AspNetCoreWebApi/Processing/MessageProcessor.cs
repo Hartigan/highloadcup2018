@@ -352,78 +352,78 @@ namespace AspNetCoreWebApi.Processing
 
         public FilterResponse Filter(FilterRequest request)
         {
-            var listFilters = _pool.ListOfLists.Get();
+            var enumerators = _pool.ListOfEnumerators.Get();
 
             if (request.Sex.IsActive)
             {
-                listFilters.Add(_context.Sex.Filter(request.Sex));
+                enumerators.Add(_context.Sex.Filter(request.Sex));
             }
 
             if (request.Email.IsActive)
             {
-                listFilters.Add(_context.Emails.Filter(request.Email, _storage.Domains, _storage.Ids));
+                enumerators.Add(_context.Emails.Filter(request.Email, _storage.Domains, _storage.Ids));
             }
 
             if (request.Status.IsActive)
             {
-                listFilters.Add(_context.Statuses.Filter(request.Status));
+                enumerators.Add(_context.Statuses.Filter(request.Status));
             }
 
             if (request.Fname.IsActive)
             {
-                listFilters.Add(_context.FirstNames.Filter(request.Fname, _storage.Ids));
+                enumerators.Add(_context.FirstNames.Filter(request.Fname, _storage.Ids));
             }
 
             if (request.Sname.IsActive)
             {
-                listFilters.Add(_context.LastNames.Filter(request.Sname, _storage.Ids));
+                enumerators.Add(_context.LastNames.Filter(request.Sname, _storage.Ids));
             }
 
             if (request.Phone.IsActive)
             {
-                listFilters.Add(_context.Phones.Filter(request.Phone, _storage.Ids));
+                enumerators.Add(_context.Phones.Filter(request.Phone, _storage.Ids));
             }
 
             if (request.Country.IsActive)
             {
-                listFilters.Add(_context.Countries.Filter(request.Country, _storage.Ids, _storage.Countries));
+                enumerators.Add(_context.Countries.Filter(request.Country, _storage.Ids, _storage.Countries));
             }
 
             if (request.City.IsActive)
             {
-                listFilters.Add(_context.Cities.Filter(request.City, _storage.Ids, _storage.Cities));
+                enumerators.Add(_context.Cities.Filter(request.City, _storage.Ids, _storage.Cities));
             }
 
             if (request.Birth.IsActive)
             {
-                listFilters.Add(_context.Birth.Filter(request.Birth, _storage.Ids));
+                enumerators.Add(_context.Birth.Filter(request.Birth, _storage.Ids));
             }
 
             if (request.Interests.IsActive)
             {
                 if (request.Interests.Contains.Count > 0)
                 {
-                    listFilters.AddRange(_context.Interests.FilterContains(request.Interests.Contains));
+                    enumerators.AddRange(_context.Interests.FilterContains(request.Interests.Contains));
                 }
 
                 if (request.Interests.Any.Count > 0)
                 {
-                    listFilters.Add(_context.Interests.FilterAny(request.Interests.Any));
+                    enumerators.Add(_context.Interests.FilterAny(request.Interests.Any));
                 }
             }
 
             if (request.Likes.IsActive)
             {
-                listFilters.AddRange(_context.Likes.Filter(request.Likes));
+                enumerators.AddRange(_context.Likes.Filter(request.Likes));
             }
 
             if (request.Premium.IsActive)
             {
-                listFilters.Add(_context.Premiums.Filter(request.Premium, _storage.Ids));
+                enumerators.Add(_context.Premiums.Filter(request.Premium, _storage.Ids));
             }
 
-            bool noFiltres = listFilters.Count == 0;
-            bool noLists = listFilters.Count == 0;
+            bool noFiltres = enumerators.Count == 0;
+            bool noLists = enumerators.Count == 0;
             var response = _pool.FilterResponse.Get();
 
             if (noFiltres)
@@ -432,16 +432,13 @@ namespace AspNetCoreWebApi.Processing
             }
             else
             {
-                var enumerators = _pool.ListOfEnumerators.Get();
-                enumerators.AddRange(listFilters.Select(x => x.GetEnumerator()));
                 int min = DataConfig.MaxId;
                 int currentMin = int.MaxValue;
 
                 for(int i = 0; i < enumerators.Count; i++)
                 {
-                    if (!enumerators[i].MoveNext())
+                    if (!enumerators[i].MoveNext(min))
                     {
-                        _pool.ListOfEnumerators.Return(enumerators);
                         goto Finish;
                     }
                     min = Math.Min(min, enumerators[i].Current);
@@ -451,11 +448,10 @@ namespace AspNetCoreWebApi.Processing
                 {
                     for (int i = 0; i < enumerators.Count; i++)
                     {
-                        while (enumerators[i].Current > min)
+                        if (enumerators[i].Current > min)
                         {
-                            if (!enumerators[i].MoveNext())
+                            if (!enumerators[i].MoveNext(min))
                             {
-                                _pool.ListOfEnumerators.Return(enumerators);
                                 goto Finish;
                             }
                         }
@@ -468,17 +464,15 @@ namespace AspNetCoreWebApi.Processing
                         response.Ids.Add(min);
                         if (response.Ids.Count == request.Limit)
                         {
-                            _pool.ListOfEnumerators.Return(enumerators);
                             goto Finish;
                         }
 
-                        if (enumerators[0].MoveNext())
+                        if (enumerators[0].MoveNext(min))
                         {
                             min = enumerators[0].Current;
                         }
                         else
                         {
-                            _pool.ListOfEnumerators.Return(enumerators);
                             goto Finish;
                         }
                     }
@@ -491,8 +485,7 @@ namespace AspNetCoreWebApi.Processing
             }
         Finish:
             response.Limit = request.Limit;
-            _pool.ListOfLists.Return(listFilters);
-
+            _pool.ListOfEnumerators.Return(enumerators);
             return response;
         }
 

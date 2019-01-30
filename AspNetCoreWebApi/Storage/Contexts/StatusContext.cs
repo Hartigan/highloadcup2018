@@ -69,28 +69,28 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public IEnumerable<int> Filter(FilterRequest.StatusRequest status)
+        public IIterator<int> Filter(FilterRequest.StatusRequest status)
         {
             if (status.Eq == status.Neq)
             {
-                return Enumerable.Empty<int>();
+                return ListHelper.EmptyInt;
             }
 
             if (status.Eq != null)
             {
-                return _groups[(int)status.Eq.Value];
+                return _groups[(int)status.Eq.Value].GetIterator();
             }
 
-            List<IEnumerator<int>> enumerators = new List<IEnumerator<int>>(2);
+            List<IIterator<int>> enumerators = new List<IIterator<int>>(2);
             for(int i = 0; i < 3; i++)
             {
                 if (i == (int)status.Neq)
                 {
                     continue;
                 }
-                enumerators.Add(_groups[i].GetEnumerator());
+                enumerators.Add(_groups[i].GetIterator());
             }
-            return ListHelper.MergeSort(enumerators, ReverseComparer<int>.Default);
+            return enumerators.MergeSort();
         }
 
         public IFilterSet Filter(GroupRequest.StatusRequest status)

@@ -43,7 +43,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return _emails[id];
         }
 
-        public IEnumerable<int> Filter(
+        public IIterator<int> Filter(
             FilterRequest.EmailRequest email,
             DomainStorage domainStorage,
             IdStorage idStorage)
@@ -61,7 +61,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (string.Compare(email.Gt, email.Lt) > 0)
                 {
-                    return Enumerable.Empty<int>();
+                    return ListHelper.EmptyInt;
                 }
 
                 return result.Where(x =>
@@ -69,19 +69,23 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     string prefix = _emails[x].Prefix;
                     return string.Compare(prefix, email.Gt) > 0 &&
                         string.Compare(prefix, email.Lt) < 0;
-                });
+                }).GetIterator(ReverseComparer<int>.Default);
             }
 
             if (email.Gt != null)
             {
-                return result.Where(x => string.Compare(_emails[x].Prefix, email.Gt) > 0);
+                return result
+                    .Where(x => string.Compare(_emails[x].Prefix, email.Gt) > 0)
+                    .GetIterator(ReverseComparer<int>.Default);
             }
             else if (email.Lt != null)
             {
-                return result.Where(x => string.Compare(_emails[x].Prefix, email.Lt) < 0);
+                return result
+                    .Where(x => string.Compare(_emails[x].Prefix, email.Lt) < 0)
+                    .GetIterator(ReverseComparer<int>.Default);
             }
 
-            return result;
+            return withDomain.GetIterator();
         }
 
         public void LoadBatch(int id, Email email)

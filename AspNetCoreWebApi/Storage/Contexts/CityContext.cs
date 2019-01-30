@@ -65,7 +65,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return _raw[id];
         }
 
-        public IEnumerable<int> Filter(
+        public IIterator<int> Filter(
             FilterRequest.CityRequest city,
             IdStorage ids,
             CityStorage cities)
@@ -75,8 +75,8 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 if (city.IsNull.Value)
                 {
                     return (city.Eq == null && city.Any.Count == 0)
-                        ? _null
-                        : Enumerable.Empty<int>();
+                        ? _null.GetIterator()
+                        : ListHelper.EmptyInt;
                 }
             }
 
@@ -85,18 +85,18 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 if (city.Any.Contains(city.Eq))
                 {
                     short cityId = cities.Get(city.Eq);
-                    return _id2AccId[cityId] ?? Enumerable.Empty<int>();
+                    return _id2AccId[cityId]?.GetIterator() ?? ListHelper.EmptyInt;
                 }
                 else
                 {
-                    return Enumerable.Empty<int>();
+                    return ListHelper.EmptyInt;
                 }
             }
 
             if (city.Eq != null)
             {
                 short cityId = cities.Get(city.Eq);
-                return _id2AccId[cityId] ?? Enumerable.Empty<int>();
+                return _id2AccId[cityId]?.GetIterator() ?? ListHelper.EmptyInt;
             }
             else if (city.Any.Count > 0)
             {
@@ -105,13 +105,12 @@ namespace AspNetCoreWebApi.Storage.Contexts
                         city.Any
                             .Select(x => cities.Get(x))
                             .Where(x => _id2AccId[x] != null)
-                            .Select(x => _id2AccId[x].GetEnumerator())
-                            .ToList(),
-                        ReverseComparer<int>.Default);
+                            .Select(x => _id2AccId[x].GetIterator())
+                            .ToList());
             }
             else
             {
-                return _ids;
+                return _ids.GetIterator();
             }
         }
 

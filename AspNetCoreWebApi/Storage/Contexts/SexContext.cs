@@ -54,20 +54,20 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return _raw[id];
         }
 
-        public IEnumerable<int> Filter(FilterRequest.SexRequest sex)
+        public IIterator<int> Filter(FilterRequest.SexRequest sex)
         {
             if (sex.IsFemale && sex.IsMale)
             {
-                return Enumerable.Empty<int>();
+                return ListHelper.EmptyInt;
             }
 
             if (sex.IsMale)
             {
-                return _groups[1];
+                return _groups[1].GetIterator();
             }
             else
             {
-                return _groups[0];
+                return _groups[0].GetIterator();
             }
         }
 

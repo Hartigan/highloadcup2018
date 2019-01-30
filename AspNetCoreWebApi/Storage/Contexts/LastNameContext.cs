@@ -96,7 +96,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return nameId > 0;
         }
 
-        public IEnumerable<int> Filter(FilterRequest.SnameRequest sname, IdStorage idStorage)
+        public IIterator<int> Filter(FilterRequest.SnameRequest sname, IdStorage idStorage)
         {
             if (sname.IsNull != null)
             {
@@ -104,11 +104,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 {
                     if (sname.Eq == null && sname.Starts == null)
                     {
-                        return _null;
+                        return _null.GetIterator();
                     }
                     else
                     {
-                        return Enumerable.Empty<int>();
+                        return ListHelper.EmptyInt;
                     }
                 }
             }
@@ -117,35 +117,35 @@ namespace AspNetCoreWebApi.Storage.Contexts
             {
                 if (sname.Eq.StartsWith(sname.Starts))
                 {
-                    return _byName.GetValueOrDefault(_storage.Get(sname.Eq)) ?? Enumerable.Empty<int>();
+                    return _byName.GetValueOrDefault(_storage.Get(sname.Eq))?.GetIterator() ?? ListHelper.EmptyInt;
                 }
                 else
                 {
-                    return Enumerable.Empty<int>();
+                    return ListHelper.EmptyInt;
                 }
             }
 
             if (sname.Starts != null)
             {
-                List<IEnumerator<int>> enumerators = new List<IEnumerator<int>>();
+                List<IIterator<int>> enumerators = new List<IIterator<int>>();
 
                 foreach(var nameId in _storage.StartWith(sname.Starts))
                 {
                     var list = _byName.GetValueOrDefault(nameId);
                     if (list != null)
                     {
-                        enumerators.Add(list.GetEnumerator());
+                        enumerators.Add(list.GetIterator());
                     }
                 }
 
-                return ListHelper.MergeSort(enumerators, ReverseComparer<int>.Default);
+                return enumerators.MergeSort();
             }
             else if (sname.Eq != null)
             {
-                return _byName.GetValueOrDefault(_storage.Get(sname.Eq)) ?? Enumerable.Empty<int>();
+                return _byName.GetValueOrDefault(_storage.Get(sname.Eq))?.GetIterator() ?? ListHelper.EmptyInt;
             }
 
-            return _ids;
+            return _ids.GetIterator();
         }
 
         public void Compress()

@@ -47,21 +47,29 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public UnixTime Get(int id) => _id2time[id];
 
-        public IEnumerable<int> Filter(FilterRequest.BirthRequest birth, IdStorage idStorage)
+        public IIterator<int> Filter(FilterRequest.BirthRequest birth, IdStorage idStorage)
         {
             if (birth.Year.HasValue)
             {
-                IEnumerable<int> result = _byYear.GetValueOrDefault(birth.Year.Value);
-                if (result == null)
+                var list = _byYear.GetValueOrDefault(birth.Year.Value);
+                
+                if (list == null)
                 {
-                    return Enumerable.Empty<int>();
+                    return ListHelper.EmptyInt;
                 }
+
+                if (!birth.Gt.HasValue && birth.Lt.HasValue)
+                {
+                    return list.GetIterator();
+                }
+
+                IEnumerable<int> result = list;
 
                 if (birth.Gt.HasValue)
                 {
                     if (birth.Gt.Value.Year < birth.Year.Value)
                     {
-                        return Enumerable.Empty<int>();
+                        return ListHelper.EmptyInt;
                     }
 
                     result = result.Where(x => _id2time[x] > birth.Gt.Value);
@@ -71,37 +79,37 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 {
                     if (birth.Lt.Value.Year > birth.Year.Value)
                     {
-                        return Enumerable.Empty<int>();
+                        return ListHelper.EmptyInt;
                     }
 
                     result = result.Where(x => _id2time[x] < birth.Lt.Value);
                 }
 
-                return result;
+                return result.GetIterator(ReverseComparer<int>.Default);
             }
             else
             {
-                List<IEnumerator<int>> enumerators = new List<IEnumerator<int>>();
+                List<IIterator<int>> enumerators = new List<IIterator<int>>();
 
                 if (birth.Lt.HasValue && birth.Gt.HasValue)
                 {
                     if (birth.Lt <= birth.Gt)
                     {
-                        return Enumerable.Empty<int>();
+                        return ListHelper.EmptyInt;
                     }
 
                     foreach (var pair in _byYear)
                     {
                         if (pair.Key > birth.Gt.Value.Year && pair.Key < birth.Lt.Value.Year)
                         {
-                            enumerators.Add(pair.Value.GetEnumerator());
+                            enumerators.Add(pair.Value.GetIterator());
                         }
                         else if (pair.Key == birth.Gt.Value.Year && pair.Key == birth.Lt.Value.Year)
                         {
                             enumerators.Add(
                                 pair.Value
                                     .Where(x => _id2time[x] > birth.Gt.Value && _id2time[x] < birth.Lt.Value)
-                                    .GetEnumerator()
+                                    .GetIterator(ReverseComparer<int>.Default)
                             );
                         }
                         else if (pair.Key == birth.Gt.Value.Year)
@@ -109,7 +117,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                             enumerators.Add(
                                 pair.Value
                                     .Where(x => _id2time[x] > birth.Gt.Value)
-                                    .GetEnumerator()
+                                    .GetIterator(ReverseComparer<int>.Default)
                             );
                         }
                         else if (pair.Key == birth.Lt.Value.Year)
@@ -117,7 +125,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                             enumerators.Add(
                                 pair.Value
                                     .Where(x => _id2time[x] < birth.Lt.Value)
-                                    .GetEnumerator()
+                                    .GetIterator(ReverseComparer<int>.Default)
                             );
                         }
                     }
@@ -128,14 +136,14 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     {
                         if (pair.Key < birth.Lt.Value.Year)
                         {
-                            enumerators.Add(pair.Value.GetEnumerator());
+                            enumerators.Add(pair.Value.GetIterator());
                         }
                         else if (pair.Key == birth.Lt.Value.Year)
                         {
                             enumerators.Add(
                                 pair.Value
                                     .Where(x => _id2time[x] < birth.Lt.Value)
-                                    .GetEnumerator()
+                                    .GetIterator(ReverseComparer<int>.Default)
                             );
                         }
                     }
@@ -146,20 +154,20 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     {
                         if (pair.Key > birth.Gt.Value.Year)
                         {
-                            enumerators.Add(pair.Value.GetEnumerator());
+                            enumerators.Add(pair.Value.GetIterator());
                         }
                         else if (pair.Key == birth.Gt.Value.Year)
                         {
                             enumerators.Add(
                                 pair.Value
                                     .Where(x => _id2time[x] > birth.Gt.Value)
-                                    .GetEnumerator()
+                                    .GetIterator(ReverseComparer<int>.Default)
                             );
                         }
                     }
                 }
 
-                return ListHelper.MergeSort(enumerators, ReverseComparer<int>.Default);
+                return enumerators.MergeSort();
             }
         }
 
