@@ -156,10 +156,7 @@ namespace AspNetCoreWebApi.Processing
 
         private void Collect()
         {
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.WaitForFullGCComplete();
-            GC.Collect();
+            Console.WriteLine($"Heap total bytes used: {GC.GetTotalMemory(true)}");
         }
 
         private void PostProcess(PostEvent e)
@@ -263,6 +260,11 @@ namespace AspNetCoreWebApi.Processing
 
         public GroupResponse Group(GroupRequest request)
         {
+            if (_groupPreprocessor.IndexRemoved && request.KeyOrder.Count > 1)
+            {
+                return _pool.GroupResponse.Get();;
+            }
+
             var result = _pool.FilterSet.Get();
             var filterList = _pool.ListOfLists.Get();
             bool inited = false;

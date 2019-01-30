@@ -140,6 +140,18 @@ namespace AspNetCoreWebApi.Processing
             }
         }
 
+        public bool IndexRemoved;
+
+        private void TryRemoveIndex()
+        {
+            if (!IndexRemoved)
+            {
+                _data.Clear();
+                Console.WriteLine($"Heap total bytes used: {GC.GetTotalMemory(true)}");
+                IndexRemoved = true;
+            }
+        }
+
         private void LoadEndedImpl()
         {
             _data.TrimExcess();
@@ -280,6 +292,10 @@ namespace AspNetCoreWebApi.Processing
                 }
             }
 
+            if (IndexRemoved)
+            {
+                return;
+            }
 
             if (ids == null)
             {
@@ -329,6 +345,11 @@ namespace AspNetCoreWebApi.Processing
             List<short> interestIds,
             bool isImport)
         {
+            if (!isImport)
+            {
+                TryRemoveIndex();
+            }
+
             foreach(var section in _data)
             {
                 if ((section.Key ^ GroupKey.City) == GroupKey.Empty &&
@@ -415,6 +436,12 @@ namespace AspNetCoreWebApi.Processing
 
         private void AddImpl(AccountDto dto, bool isImport)
         {
+            if (IndexRemoved)
+            {
+                _pool.AccountDto.Return(dto);
+                return;
+            }
+
             var interestIds = _pool.ListOfInt16.Get();
             int id = dto.Id.Value;
             bool sex = dto.Sex == "m";
@@ -434,6 +461,12 @@ namespace AspNetCoreWebApi.Processing
 
         public void Update(AccountDto dto)
         {
+            if (IndexRemoved)
+            {
+                _pool.AccountDto.Return(dto);
+                return;
+            }
+
             if (dto.City == null &&
                 dto.Country == null &&
                 (dto.Interests == null || dto.Interests.Count == 0) &&
@@ -449,6 +482,8 @@ namespace AspNetCoreWebApi.Processing
 
         private void UpdateImpl(AccountDto dto)
         {
+            TryRemoveIndex();
+
             int id = dto.Id.Value;
             bool sex = false;
             short cityId = 0;
