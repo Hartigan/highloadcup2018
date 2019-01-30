@@ -43,10 +43,20 @@ namespace AspNetCoreWebApi.Processing
                 Like = like;
                 IsImport = isImport;
                 ImportEnded = false;
+                Likes = null;
+            }
+
+            public LikeEvent(List<SingleLikeDto> likes)
+            {
+                Likes = likes;
+                IsImport = false;
+                ImportEnded = false;
+                Like = default(Like);
             }
 
             public static LikeEvent EndEvent { get; } = new LikeEvent() { Like = new Like(), ImportEnded = true }; 
             public Like Like;
+            public List<SingleLikeDto> Likes;
             public bool IsImport;
             public bool ImportEnded;
         }
@@ -425,6 +435,7 @@ namespace AspNetCoreWebApi.Processing
                 var enumerators = _pool.ListOfEnumerators.Get();
                 enumerators.AddRange(listFilters.Select(x => x.GetEnumerator()));
                 int min = DataConfig.MaxId;
+                int currentMin = int.MaxValue;
 
                 for(int i = 0; i < enumerators.Count; i++)
                 {
@@ -448,15 +459,8 @@ namespace AspNetCoreWebApi.Processing
                                 goto Finish;
                             }
                         }
-                    }
 
-                    int currentMin = int.MaxValue;
-                    for (int i = 0; i < enumerators.Count; i++)
-                    {
-                        if (enumerators[i].Current < currentMin)
-                        {
-                            currentMin = enumerators[i].Current;
-                        }
+                        currentMin = Math.Min(enumerators[i].Current, currentMin);
                     }
 
                     if (currentMin == min)
@@ -588,21 +592,7 @@ namespace AspNetCoreWebApi.Processing
 
         private void NewLikes(List<SingleLikeDto> likeDtos)
         {
-            foreach (var likeDto in likeDtos)
-            {
-                _likeWorker.Enqueue(
-                    new LikeEvent(
-                        new Like(
-                            likeDto.LikeeId,
-                            likeDto.LikerId,
-                            new UnixTime(likeDto.Timestamp)
-                        ),
-                        false
-                    )
-                );
-                _pool.SingleLikeDto.Return(likeDto);
-            }
-            _pool.ListOfLikeDto.Return(likeDtos);
+            _likeWorker.Enqueue(new LikeEvent(likeDtos));
         }
 
         private void AddNewAccount(AccountDto dto)
@@ -711,6 +701,23 @@ namespace AspNetCoreWebApi.Processing
             }
 
             DataConfig.LikesUpdates = true;
+
+            if (e.Likes != null)
+            {
+                foreach (var likeDto in e.Likes)
+                {
+                    _context.Likes.Add(
+                        new Like(
+                            likeDto.LikeeId,
+                            likeDto.LikerId,
+                            new UnixTime(likeDto.Timestamp)
+                        )
+                    );
+                    _pool.SingleLikeDto.Return(likeDto);
+                }
+                _pool.ListOfLikeDto.Return(e.Likes);
+                return;
+            }
 
             if (e.IsImport)
             {

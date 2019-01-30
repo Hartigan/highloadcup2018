@@ -17,8 +17,10 @@ namespace AspNetCoreWebApi.Controllers
         private readonly RecommendProcessor _recommendProcessor;
         private readonly SuggestProcessor _suggestProcessor;
         private readonly MainStorage _storage;
+        private readonly GroupPreprocessor _groupsPreprocessor;
 
         public AccountsController(
+            GroupPreprocessor groupsPreprocessor,
             NewAccountProcessor newAccountProcessor,
             EditAccountProcessor editAccountProcessor,
             NewLikesProcessor newLikesProcessor,
@@ -28,6 +30,7 @@ namespace AspNetCoreWebApi.Controllers
             SuggestProcessor suggestProcessor,
             MainStorage mainStorage)
         {
+            _groupsPreprocessor = groupsPreprocessor;
             _newAccountProcessor = newAccountProcessor;
             _editAccountProcessor = editAccountProcessor;
             _newLikesProcessor = newLikesProcessor;
@@ -47,20 +50,27 @@ namespace AspNetCoreWebApi.Controllers
             response.Body.Write(_postOk, 0, 2);
         }
 
-        private Task SkipFailed(Action work, HttpResponse response)
+        private Task SkipFailed(Action work, HttpResponse response, bool enabled)
         {
-            long start = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+            if (enabled)
+            {
+                long start = DateTimeOffset.Now.ToUnixTimeMilliseconds();
 
-            return Task.Run(() => {
+                return Task.Run(() => {
 
-                if (DateTimeOffset.Now.ToUnixTimeMilliseconds() - start > 1500)
-                {
-                    response.StatusCode = 400;
-                    return;
-                }
+                    if (DateTimeOffset.Now.ToUnixTimeMilliseconds() - start > 200)
+                    {
+                        response.StatusCode = 400;
+                        return;
+                    }
 
-                work();
-            });
+                    work();
+                });
+            }
+            else
+            {
+                return Task.Run(work);
+            }
         }
 
         public Task Create(HttpRequest request, HttpResponse response)
@@ -130,17 +140,27 @@ namespace AspNetCoreWebApi.Controllers
                 {
                     response.StatusCode = 400;
                 }
-            }, response);
+            },
+            response,
+            _groupsPreprocessor.IndexRemoved);
         }
 
         public Task Group(HttpRequest request, HttpResponse response)
         {
+            if (_groupsPreprocessor.IndexRemoved)
+            {
+                response.StatusCode = 400;
+                return Task.CompletedTask;
+            }
+
             return SkipFailed(() => {
                 if (!_groupProcessor.Process(response, request.Query))
                 {
                     response.StatusCode = 400;
                 }
-            }, response);
+            },
+            response,
+            _groupsPreprocessor.IndexRemoved);
         }
 
         public Task Recommend(HttpRequest request, HttpResponse response, int id)
@@ -156,7 +176,9 @@ namespace AspNetCoreWebApi.Controllers
                 {
                     response.StatusCode = 400;
                 }
-            }, response);
+            },
+            response,
+            _groupsPreprocessor.IndexRemoved);
         }
 
         public Task Suggest(HttpRequest request, HttpResponse response, int id)
@@ -172,7 +194,9 @@ namespace AspNetCoreWebApi.Controllers
                 {
                     response.StatusCode = 400;
                 }
-            }, response);
+            },
+            response,
+            _groupsPreprocessor.IndexRemoved);
         }
     }
 }
