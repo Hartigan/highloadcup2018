@@ -156,7 +156,7 @@ namespace AspNetCoreWebApi.Processing
                 .Merge(newLikesObservable.Select(_ => Interlocked.Increment(ref _editQuery)));
 
             _secondPhaseEndSubscription = updateObservable
-                .Throttle(TimeSpan.FromMilliseconds(1000))
+                .Throttle(TimeSpan.FromMilliseconds(2000))
                 .Subscribe(_ =>
                     {
                         _postWorker.Enqueue(PostEvent.End());
