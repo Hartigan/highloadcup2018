@@ -87,7 +87,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public IIterator<int> Filter(FilterRequest.PhoneRequest phone, IdStorage idStorage)
+        public IIterator Filter(FilterRequest.PhoneRequest phone, IdStorage idStorage)
         {
             if (phone.IsNull.HasValue)
             {

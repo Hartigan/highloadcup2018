@@ -92,7 +92,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return nameId > 0;
         }
 
-        public IIterator<int> Filter(
+        public IIterator Filter(
             FilterRequest.FnameRequest fname,
             IdStorage idStorage)
         {
@@ -126,7 +126,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (fname.Any.Count > 0)
             {
-                List<IIterator<int>> enumerators = new List<IIterator<int>>(fname.Any.Count);
+                List<IIterator> enumerators = new List<IIterator>(fname.Any.Count);
                 for(int i = 0; i < fname.Any.Count; i++)
                 {
                     int nameId = _storage.Get(fname.Any[i]);

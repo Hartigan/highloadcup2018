@@ -115,7 +115,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public IEnumerable<IIterator<int>> Filter(FilterRequest.LikesRequest likes)
+        public IEnumerable<IIterator> Filter(FilterRequest.LikesRequest likes)
         {
             foreach(var likee in likes.Contains)
             {

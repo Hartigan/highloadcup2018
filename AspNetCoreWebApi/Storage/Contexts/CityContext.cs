@@ -65,7 +65,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return _raw[id];
         }
 
-        public IIterator<int> Filter(
+        public IIterator Filter(
             FilterRequest.CityRequest city,
             IdStorage ids,
             CityStorage cities)

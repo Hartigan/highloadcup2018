@@ -43,7 +43,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return _emails[id];
         }
 
-        public IIterator<int> Filter(
+        public IIterator Filter(
             FilterRequest.EmailRequest email,
             DomainStorage domainStorage,
             IdStorage idStorage)
@@ -69,20 +69,20 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     string prefix = _emails[x].Prefix;
                     return string.Compare(prefix, email.Gt) > 0 &&
                         string.Compare(prefix, email.Lt) < 0;
-                }).GetIterator(ReverseComparer<int>.Default);
+                }).GetIterator();
             }
 
             if (email.Gt != null)
             {
                 return result
                     .Where(x => string.Compare(_emails[x].Prefix, email.Gt) > 0)
-                    .GetIterator(ReverseComparer<int>.Default);
+                    .GetIterator();
             }
             else if (email.Lt != null)
             {
                 return result
                     .Where(x => string.Compare(_emails[x].Prefix, email.Lt) < 0)
-                    .GetIterator(ReverseComparer<int>.Default);
+                    .GetIterator();
             }
 
             return withDomain.GetIterator();

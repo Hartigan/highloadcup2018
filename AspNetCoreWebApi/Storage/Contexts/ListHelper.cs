@@ -39,7 +39,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return list.BinarySearch(id, ReverseComparer<int>.Default) >= 0;
         }
 
-        public static IIterator<int> Distinct(this IIterator<int> iterator)
+        public static IIterator Distinct(this IIterator iterator)
         {
             return new DistinctIterator(iterator);
         }
@@ -78,17 +78,17 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public static IIterator<T> MergeSort<T>(this List<IIterator<T>> iterators)
+        public static IIterator MergeSort(this List<IIterator> iterators)
         {
             if (iterators.Count == 1)
             {
                 return iterators[0];
             }
 
-            IIterator<T> current = new MergeSortIterator<T>(iterators[0], iterators[1]);
+            IIterator current = new MergeSortIterator(iterators[0], iterators[1]);
             for(int i = 2; i < iterators.Count; i++)
             {
-                current = new MergeSortIterator<T>(current, iterators[i]);
+                current = new MergeSortIterator(current, iterators[i]);
             }
 
             return current;
@@ -171,16 +171,16 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return ~lower;
         }
 
-        public static IIterator<T> GetIterator<T>(this DelaySortedList<T> list)
+        public static IIterator GetIterator(this DelaySortedList<int> list)
         {
-            return new SortedListIterator<T>(list.GetList(), list.Comparer);
+            return new SortedListIterator(list.GetList());
         }
 
-        public static IIterator<T> GetIterator<T>(this IEnumerable<T> list, IComparer<T> comparer)
+        public static IIterator GetIterator(this IEnumerable<int> list)
         {
-            return new SortedEnumerableIterator<T>(list, comparer);
+            return new SortedEnumerableIterator(list);
         }
 
-        public static IIterator<int> EmptyInt { get; } = new EmptyIterator<int>(ReverseComparer<int>.Default); 
+        public static IIterator EmptyInt { get; } = new EmptyIterator(); 
     }
 }

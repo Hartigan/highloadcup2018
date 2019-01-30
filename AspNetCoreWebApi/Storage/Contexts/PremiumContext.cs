@@ -88,7 +88,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public IIterator<int> Filter(
+        public IIterator Filter(
             FilterRequest.PremiumRequest premium,
             IdStorage ids)
         {

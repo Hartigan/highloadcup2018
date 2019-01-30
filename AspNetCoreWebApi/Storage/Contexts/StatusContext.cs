@@ -69,7 +69,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public IIterator<int> Filter(FilterRequest.StatusRequest status)
+        public IIterator Filter(FilterRequest.StatusRequest status)
         {
             if (status.Eq == status.Neq)
             {
@@ -81,7 +81,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 return _groups[(int)status.Eq.Value].GetIterator();
             }
 
-            List<IIterator<int>> enumerators = new List<IIterator<int>>(2);
+            List<IIterator> enumerators = new List<IIterator>(2);
             for(int i = 0; i < 3; i++)
             {
                 if (i == (int)status.Neq)

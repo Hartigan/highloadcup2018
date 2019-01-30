@@ -2,20 +2,15 @@ using System.Collections.Generic;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class EmptyIterator<T> : IIterator<T>
+    public class EmptyIterator : IIterator
     {
-        public T Current => throw new System.NotImplementedException();
-        public IComparer<T> Comparer => _comparer;
+        public int Current => throw new System.NotImplementedException();
         public bool Completed => true;
-
-        private readonly IComparer<T> _comparer;
-
-        public EmptyIterator(IComparer<T> comparer)
+        public EmptyIterator()
         {
-            _comparer = comparer;
         }
 
-        public bool MoveNext(T item)
+        public bool MoveNext(int item)
         {
             return false;
         }

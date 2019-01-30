@@ -2,22 +2,21 @@ using System.Collections.Generic;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class DistinctIterator : IIterator<int>
+    public class DistinctIterator : IIterator
     {
-        private readonly IIterator<int> _iterator;
+        private readonly IIterator _iterator;
         private int _current = -1;
         public int Current => _current;
-        public IComparer<int> Comparer => _iterator.Comparer;
         public bool Completed => _iterator.Completed;
 
-        public DistinctIterator(IIterator<int> iterator)
+        public DistinctIterator(IIterator iterator)
         {
             _iterator = iterator;
         }
 
         public bool MoveNext(int item)
         {
-            while (_iterator.MoveNext(item) && _iterator.Comparer.Compare(_iterator.Current, _current) == 0)
+            while (_iterator.MoveNext(item) && _current - _iterator.Current == 0)
             {
             }
 

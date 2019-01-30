@@ -1,25 +1,21 @@
 using System.Collections.Generic;
+using AspNetCoreWebApi.Processing;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class SortedListIterator<T> : IIterator<T>
+    public class SortedListIterator : IIterator
     {
         private int _current = -1;
-        private readonly IComparer<T> _comparer;
-        private readonly List<T> _list;
+        private readonly List<int> _list;
 
-        public SortedListIterator(List<T> list, IComparer<T> comparer)
+        public SortedListIterator(List<int> list)
         {
             _list = list;
-            _comparer = comparer;
         }
 
-        public T Current => _list[_current];
-
-        public IComparer<T> Comparer => _comparer;
-
+        public int Current => _list[_current];
         public bool Completed => _current == _list.Count;
-        public bool MoveNext(T item)
+        public bool MoveNext(int item)
         {
             int startSearch = _current + 1;
 
@@ -29,13 +25,13 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 return false;
             }
 
-            if (_comparer.Compare(_list[startSearch], item) >= 0)
+            if (item - _list[startSearch] >= 0)
             {
                 _current = startSearch;
                 return true;
             }
 
-            int index = _list.BinarySearch(startSearch, _list.Count - startSearch, item, _comparer);
+            int index = _list.BinarySearch(startSearch, _list.Count - startSearch, item, ReverseComparer<int>.Default);
             if (index < 0)
             {
                 index = ~index;

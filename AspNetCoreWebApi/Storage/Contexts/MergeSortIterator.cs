@@ -2,22 +2,21 @@ using System.Collections.Generic;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public class MergeSortIterator<T> : IIterator<T>
+    public class MergeSortIterator : IIterator
     {
-        private readonly IIterator<T> _a;
-        private readonly IIterator<T> _b;
-        private IIterator<T> _current;
-        public T Current => _current.Current;
-        public IComparer<T> Comparer => _b.Comparer;
+        private readonly IIterator _a;
+        private readonly IIterator _b;
+        private IIterator _current;
+        public int Current => _current.Current;
         public bool Completed => _a.Completed && _b.Completed;
 
-        public MergeSortIterator(IIterator<T> a, IIterator<T> b)
+        public MergeSortIterator(IIterator a, IIterator b)
         {
             _a = a;
             _b = b;
         }
 
-        public bool MoveNext(T item)
+        public bool MoveNext(int item)
         {
             if (Completed)
             {
@@ -39,7 +38,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     }
                     else
                     {
-                        if (Comparer.Compare(_current.Current, _b.Current) > 0)
+                        if (_b.Current - _current.Current > 0)
                         {
                             _current = _b;
                         }
@@ -58,7 +57,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     return true;
                 }
 
-                if (Comparer.Compare(another.Current, item) < 0)
+                if (item - another.Current < 0)
                 {
                     if (!another.MoveNext(item))
                     {
@@ -66,7 +65,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     }
                 }
 
-                if (Comparer.Compare(_current.Current, another.Current) > 0)
+                if (another.Current - _current.Current > 0)
                 {
                     _current = another;
                 }
@@ -79,7 +78,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 return false;
             }
 
-            if (Comparer.Compare(another.Current, item) < 0)
+            if (item - another.Current < 0)
             {
                 if (another.MoveNext(item))
                 {

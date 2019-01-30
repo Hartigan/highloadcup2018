@@ -64,7 +64,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return _raw[id];
         }
 
-        public IIterator<int> Filter(
+        public IIterator Filter(
             FilterRequest.CountryRequest country,
             IdStorage ids,
             CountryStorage countries)

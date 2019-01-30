@@ -47,7 +47,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
         public UnixTime Get(int id) => _id2time[id];
 
-        public IIterator<int> Filter(FilterRequest.BirthRequest birth, IdStorage idStorage)
+        public IIterator Filter(FilterRequest.BirthRequest birth, IdStorage idStorage)
         {
             if (birth.Year.HasValue)
             {
@@ -85,11 +85,11 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     result = result.Where(x => _id2time[x] < birth.Lt.Value);
                 }
 
-                return result.GetIterator(ReverseComparer<int>.Default);
+                return result.GetIterator();
             }
             else
             {
-                List<IIterator<int>> enumerators = new List<IIterator<int>>();
+                List<IIterator> enumerators = new List<IIterator>();
 
                 if (birth.Lt.HasValue && birth.Gt.HasValue)
                 {
@@ -109,7 +109,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                             enumerators.Add(
                                 pair.Value
                                     .Where(x => _id2time[x] > birth.Gt.Value && _id2time[x] < birth.Lt.Value)
-                                    .GetIterator(ReverseComparer<int>.Default)
+                                    .GetIterator()
                             );
                         }
                         else if (pair.Key == birth.Gt.Value.Year)
@@ -117,7 +117,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                             enumerators.Add(
                                 pair.Value
                                     .Where(x => _id2time[x] > birth.Gt.Value)
-                                    .GetIterator(ReverseComparer<int>.Default)
+                                    .GetIterator()
                             );
                         }
                         else if (pair.Key == birth.Lt.Value.Year)
@@ -125,7 +125,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                             enumerators.Add(
                                 pair.Value
                                     .Where(x => _id2time[x] < birth.Lt.Value)
-                                    .GetIterator(ReverseComparer<int>.Default)
+                                    .GetIterator()
                             );
                         }
                     }
@@ -143,7 +143,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                             enumerators.Add(
                                 pair.Value
                                     .Where(x => _id2time[x] < birth.Lt.Value)
-                                    .GetIterator(ReverseComparer<int>.Default)
+                                    .GetIterator()
                             );
                         }
                     }
@@ -161,7 +161,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                             enumerators.Add(
                                 pair.Value
                                     .Where(x => _id2time[x] > birth.Gt.Value)
-                                    .GetIterator(ReverseComparer<int>.Default)
+                                    .GetIterator()
                             );
                         }
                     }

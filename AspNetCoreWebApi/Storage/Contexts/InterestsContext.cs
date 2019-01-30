@@ -73,9 +73,9 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public IIterator<int> FilterAny(List<string> any)
+        public IIterator FilterAny(List<string> any)
         {
-            List<IIterator<int>> enumerators = new List<IIterator<int>>(any.Count);
+            List<IIterator> enumerators = new List<IIterator>(any.Count);
 
             for(int i = 0; i < any.Count; i++)
             {
@@ -89,7 +89,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return enumerators.MergeSort().Distinct();
         }
 
-        public IEnumerable<IIterator<int>> FilterContains(List<string> contains)
+        public IEnumerable<IIterator> FilterContains(List<string> contains)
         {
             for(int i = 0; i < contains.Count; i++)
             {

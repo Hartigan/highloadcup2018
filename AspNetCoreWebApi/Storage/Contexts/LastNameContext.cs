@@ -96,7 +96,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return nameId > 0;
         }
 
-        public IIterator<int> Filter(FilterRequest.SnameRequest sname, IdStorage idStorage)
+        public IIterator Filter(FilterRequest.SnameRequest sname, IdStorage idStorage)
         {
             if (sname.IsNull != null)
             {
@@ -127,7 +127,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
 
             if (sname.Starts != null)
             {
-                List<IIterator<int>> enumerators = new List<IIterator<int>>();
+                List<IIterator> enumerators = new List<IIterator>();
 
                 foreach(var nameId in _storage.StartWith(sname.Starts))
                 {

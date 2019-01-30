@@ -2,11 +2,10 @@ using System.Collections.Generic;
 
 namespace AspNetCoreWebApi.Storage.Contexts
 {
-    public interface IIterator<T>
+    public interface IIterator
     {
-        T Current { get; }
-        bool MoveNext(T item);
-        IComparer<T> Comparer { get; }
+        int Current { get; }
+        bool MoveNext(int item);
         bool Completed { get; }
         void Reset();
     }

@@ -54,7 +54,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
             return _raw[id];
         }
 
-        public IIterator<int> Filter(FilterRequest.SexRequest sex)
+        public IIterator Filter(FilterRequest.SexRequest sex)
         {
             if (sex.IsFemale && sex.IsMale)
             {
