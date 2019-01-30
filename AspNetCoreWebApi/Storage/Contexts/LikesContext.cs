@@ -65,7 +65,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                     if (import)
                     {
                         var rawList = list.GetList();
-                        int index = rawList.BinarySearch(like.LikerId, ReverseComparer<int>.Default);
+                        int index = rawList.CustomBinarySearch(like.LikerId);
                         if (index < 0)
                         {
                             list.Insert(~index, like.LikerId);

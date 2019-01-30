@@ -6,39 +6,6 @@ namespace AspNetCoreWebApi.Storage.Contexts
 {
     public static class ListHelper
     {
-        public static void SortedInsert(this List<int> list, int id)
-        {
-            int index = list.BinarySearch(id, ReverseComparer<int>.Default);
-            if (index < 0)
-            {
-                list.Insert(~index, id);
-            }
-        }
-
-        public static bool SortedRemove(this List<int> list, int id)
-        {
-            int index = list.BinarySearch(id, ReverseComparer<int>.Default);
-            if (index >= 0)
-            {
-                list.RemoveAt(index);
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        public static void FilterSort(this List<int> list)
-        {
-            list.Sort(ReverseComparer<int>.Default);
-        }
-
-        public static bool FilterSearch(this List<int> list, int id)
-        {
-            return list.BinarySearch(id, ReverseComparer<int>.Default) >= 0;
-        }
-
         public static IIterator Distinct(this IIterator iterator)
         {
             return new DistinctIterator(iterator);
@@ -145,21 +112,45 @@ namespace AspNetCoreWebApi.Storage.Contexts
             }
         }
 
-        public static int BinarySearch<T>(
-            this List<T> list,
-            int index,
-            int length,
-            T value,
-            IComparer<T> comparer
+        public static int CustomBinarySearch(
+            this List<int> list,
+            int value
         )
         {
+            return list.CustomBinarySearch(0, list.Count, value);
+        }
+
+        public static int CustomBinarySearch(
+            this List<int> list,
+            int index,
+            int length,
+            int value
+        )
+        {
+            if (length < 10)
+            {
+                for(int i = 0; i < length; i++)
+                {
+                    int pos = index + i;
+                    int comparison = value - list[pos];
+                    if (comparison == 0)
+                    {
+                        return pos;
+                    }
+                    else if (comparison > 0)
+                    {
+                        return ~pos;
+                    }
+                }
+            }
+
             int lower = index;
             int upper = (index + length) - 1;
 
             while (lower <= upper)
             {
                 int adjustedIndex = lower + ((upper - lower) >> 1);
-                int comparison = comparer.Compare(list[adjustedIndex], value);
+                int comparison = value - list[adjustedIndex];
                 if (comparison == 0)
                     return adjustedIndex;
                 else if (comparison < 0)

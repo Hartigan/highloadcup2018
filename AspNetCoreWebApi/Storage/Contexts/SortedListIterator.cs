@@ -31,7 +31,7 @@ namespace AspNetCoreWebApi.Storage.Contexts
                 return true;
             }
 
-            int index = _list.BinarySearch(startSearch, _list.Count - startSearch, item, ReverseComparer<int>.Default);
+            int index = _list.CustomBinarySearch(startSearch, _list.Count - startSearch, item);
             if (index < 0)
             {
                 index = ~index;
