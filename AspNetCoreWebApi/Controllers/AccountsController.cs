@@ -41,13 +41,12 @@ namespace AspNetCoreWebApi.Controllers
             _storage = mainStorage;
         }
 
-        private static byte[] _postOk = new byte[2] { 123, 125 };
-
         private void WritePostOk(HttpResponse response)
         {
             response.ContentType = "application/json";
             response.ContentLength = 2;
-            response.Body.Write(_postOk, 0, 2);
+            response.Body.WriteByte(123);
+            response.Body.WriteByte(125);
         }
 
         private Task SkipFailed(Action work, HttpResponse response, bool enabled)
