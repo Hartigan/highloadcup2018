@@ -3,8 +3,6 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp2.2</TargetFramework>
     <ServerGarbageCollection>true</ServerGarbageCollection>
-    <ThreadPoolMinThreads>4</ThreadPoolMinThreads>
-    <ThreadPoolMaxThreads>4</ThreadPoolMaxThreads>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
