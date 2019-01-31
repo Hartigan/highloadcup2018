@@ -45,8 +45,6 @@ namespace AspNetCoreWebApi.Processing.Pooling
 
         public DefaultObjectPool<Dictionary<int, List<LikeBucket>>> DictionaryOfLikeBucketsByInt { get; } = new DefaultObjectPool<Dictionary<int, List<LikeBucket>>>(new DictionaryPolicy<int, List<LikeBucket>>());
 
-        public DefaultObjectPool<List<Group>> ListOfGroup { get; } = new DefaultObjectPool<List<Group>>(new ListPolicy<Group>());
-
         public DefaultObjectPool<List<SingleLikeDto>> ListOfLikeDto { get; } = new DefaultObjectPool<List<SingleLikeDto>>(new ListPolicy<SingleLikeDto>());
 
         public DefaultObjectPool<FilterSet> FilterSet { get; } = new DefaultObjectPool<FilterSet>(new GenericPolicy<FilterSet>());

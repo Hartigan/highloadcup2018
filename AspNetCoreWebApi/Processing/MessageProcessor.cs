@@ -270,11 +270,6 @@ namespace AspNetCoreWebApi.Processing
 
         public GroupResponse Group(GroupRequest request)
         {
-            if (_groupPreprocessor.IndexRemoved && request.KeyOrder.Count > 1)
-            {
-                return _pool.GroupResponse.Get();;
-            }
-
             var result = _pool.FilterSet.Get();
             var filterList = _pool.ListOfLists.Get();
             bool inited = false;

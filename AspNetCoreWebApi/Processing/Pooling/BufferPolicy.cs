@@ -13,7 +13,6 @@ namespace AspNetCoreWebApi.Processing.Pooling
 
         public bool Return(byte[] obj)
         {
-            Array.Clear(obj, 0, obj.Length);
             return true;
         }
     }
